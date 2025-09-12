@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Habit Tracker Style System - Live Demo</title>
+</head>
+<body>
+    <!-- ========================================
+         COLORS.JS - Separate Color Definitions
+    ======================================== -->
+    <script id="colors-js">
+        // colors.js - Export color system
+        const colors = {
+            // Primary Colors
+            primary: '#FF9500',
+            primaryLight: '#FFB84D', 
+            primaryDark: '#FF7A00',
+            
+            // Success Colors
+            success: '#34C759',
+            successLight: '#4CD964',
+            
+            // Background Colors
+            background: '#FFF0E6',  // Peachy-pink from mockup
+            cardBackground: '#FFFFFF',
+            
+            // Text Colors
+            textPrimary: '#1D1D1F',
+            textSecondary: '#86868B',
+            textTertiary: '#C7C7CC',
+            
+            // System Colors
+            iosBlue: '#007AFF',
+            iosRed: '#FF3B30',
+            iosGray: '#8E8E93',
+            
+            // Semantic Colors
+            error: '#FF3B30',
+            warning: '#FF9500',
+            info: '#007AFF',
+            
+            // Shadow
+            shadowColor: 'rgba(0, 0, 0, 0.1)'
+        };
+
+        // Apply colors to CSS variables
+        function applyColors() {
+            const root = document.documentElement;
+            Object.keys(colors).forEach(key => {
+                root.style.setProperty(`--color-${key}`, colors[key]);
+            });
+        }
+        applyColors();
+    </script>
+
+    <!-- ========================================
+         TYPOGRAPHY.JS - Separate Typography Definitions  
+    ======================================== -->
+    <script id="typography-js">
+        // typography.js - Export typography system
+        const typography = {
+            // Font Family
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif',
+            
+            // Font Sizes (iOS scale)
+            largeTitle: { fontSize: '34px', fontWeight: '700', lineHeight: '1.2' },
+            title1: { fontSize: '28px', fontWeight: '600', lineHeight: '1.2' },
+            title2: { fontSize: '22px', fontWeight: '600', lineHeight: '1.3' },
+            title3: { fontSize: '20px', fontWeight: '600', lineHeight: '1.3' },
+            headline: { fontSize: '17px', fontWeight: '600', lineHeight: '1.3' },
+            body: { fontSize: '17px', fontWeight: '400', lineHeight: '1.4' },
+            callout: { fontSize: '16px', fontWeight: '400', lineHeight: '1.4' },
+            subhead: { fontSize: '15px', fontWeight: '400', lineHeight: '1.4' },
+            footnote: { fontSize: '13px', fontWeight: '400', lineHeight: '1.4' },
+            caption1: { fontSize: '12px', fontWeight: '400', lineHeight: '1.3' },
+            caption2: { fontSize: '11px', fontWeight: '400', lineHeight: '1.3' }
+        };
+
+        // Apply typography to CSS
+        function applyTypography() {
+            const style = document.createElement('style');
+            style.textContent = `
+                body { font-family: ${typography.fontFamily}; }
+                ${Object.keys(typography).map(key => {
+                    if (typeof typography[key] === 'object') {
+                        return `.text-${key.replace(/([A-Z])/g, '-$1').toLowerCase()} {
+                            font-size: ${typography[key].fontSize};
+                            font-weight: ${typography[key].fontWeight};
+                            line-height: ${typography[key].lineHeight};
+                        }`;
+                    }
+                    return '';
+                }).join('\n')}
+            `;
+            document.head.appendChild(style);
+        }
+        applyTypography();
+    </script>
+
+    <!-- ========================================
+         LAYOUT.JS - Separate Layout Definitions
+    ======================================== -->
+    <script id="layout-js">
+        // layout.js - Export layout system
+        const layout = {
+            // Spacing Scale (8pt grid)
+            spacing: {
+                xs: '4px',
+                sm: '8px', 
+                md: '16px',
+                lg: '24px',
+                xl: '32px',
+                xxl: '48px'
+            },
+            
+            // Squircle Border Radius
+            squircle: {
+                small: '12px',
+                medium: '16px', 
+                large: '22px',  // Main cards
+                xl: '28px'
+            },
+            
+            // Shadows (iOS-style)
+            shadows: {
+                card: '0 2px 8px var(--color-shadowColor)',
+                button: '0 1px 4px var(--color-shadowColor)',
+                floating: '0 4px 16px rgba(0, 0, 0, 0.15)'
+            },
+            
+            // Component Dimensions
+            button: {
+                height: '50px',
+                heightSmall: '36px',
+                heightLarge: '56px'
+            },
+            
+            // Card Specifications
+            card: {
+                paddingHorizontal: '20px',
+                paddingVertical: '16px',
+                marginHorizontal: '16px',
+                marginVertical: '8px'
+            },
+            
+            // Touch Targets
+            touchTarget: {
+                minimum: '44px'
+            }
+        };
+
+        // Apply layout to CSS
+        function applyLayout() {
+            const style = document.createElement('style');
+            style.textContent = `
+                :root {
+                    ${Object.keys(layout.spacing).map(key => 
+                        `--spacing-${key}: ${layout.spacing[key]};`
+                    ).join('\n')}
+                    
+                    ${Object.keys(layout.squircle).map(key => 
+                        `--squircle-${key}: ${layout.squircle[key]};`
+                    ).join('\n')}
+                }
+                
+                .card {
+                    background-color: var(--color-cardBackground);
+                    border-radius: var(--squircle-large);
+                    box-shadow: ${layout.shadows.card};
+                    padding: ${layout.card.paddingVertical} ${layout.card.paddingHorizontal};
+                    margin: ${layout.card.marginVertical} ${layout.card.marginHorizontal};
+                }
+                
+                .btn-primary {
+                    height: ${layout.button.height};
+                    border-radius: var(--squircle-medium);
+                    box-shadow: ${layout.shadows.button};
+                }
+                
+                .spacing-sm { padding: var(--spacing-sm); }
+                .spacing-md { padding: var(--spacing-md); }
+                .spacing-lg { padding: var(--spacing-lg); }
+            `;
+            document.head.appendChild(style);
+        }
+        applyLayout();
+    </script>
+
+    <!-- ========================================
+         INDEX.JS - Unified Theme System
+    ======================================== -->
+    <script id="index-js">
+        // index.js - Export unified theme
+        const theme = {
+            colors,
+            typography, 
+            layout,
+            
+            // Component presets using the above systems
+            components: {
+                card: {
+                    backgroundColor: colors.cardBackground,
+                    borderRadius: layout.squircle.large,
+                    boxShadow: layout.shadows.card,
+                    padding: `${layout.card.paddingVertical} ${layout.card.paddingHorizontal}`
+                },
+                
+                buttonPrimary: {
+                    backgroundColor: colors.primary,
+                    color: colors.cardBackground,
+                    borderRadius: layout.squircle.medium,
+                    height: layout.button.height,
+                    boxShadow: layout.shadows.button
+                },
+                
+                text: {
+                    primary: { color: colors.textPrimary },
+                    secondary: { color: colors.textSecondary }
+                }
+            }
+        };
+
+        // Global theme application
+        function applyTheme() {
+            const style = document.createElement('style');
+            style.textContent = `
+                body {
+                    margin: 0;
+                    padding: 0;
+                    background-color: ${theme.colors.background};
+                    color: ${theme.colors.textPrimary};
+                    font-family: ${theme.typography.fontFamily};
+                }
+                
+                .demo-container {
+                    max-width: 375px;
+                    margin: 20px auto;
+                    background-color: ${theme.colors.background};
+                    min-height: 100vh;
+                    padding: 20px 0;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        applyTheme();
+
+        // Export for console debugging
+        window.theme = theme;
+        console.log('🎨 Theme System Loaded:', theme);
+    </script>
+
+    <!-- ========================================
+         VISUAL DEMO - Using Imported Styles
+    ======================================== -->
+    <div class="demo-container">
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 24px; padding: 0 16px;">
+            <h1 class="text-large-title">Style System Demo</h1>
+            <p class="text-body" style="color: var(--color-textSecondary);">Live preview using imported style files</p>
+        </div>
+
+        <!-- Color Palette -->
+        <div style="margin-bottom: 32px;">
+            <h2 style="padding: 0 16px; margin-bottom: 16px;" class="text-title2">colors.js</h2>
+            <div class="card">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                    <div style="background: var(--color-primary); padding: 16px; border-radius: var(--squircle-medium); color: white; text-align: center;">
+                        <div class="text-footnote">Primary</div>
+                        <div class="text-caption" id="primary-color-value">#FF9500</div>
+                    </div>
+                    <div style="background: var(--color-success); padding: 16px; border-radius: var(--squircle-medium); color: white; text-align: center;">
+                        <div class="text-footnote">Success</div>
+                        <div class="text-caption">#34C759</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Typography Scale -->
+        <div style="margin-bottom: 32px;">
+            <h2 style="padding: 0 16px; margin-bottom: 16px;" class="text-title2">typography.js</h2>
+            <div class="card">
+                <div class="text-large-title" style="margin-bottom: 8px;">Large Title</div>
+                <div class="text-title1" style="margin-bottom: 8px;">Title 1</div>
+                <div class="text-title2" style="margin-bottom: 8px;">Title 2</div>
+                <div class="text-body" style="margin-bottom: 8px;">Body Text</div>
+                <div class="text-subhead">Subhead Text</div>
+            </div>
+        </div>
+
+        <!-- Layout System -->
+        <div style="margin-bottom: 32px;">
+            <h2 style="padding: 0 16px; margin-bottom: 16px;" class="text-title2">layout.js</h2>
+            <div class="card">
+                <div style="margin-bottom: 16px;">
+                    <div class="text-headline" style="margin-bottom: 8px;">Squircle Sizes:</div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div style="width: 40px; height: 40px; background: var(--color-primary); border-radius: var(--squircle-small);"></div>
+                        <div style="width: 40px; height: 40px; background: var(--color-primary); border-radius: var(--squircle-medium);"></div>
+                        <div style="width: 40px; height: 40px; background: var(--color-primary); border-radius: var(--squircle-large);"></div>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="text-headline" style="margin-bottom: 8px;">Spacing Scale:</div>
+                    <div style="display: flex; gap: 4px; align-items: end;">
+                        <div style="width: 20px; height: var(--spacing-xs); background: var(--color-iosBlue);"></div>
+                        <div style="width: 20px; height: var(--spacing-sm); background: var(--color-iosBlue);"></div>
+                        <div style="width: 20px; height: var(--spacing-md); background: var(--color-iosBlue);"></div>
+                        <div style="width: 20px; height: var(--spacing-lg); background: var(--color-iosBlue);"></div>
+                        <div style="width: 20px; height: var(--spacing-xl); background: var(--color-iosBlue);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Habit Tracker UI Recreation -->
+        <div style="margin-bottom: 32px;">
+            <h2 style="padding: 0 16px; margin-bottom: 16px;" class="text-title2">index.js - Unified Theme</h2>
+            
+            <!-- Calendar Card -->
+            <div class="card">
+                <div style="display: flex; justify-content: center; gap: var(--spacing-lg); margin-bottom: var(--spacing-md);">
+                    <div style="text-align: center;">
+                        <div class="text-caption" style="color: var(--color-textSecondary); text-transform: uppercase;">Wed</div>
+                        <div class="text-title2">9</div>
+                    </div>
+                    <div style="text-align: center; color: var(--color-primary);">
+                        <div class="text-caption" style="text-transform: uppercase;">Thu</div>
+                        <div class="text-title2">10</div>
+                    </div>
+                    <div style="text-align: center;">
+                        <div class="text-caption" style="color: var(--color-textSecondary); text-transform: uppercase;">Fri</div>
+                        <div class="text-title2">11</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                    <span class="text-body">Office work</span>
+                    <div style="width: 24px; height: 24px; border-radius: var(--squircle-small); background-color: var(--color-success); display: flex; align-items: center; justify-content: center; color: white; font-size: 16px;">✓</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="text-body">Make fun</span>
+                    <div style="width: 24px; height: 24px; border: 2px solid #E5E5EA; border-radius: var(--squircle-small);"></div>
+                </div>
+            </div>
+
+            <!-- Quote Card -->
+            <div style="background: linear-gradient(135deg, var(--color-primary), var(--color-primaryDark)); border-radius: var(--squircle-large); padding: var(--spacing-lg); margin: var(--spacing-sm) var(--spacing-md); color: white;">
+                <div class="text-title3" style="margin-bottom: var(--spacing-sm);">Quote of the day</div>
+                <div class="text-callout" style="opacity: 0.9;">It takes at least 21 days to make a habit, and one to break it.</div>
+            </div>
+
+            <!-- Habit Card -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--spacing-md);">
+                    <div>
+                        <div class="text-title3" style="margin-bottom: 4px;">Office work</div>
+                        <div class="text-footnote" style="color: var(--color-success);">Completed</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-md);">
+                    <div style="display: flex; align-items: center; gap: var(--spacing-sm);">
+                        <span style="font-size: 16px;">⏰</span>
+                        <span class="text-subhead" style="color: var(--color-textSecondary);">12:00 AM</span>
+                    </div>
+                    <div style="background-color: #F2F2F7; padding: 4px var(--spacing-sm); border-radius: var(--squircle-small); font-size: 13px; color: var(--color-textSecondary);">Everyday</div>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div class="text-footnote" style="color: var(--color-textSecondary); margin-bottom: 4px;">🔥 Habit Streak - 6</div>
+                        <div style="display: flex; gap: 4px;">
+                            <div style="width: 32px; height: 32px; border-radius: 16px; background-color: #FF3B30; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 600;">30</div>
+                            <div style="width: 32px; height: 32px; border-radius: 16px; background-color: #FFC266; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 600;">1</div>
+                            <div style="width: 32px; height: 32px; border-radius: 16px; background-color: #FFB84D; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 600;">2</div>
+                            <div style="width: 32px; height: 32px; border-radius: 16px; background-color: var(--color-primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 600;">3</div>
+                            <div style="width: 32px; height: 32px; border-radius: 16px; background-color: #FF8C00; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 600;">4</div>
+                            <div style="width: 32px; height: 32px; border-radius: 16px; background-color: #FF6B35; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 600;">10</div>
+                        </div>
+                    </div>
+                    <button style="background-color: #F2F2F7; color: var(--color-textSecondary); border: none; border-radius: var(--squircle-small); padding: var(--spacing-sm) var(--spacing-md); font-size: 14px; font-weight: 500;">Edit</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buttons Demo -->
+        <div style="margin-bottom: 32px;">
+            <h2 style="padding: 0 16px; margin-bottom: 16px;" class="text-title2">Button System</h2>
+            <div style="padding: 0 var(--spacing-md); display: flex; flex-direction: column; gap: var(--spacing-md);">
+                <button class="btn-primary" style="width: 100%; background-color: var(--color-primary); color: white; border: none; border-radius: var(--squircle-medium); height: ${layout.button.height}; font-size: 17px; font-weight: 600; cursor: pointer; transition: transform 0.15s ease;">
+                    + Add Habit
+                </button>
+                <button style="width: 100%; background-color: #F2F2F7; color: var(--color-textPrimary); border: none; border-radius: var(--squircle-medium); height: ${layout.button.height}; font-size: 17px; font-weight: 500; cursor: pointer;">
+                    Secondary Button
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Style Editor -->
+        <div style="margin-bottom: 100px;">
+            <h2 style="padding: 0 16px; margin-bottom: 16px;" class="text-title2">Live Style Editor</h2>
+            <div class="card">
+                <div class="text-headline" style="margin-bottom: var(--spacing-md);">Modify Values Live:</div>
+                
+                <div style="margin-bottom: var(--spacing-md);">
+                    <label class="text-subhead" style="display: block; margin-bottom: 4px;">Primary Color:</label>
+                    <input type="color" id="primary-color" value="#FF9500" style="width: 100%; height: 40px; border: none; border-radius: var(--squircle-small);">
+                </div>
+                
+                <div style="margin-bottom: var(--spacing-md);">
+                    <label class="text-subhead" style="display: block; margin-bottom: 4px;">Card Border Radius:</label>
+                    <input type="range" id="card-radius" min="8" max="40" value="22" style="width: 100%;">
+                    <span class="text-caption" style="color: var(--color-textSecondary);" id="radius-value">22px</span>
+                </div>
+                
+                <div style="margin-bottom: var(--spacing-md);">
+                    <label class="text-subhead" style="display: block; margin-bottom: 4px;">Card Padding:</label>
+                    <input type="range" id="card-padding" min="8" max="40" value="20" style="width: 100%;">
+                    <span class="text-caption" style="color: var(--color-textSecondary);" id="padding-value">20px</span>
+                </div>
+                
+                <button onclick="exportStyles()" style="background-color: var(--color-iosBlue); color: white; border: none; border-radius: var(--squircle-small); padding: var(--spacing-sm) var(--spacing-md); font-size: 14px; font-weight: 500; width: 100%;">
+                    Export Current Styles
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div style="position: fixed; bottom: 20px; left: 16px; right: 16px; max-width: 343px; margin: 0 auto;">
+            <div style="background-color: var(--color-cardBackground); border-radius: var(--squircle-large); box-shadow: ${layout.shadows.floating}; padding: 12px; display: flex; justify-content: space-around; backdrop-filter: blur(20px);">
+                <div class="nav-item active" style="display: flex; flex-direction: column; align-items: center; padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--squircle-small); background-color: var(--color-primary); color: white;">
+                    <div style="font-size: 24px; margin-bottom: 4px;">🏠</div>
+                    <div style="font-size: 11px; font-weight: 500;">Home</div>
+                </div>
+                <div class="nav-item" style="display: flex; flex-direction: column; align-items: center; padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--squircle-small); color: var(--color-textSecondary);">
+                    <div style="font-size: 24px; margin-bottom: 4px;">📊</div>
+                    <div style="font-size: 11px; font-weight: 500;">Stats</div>
+                </div>
+                <div class="nav-item" style="display: flex; flex-direction: column; align-items: center; padding: var(--spacing-sm) var(--spacing-md); border-radius: var(--squircle-small); color: var(--color-textSecondary);">
+                    <div style="font-size: 24px; margin-bottom: 4px;">⚙️</div>
+                    <div style="font-size: 11px; font-weight: 500;">Settings</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Update Script -->
+    <script>
+        // Live style updating functionality
+        document.getElementById('primary-color').addEventListener('input', function(e) {
+            const newColor = e.target.value;
+            colors.primary = newColor;
+            document.documentElement.style.setProperty('--color-primary', newColor);
+            document.getElementById('primary-color-value').textContent = newColor;
+            console.log('🎨 Primary color updated:', newColor);
+        });
+
+        document.getElementById('card-radius').addEventListener('input', function(e) {
+            const newRadius = e.target.value + 'px';
+            layout.squircle.large = newRadius;
+            document.documentElement.style.setProperty('--squircle-large', newRadius);
+            document.getElementById('radius-value').textContent = newRadius;
+            console.log('📐 Card radius updated:', newRadius);
+        });
+
+        document.getElementById('card-padding').addEventListener('input', function(e) {
+            const newPadding = e.target.value + 'px';
+            layout.card.paddingHorizontal = newPadding;
+            layout.card.paddingVertical = newPadding;
+            
+            // Update all cards
+            document.querySelectorAll('.card').forEach(card => {
+                card.style.padding = newPadding;
+            });
+            document.getElementById('padding-value').textContent = newPadding;
+            console.log('📦 Card padding updated:', newPadding);
+        });
+
+        // Interactive button effects
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', function() {
+                this.style.transform = 'scale(0.95)';
+            });
+            btn.addEventListener('mouseup', function() {
+                this.style.transform = 'scale(1)';
+            });
+            btn.addEventListener('mouseleave', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // Navigation interaction
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(nav => {
+                    nav.style.backgroundColor = 'transparent';
+                    nav.style.color = 'var(--color-textSecondary)';
+                });
+                this.style.backgroundColor = 'var(--color-primary)';
+                this.style.color = 'white';
+            });
+        });
+
+        // Export current styles function
+        function exportStyles() {
+            const currentTheme = {
+                colors: colors,
+                typography: typography,
+                layout: layout,
+                theme: theme
+            };
+            
+            console.log('📋 Current Style System:', currentTheme);
+            
+            // Create downloadable JSON
+            const dataStr = JSON.stringify(currentTheme, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'habit-tracker-styles.json';
+            link.click();
+            
+            alert('✅ Styles exported! Check your downloads and console.');
+        }
+
+        // Console logging for debugging
+        console.log('🎨 Colors loaded:', colors);
+        console.log('📝 Typography loaded:', typography);
+        console.log('📐 Layout loaded:', layout);
+        console.log('🎯 Theme loaded:', theme);
+        
+        // Display file structure info
+        console.log(`
+📁 Style System Structure:
+├── colors.js (Primary: ${colors.primary})
+├── typography.js (Font: ${typography.fontFamily})
+├── layout.js (Squircle: ${layout.squircle.large})
+└── index.js (Unified theme object)
+
+🔧 Live Editing: Use the controls above to modify styles in real-time!
+        `);
+    </script>
+</body>
+</html>
