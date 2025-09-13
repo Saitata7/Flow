@@ -13,11 +13,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { HabitsContext } from '../../context/HabitContext';
+import { FlowsContext } from '../../context/FlowContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import ImportExport from '../../components/Settings/ImportExport';
 import NotificationSettings from '../../components/Settings/Notification';
-import ColorPicker from '../../components/ColorPicker';
+import ColorPicker from '../../components/Settings/ColorPicker';
 
 const SETTINGS_STORAGE_KEY = 'app_settings';
 
@@ -76,14 +76,14 @@ const defaultSettings = {
 };
 
 const SettingsScreen = () => {
-  const habitsContext = useContext(HabitsContext);
+  const flowsContext = useContext(FlowsContext);
   const themeContext = useContext(ThemeContext);
 
-  if (!habitsContext) {
-    console.warn('HabitsContext is undefined.');
+  if (!flowsContext) {
+    console.warn('FlowsContext is undefined.');
     return (
       <SafeAreaView>
-        <Text>Error: HabitsContext not available</Text>
+        <Text>Error: FlowsContext not available</Text>
       </SafeAreaView>
     );
   }
@@ -96,7 +96,7 @@ const SettingsScreen = () => {
     );
   }
 
-  const { resetHabits, setHabits } = habitsContext;
+  const { resetFlows, setFlows } = flowsContext;
   const { theme, textSize, highContrast, updateThemeSettings } = themeContext;
   const [settings, setSettings] = useState(defaultSettings);
   const [showCustomColor, setShowCustomColor] = useState(false);
@@ -331,7 +331,7 @@ const SettingsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await resetHabits();
+              await resetFlows();
               await AsyncStorage.removeItem(SETTINGS_STORAGE_KEY);
               setSettings(defaultSettings);
               updateThemeSettings({
@@ -388,9 +388,14 @@ const SettingsScreen = () => {
   });
 
   return (
-    <SafeAreaView style={[styles.safeContainer, dynamicStyles.container]}>
+    <SafeAreaView style={[styles.safeContainer, dynamicStyles.container]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={[styles.header, dynamicStyles.label]}>Settings</Text>
+        <View style={styles.headerContainer}>
+          <Text style={[styles.header, dynamicStyles.label]}>Settings</Text>
+          <Text style={[styles.subtitle, dynamicStyles.text]}>
+            Customize your app experience
+          </Text>
+        </View>
 
         {/* Profile Settings */}
         <View style={[styles.card, dynamicStyles.card]}>
@@ -746,7 +751,7 @@ const SettingsScreen = () => {
         {/* Data & Privacy */}
         <View style={[styles.card, dynamicStyles.card]}>
           <Text style={[styles.sectionTitle, dynamicStyles.label]}>Data & Privacy</Text>
-          <ImportExport setHabits={setHabits} />
+          <ImportExport setFlows={setFlows} />
           <View style={styles.settingRow}>
             <Text style={[styles.label, dynamicStyles.label]}>Cloud Backup</Text>
             <Switch
@@ -913,10 +918,20 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
+  headerContainer: {
+    marginBottom: 16,
+    alignItems: 'center',
+  },
   header: {
     fontSize: 28,
     fontWeight: '700',
-    marginBottom: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    opacity: 0.8,
+    textAlign: 'center',
   },
   card: {
     borderRadius: 12,

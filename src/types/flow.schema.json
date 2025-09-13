@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Flow",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the flow"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the flow",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the flow",
+      "maxLength": 500
+    },
+    "trackingType": {
+      "type": "string",
+      "enum": ["Binary", "Quantitative", "Time-based"],
+      "description": "Type of tracking for the flow"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": ["Daily", "Weekly", "Monthly"],
+      "description": "Frequency of the flow"
+    },
+    "everyDay": {
+      "type": "boolean",
+      "description": "Whether the flow should be tracked every day"
+    },
+    "daysOfWeek": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+      },
+      "description": "Days of the week when the flow should be tracked"
+    },
+    "reminderTime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Time when reminders should be sent"
+    },
+    "reminderLevel": {
+      "type": "string",
+      "enum": ["1", "2", "3"],
+      "description": "Level of reminder intensity"
+    },
+    "cheatMode": {
+      "type": "boolean",
+      "description": "Whether cheat mode is enabled for this flow"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the flow was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the flow was last updated"
+    },
+    "ownerId": {
+      "type": "string",
+      "description": "ID of the user who owns this flow"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "description": "Version of the schema used"
+    }
+  },
+  "required": ["id", "title", "trackingType", "frequency", "ownerId"],
+  "additionalProperties": false
+}

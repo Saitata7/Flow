@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Flow Entry",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the flow entry"
+    },
+    "symbol": {
+      "type": "string",
+      "enum": ["✓", "✗", "+"],
+      "description": "Status symbol for the flow entry"
+    },
+    "emotion": {
+      "type": "string",
+      "description": "Emotion associated with the flow entry"
+    },
+    "note": {
+      "type": "string",
+      "description": "Note for the flow entry",
+      "maxLength": 1000
+    },
+    "quantitative": {
+      "type": "object",
+      "properties": {
+        "unitText": {
+          "type": "string",
+          "description": "Unit text for quantitative tracking"
+        },
+        "count": {
+          "type": "number",
+          "description": "Count value for quantitative tracking"
+        }
+      },
+      "description": "Quantitative tracking data"
+    },
+    "timebased": {
+      "type": "object",
+      "properties": {
+        "totalDuration": {
+          "type": "number",
+          "description": "Total duration in seconds"
+        }
+      },
+      "description": "Time-based tracking data"
+    },
+    "edited": {
+      "type": "boolean",
+      "description": "Whether this entry was edited"
+    },
+    "editedBy": {
+      "type": "string",
+      "description": "ID of the user who edited this entry"
+    },
+    "editedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this entry was edited"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this entry was created"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of the entry"
+    }
+  },
+  "required": ["date", "symbol"],
+  "additionalProperties": false
+}

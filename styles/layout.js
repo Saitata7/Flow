@@ -6,7 +6,6 @@
 // Usage: Compose like { padding: layout.spacing.md, ...layout.card }
 
 import { Platform, Dimensions } from 'react-native';
-import { getBottomSpace, getStatusBarHeight } from 'react-native-iphone-x-helper'; // For safe areas (install if needed)
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -83,8 +82,8 @@ export const layout = {
   // Screen Layout
   screen: {
     paddingHorizontal: 16, // Global content inset
-    paddingTop: Platform.OS === 'ios' ? getStatusBarHeight() + 20 : 20, // Status bar compensation
-    paddingBottom: getBottomSpace() + 20, // Bottom safe area (notch/tab bar)
+    paddingTop: Platform.OS === 'ios' ? 64 : 20, // Status bar compensation
+    paddingBottom: 20, // Bottom safe area
   },
 
   // Additional Flow Tracker Layouts

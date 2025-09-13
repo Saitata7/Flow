@@ -3,9 +3,9 @@ import { View, Text, TextInput, TouchableOpacity, Alert, Animated, StyleSheet } 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeContext } from '../../context/ThemeContext';
 
-const HABITS_STORAGE_KEY = 'habits';
+const FLOWS_STORAGE_KEY = 'flows';
 
-const ImportExport = ({ setHabits }) => {
+const ImportExport = ({ setFlows }) => {
   const themeContext = useContext(ThemeContext);
   if (!themeContext) {
     console.warn('ThemeContext is undefined.');
@@ -27,38 +27,38 @@ const ImportExport = ({ setHabits }) => {
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
   };
 
-  const exportHabits = async (format = 'json') => {
+  const exportFlows = async (format = 'json') => {
     try {
-      const habitsData = await AsyncStorage.getItem(HABITS_STORAGE_KEY);
-      if (!habitsData) {
-        Alert.alert('Info', 'No habits to export');
+      const flowsData = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
+      if (!flowsData) {
+        Alert.alert('Info', 'No flows to export');
         return;
       }
       if (format === 'json') {
-        setExportJson(habitsData);
+        setExportJson(flowsData);
         setShowExportOutput(true);
-        Alert.alert('Success', 'Habits JSON data is displayed below. Copy it manually.');
+        Alert.alert('Success', 'Flows JSON data is displayed below. Copy it manually.');
       } else if (format === 'csv') {
-        const habits = JSON.parse(habitsData);
+        const flows = JSON.parse(flowsData);
         const csv = [
           'id,title,repeatType,goal,completed',
-          ...habits.map((habit) => `${habit.id},${habit.title},${habit.repeatType},${habit.goal || ''},${habit.status?.completed || false}`),
+          ...flows.map((flow) => `${flow.id},${flow.title},${flow.repeatType},${flow.goal || ''},${flow.status?.completed || false}`),
         ].join('\n');
         setExportJson(csv);
         setShowExportOutput(true);
-        Alert.alert('Success', 'Habits CSV data is displayed below. Copy it manually.');
+        Alert.alert('Success', 'Flows CSV data is displayed below. Copy it manually.');
       } else if (format === 'pdf') {
         Alert.alert('Info', 'PDF export is not supported in this version.');
       }
     } catch (e) {
-      console.error('Failed to export habits:', e);
-      Alert.alert('Error', 'Failed to export habits');
+      console.error('Failed to export flows:', e);
+      Alert.alert('Error', 'Failed to export flows');
     }
   };
 
-  const importHabits = async () => {
+  const importFlows = async () => {
     if (!importJson) {
-      Alert.alert('Error', 'Please paste the habits data');
+      Alert.alert('Error', 'Please paste the flows data');
       return;
     }
     try {
@@ -73,31 +73,31 @@ const ImportExport = ({ setHabits }) => {
         parsedData = JSON.parse(importJson);
       }
       if (!Array.isArray(parsedData)) {
-        Alert.alert('Error', 'Invalid habits data: Must be an array');
+        Alert.alert('Error', 'Invalid flows data: Must be an array');
         return;
       }
-      const validHabits = parsedData.filter((habit) =>
-        habit.id &&
-        habit.title &&
-        ['day', 'month'].includes(habit.repeatType) &&
-        (habit.status ? typeof habit.status === 'object' : true)
+      const validFlows = parsedData.filter((flow) =>
+        flow.id &&
+        flow.title &&
+        ['day', 'month'].includes(flow.repeatType) &&
+        (flow.status ? typeof flow.status === 'object' : true)
       );
-      if (validHabits.length === 0) {
-        Alert.alert('Error', 'No valid habits found in the data');
+      if (validFlows.length === 0) {
+        Alert.alert('Error', 'No valid flows found in the data');
         return;
       }
-      const currentHabits = await AsyncStorage.getItem(HABITS_STORAGE_KEY);
-      const mergedHabits = currentHabits
-        ? [...JSON.parse(currentHabits), ...validHabits]
-        : validHabits;
-      await AsyncStorage.setItem(HABITS_STORAGE_KEY, JSON.stringify(mergedHabits));
-      setHabits(mergedHabits);
+      const currentFlows = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
+      const mergedFlows = currentFlows
+        ? [...JSON.parse(currentFlows), ...validFlows]
+        : validFlows;
+      await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(mergedFlows));
+      setFlows(mergedFlows);
       setImportJson('');
       setShowImportInput(false);
-      Alert.alert('Success', 'Habits imported successfully');
+      Alert.alert('Success', 'Flows imported successfully');
     } catch (e) {
-      console.error('Failed to import habits:', e);
-      Alert.alert('Error', 'Invalid data format or failed to import habits');
+      console.error('Failed to import flows:', e);
+      Alert.alert('Error', 'Invalid data format or failed to import flows');
     }
   };
 
@@ -144,7 +144,7 @@ const ImportExport = ({ setHabits }) => {
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <TouchableOpacity
           style={[styles.button, dynamicStyles.button]}
-          onPress={() => exportHabits('json')}
+          onPress={() => exportFlows('json')}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
         >
@@ -154,7 +154,7 @@ const ImportExport = ({ setHabits }) => {
       <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
         <TouchableOpacity
           style={[styles.button, dynamicStyles.button]}
-          onPress={() => exportHabits('csv')}
+          onPress={() => exportFlows('csv')}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
         >
@@ -208,7 +208,7 @@ const ImportExport = ({ setHabits }) => {
           <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
             <TouchableOpacity
               style={[styles.button, dynamicStyles.button]}
-              onPress={importHabits}
+              onPress={importFlows}
               onPressIn={handlePressIn}
               onPressOut={handlePressOut}
             >

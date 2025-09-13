@@ -19,16 +19,7 @@ import {
   colors,
   typography,
   layout,
-  spacing,
-  shadows,
-  radius,
-  typo,
-  flexCenter,
-  flexRow,
-  flexRowBetween,
-  container,
-  screen,
-  withOpacity,
+  commonStyles,
   useAppTheme,
 } from '../../../styles';
 import { Button, Card, Icon } from '../../components';
@@ -164,16 +155,19 @@ export default function HomePage({ navigation }) {
   console.log('Todays flows:', visibleFlows);
 
   return (
-    <SafeAreaView style={[screen, { backgroundColor: themeColors.background }]}>
+    <SafeAreaView style={[commonStyles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
       <StatusBar
         translucent
         backgroundColor="transparent"
         barStyle={isDark ? "light-content" : "dark-content"}
       />
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <View style={[container, { backgroundColor: themeColors.background }]}>
+        <View style={[commonStyles.container, { backgroundColor: themeColors.background }]}>
           <View style={[styles.headerContainer, { backgroundColor: themeColors.cardBackground }]}>
-            <Text style={[typo.h1, { color: themeColors.primaryText }]}>Home</Text>
+            <Text style={[typography.styles.title1, { color: themeColors.primaryText }]}>Home</Text>
+            <Text style={[typography.styles.body, { color: themeColors.secondaryText, marginTop: layout.spacing.xs }]}>
+              Track your daily flows and build better habits
+            </Text>
           </View>
           <View style={[styles.cardsContainer, { backgroundColor: themeColors.cardBackground }]}>
             <View style={styles.habitCardContainer}>
@@ -181,7 +175,7 @@ export default function HomePage({ navigation }) {
                 <View style={styles.navigationPlaceholder} />
                 <View style={styles.flowsMainContainer}>
                   {flows.length === 0 ? (
-                    <Text style={[typo.body, { color: themeColors.secondaryText, textAlign: 'center' }]}>No flows yet</Text>
+                    <Text style={[typography.styles.body, { color: themeColors.secondaryText, textAlign: 'center' }]}>No flows yet</Text>
                   ) : (
                     flows.map((flow) => (
                       <View key={flow.id} style={styles.flowRow}>
@@ -189,7 +183,7 @@ export default function HomePage({ navigation }) {
                           style={styles.flowItemLeft}
                           onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
                         >
-                          <Text style={[typo.body, { color: themeColors.primaryText }]}>{flow.title}</Text>
+                          <Text style={[typography.styles.body, { color: themeColors.primaryText }]}>{flow.title}</Text>
                         </TouchableOpacity>
                       </View>
                     ))
@@ -200,7 +194,7 @@ export default function HomePage({ navigation }) {
             <View style={[styles.statusCardContainer, { backgroundColor: themeColors.progressBackground }]}>
               <View style={styles.statusCard}>
                 <View style={styles.navigationHeader}>
-                  <View style={[styles.navigationContainer, { backgroundColor: withOpacity(themeColors.cardBackground, 0.8) }]}>
+                  <View style={[styles.navigationContainer, { backgroundColor: themeColors.cardBackground }]}>
                     {canSlidePrevious() && (
                       <TouchableOpacity style={styles.swipeIndicatorLeft} onPress={slideToPrevious}>
                         <View style={[styles.swipeDot, { backgroundColor: themeColors.secondaryText }]} />
@@ -212,14 +206,14 @@ export default function HomePage({ navigation }) {
                         {nextDays.map((day, index) => (
                           <View key={index} style={styles.dayColumn}>
                             <Text style={[
-                              typo.caption,
+                              typography.styles.caption1,
                               { color: themeColors.secondaryText },
                               day.isToday && { color: themeColors.primaryOrange, fontWeight: typography.weights.bold }
                             ]}>
                               {day.day}
                             </Text>
                             <Text style={[
-                              typo.body,
+                              typography.styles.body,
                               { color: themeColors.primaryText, fontWeight: typography.weights.bold },
                               day.isToday && { color: themeColors.primaryOrange }
                             ]}>
@@ -268,7 +262,7 @@ export default function HomePage({ navigation }) {
                     ))
                   ) : (
                     <View style={styles.noFlowsStatusContainer}>
-                      <Text style={[typo.caption, { color: themeColors.tertiaryText, textAlign: 'center' }]}>No flows to track</Text>
+                      <Text style={[typography.styles.caption1, { color: themeColors.tertiaryText, textAlign: 'center' }]}>No flows to track</Text>
                     </View>
                   )}
                 </View>
@@ -282,8 +276,8 @@ export default function HomePage({ navigation }) {
               end={{ x: 1, y: 0 }}
               style={styles.quoteCard}
             >
-              <Text style={[typo.h3, { color: themeColors.cardBackground, marginBottom: spacing.sm }]}>Quote of the day</Text>
-              <Text style={[typo.body, { color: themeColors.cardBackground, opacity: 0.95 }]}>
+              <Text style={[typography.styles.title3, { color: themeColors.cardBackground, marginBottom: layout.spacing.sm }]}>Quote of the day</Text>
+              <Text style={[typography.styles.body, { color: themeColors.cardBackground, opacity: 0.95 }]}>
                 It takes at least 21 days to make a flow, and one to break it.
               </Text>
             </LinearGradient>
@@ -291,7 +285,7 @@ export default function HomePage({ navigation }) {
         </View>
         <View style={[styles.todayContainer, { backgroundColor: themeColors.background }]}>
           <View style={styles.todaySection}>
-            <Text style={[typo.h2, { color: themeColors.primaryText, marginBottom: spacing.md }]}>Today Flows</Text>
+            <Text style={[typography.styles.title2, { color: themeColors.primaryText, marginBottom: layout.spacing.md }]}>Today Flows</Text>
             <TodaysFlows navigation={navigation} visibleFlows={visibleFlows} />
           </View>
           <View style={styles.bottomSpacing} />
@@ -315,17 +309,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerContainer: {
-    ...flexCenter,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: layout.spacing.xl,
+    paddingBottom: layout.spacing.lg,
   },
   cardsContainer: {
-    ...flexRow,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
+    flexDirection: 'row',
+    marginBottom: layout.spacing.lg,
+    gap: layout.spacing.sm,
     alignItems: 'stretch',
-    ...shadows.elevatedShadow,
-    borderRadius: radius.xl,
+    ...layout.shadows.elevatedShadow,
+    borderRadius: layout.borderRadius.xl,
     padding: 3,
     minHeight: 200,
   },
@@ -335,42 +330,45 @@ const styles = StyleSheet.create({
   },
   habitCard: {
     flex: 1,
-    padding: spacing.lg,
+    padding: layout.spacing.lg,
     justifyContent: 'space-between',
   },
   statusCardContainer: {
     flex: 1.2,
-    borderTopRightRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
+    borderTopRightRadius: layout.borderRadius.xl,
+    borderBottomRightRadius: layout.borderRadius.xl,
     borderTopLeftRadius: 0,
     borderBottomLeftRadius: 0,
     minWidth: 0,
   },
   statusCard: {
     flex: 1,
-    padding: spacing.lg,
+    padding: layout.spacing.lg,
   },
   navigationHeader: {
-    marginBottom: spacing.md,
-    ...flexCenter,
+    marginBottom: layout.spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   navigationContainer: {
-    ...flexRow,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    borderRadius: layout.borderRadius.md,
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
   },
   swipeIndicatorLeft: {
-    ...flexCenter,
+    justifyContent: 'center',
+    alignItems: 'center',
     width: 20,
     height: 28,
-    marginRight: spacing.sm,
+    marginRight: layout.spacing.sm,
   },
   swipeIndicatorRight: {
-    ...flexCenter,
+    justifyContent: 'center',
+    alignItems: 'center',
     width: 20,
     height: 28,
-    marginLeft: spacing.sm,
+    marginLeft: layout.spacing.sm,
   },
   swipeDot: {
     width: 4,
@@ -382,48 +380,56 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   daysContainer: {
-    ...flexRow,
-    gap: spacing.lg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    flexDirection: 'row',
+    gap: layout.spacing.lg,
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
   },
   dayColumn: {
-    ...flexCenter,
+    justifyContent: 'center',
+    alignItems: 'center',
     minWidth: 36,
   },
   navigationPlaceholder: {
     height: 48,
-    marginBottom: spacing.md,
+    marginBottom: layout.spacing.md,
   },
   flowsMainContainer: {
     width: '100%',
     flex: 1,
-    ...flexCenter,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   flowRow: {
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.xs,
+    paddingVertical: layout.spacing.sm,
+    marginBottom: layout.spacing.xs,
     minHeight: 48,
-    ...flexCenter,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   flowItemLeft: {
-    paddingRight: spacing.sm,
-    ...flexCenter,
+    paddingRight: layout.spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
     flex: 1,
   },
   statusGridContainer: {
     width: '100%',
     flex: 1,
-    ...flexCenter,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusRow: {
-    ...flexRowBetween,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.xs,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.sm,
+    marginBottom: layout.spacing.xs,
     minHeight: 52,
   },
   statusCell: {
-    ...flexCenter,
+    justifyContent: 'center',
+    alignItems: 'center',
     width: 28,
     height: 28,
   },
@@ -431,8 +437,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    ...flexCenter,
-    ...shadows.buttonShadow,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...layout.shadows.buttonShadow,
   },
   emptyStatusCell: {
     width: 28,
@@ -445,41 +452,44 @@ const styles = StyleSheet.create({
   },
   noFlowsStatusContainer: {
     flex: 1,
-    ...flexCenter,
-    paddingVertical: spacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.lg,
   },
   quoteCardContainer: {
-    marginBottom: spacing.lg,
-    ...shadows.elevatedShadow,
-    borderRadius: radius.xl,
+    marginBottom: layout.spacing.lg,
+    ...layout.shadows.elevatedShadow,
+    borderRadius: layout.borderRadius.xl,
   },
   quoteCard: {
-    padding: spacing.xl,
-    borderRadius: radius.xl,
+    padding: layout.spacing.xl,
+    borderRadius: layout.borderRadius.xl,
     borderWidth: 1,
     borderColor: colors.light.cardBackground,
   },
   todayContainer: {
     flex: 1,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.md,
+    marginTop: layout.spacing.lg,
+    paddingHorizontal: layout.spacing.md,
   },
   todaySection: {
-    marginBottom: spacing.lg,
+    marginBottom: layout.spacing.lg,
   },
   bottomSpacing: {
     height: 120,
   },
   fixedButtonContainer: {
     position: 'absolute',
-    bottom: spacing.xl,
-    left: spacing.md,
-    right: spacing.md,
-    ...flexCenter,
+    bottom: 100, // Move above the bottom tab bar (80 + 20 padding)
+    left: layout.spacing.md,
+    right: layout.spacing.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999, // Below tab bar but above content
   },
   addButton: {
     width: '100%',
     height: 56,
-    borderRadius: radius.pill,
+    borderRadius: layout.button.pillRadius,
   },
 });

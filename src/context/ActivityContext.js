@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import moment from 'moment';
-import { HabitsContext } from './HabitContext';
+import { FlowsContext } from './FlowContext';
 
 export const ActivityContext = createContext({
   getScoreboard: () => ({}),
@@ -9,14 +9,14 @@ export const ActivityContext = createContext({
 });
 
 export const ActivityProvider = ({ children }) => {
-  const { habits = [] } = useContext(HabitsContext) || {};
+  const { flows = [] } = useContext(FlowsContext) || {};
 
-  const getScoreboard = (habitId) => {
-    const habit = habits.find((h) => h.id === habitId) || {};
-    const status = habit.status || {};
-    const startDate = moment(habit.startDate);
+  const getScoreboard = (flowId) => {
+    const flow = flows.find((f) => f.id === flowId) || {};
+    const status = flow.status || {};
+    const startDate = moment(flow.startDate);
     if (!startDate.isValid()) {
-      console.warn('Invalid startDate for habit:', habit.id, habit.title);
+      console.warn('Invalid startDate for flow:', flow.id, flow.title);
       return {
         completed: 0,
         partial: 0,
@@ -45,9 +45,9 @@ export const ActivityProvider = ({ children }) => {
       const currentDate = startDate.clone().add(i, 'days');
       const dayKey = currentDate.format('YYYY-MM-DD');
       const isScheduled =
-        habit.repeatType === 'day'
-          ? habit.everyDay || (habit.daysOfWeek && habit.daysOfWeek.includes(currentDate.format('ddd')))
-          : habit.repeatType === 'month' && habit.selectedMonthDays && habit.selectedMonthDays.includes(currentDate.date().toString())
+        flow.repeatType === 'day'
+          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
+          : flow.repeatType === 'month' && flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString())
           || true;
 
       if (isScheduled) {
@@ -60,9 +60,9 @@ export const ActivityProvider = ({ children }) => {
         }
 
         const { symbol, emotion, note, quantitative, timebased } = dayStat;
-        if (habit.trackingType === 'Quantitative') {
+        if (flow.trackingType === 'Quantitative') {
           const count = quantitative?.count || 0;
-          const goal = quantitative?.goal || habit.goal || 1;
+          const goal = quantitative?.goal || flow.goal || 1;
           totalCount += count;
           if (count >= goal) {
             completed++;
@@ -80,11 +80,11 @@ export const ActivityProvider = ({ children }) => {
             inactive++;
             streak = 0;
           }
-        } else if (habit.trackingType === 'Time-based') {
+        } else if (flow.trackingType === 'Time-based') {
           const duration = timebased?.totalDuration || 0;
-          const goalSeconds = ((timebased?.hours || habit.hours || 0) * 3600) +
-                            ((timebased?.minutes || habit.minutes || 0) * 60) +
-                            (timebased?.seconds || habit.seconds || 0);
+          const goalSeconds = ((timebased?.hours || flow.hours || 0) * 3600) +
+                            ((timebased?.minutes || flow.minutes || 0) * 60) +
+                            (timebased?.seconds || flow.seconds || 0);
           totalDuration += duration;
           totalPauses += timebased?.pausesCount || 0;
           if (duration >= goalSeconds) {
@@ -104,7 +104,7 @@ export const ActivityProvider = ({ children }) => {
             streak = 0;
           }
         } else {
-          // Binary habit logic
+          // Binary flow logic
           if (symbol === '✅') {
             completed++;
             streak++;
@@ -159,17 +159,17 @@ export const ActivityProvider = ({ children }) => {
       quantitativeStats: {
         totalCount,
         averageCount: parseFloat(averageCount.toFixed(1)),
-        unitText: habit.unitText || '',
+        unitText: flow.unitText || '',
       },
     };
   };
 
-  const getActivityStats = (habitId) => {
-    const habit = habits.find((h) => h.id === habitId) || {};
-    const status = habit.status || {};
-    const startDate = moment(habit.startDate);
+  const getActivityStats = (flowId) => {
+    const flow = flows.find((h) => h.id === flowId) || {};
+    const status = flow.status || {};
+    const startDate = moment(flow.startDate);
     if (!startDate.isValid()) {
-      console.warn('Invalid startDate for habit:', habit.id, habit.title);
+      console.warn('Invalid startDate for flow:', flow.id, flow.title);
       return { 
         total: 0, 
         byStatus: { Completed: 0, Partial: 0, Missed: 0, Inactive: 0, Skipped: 0 },
@@ -187,9 +187,9 @@ export const ActivityProvider = ({ children }) => {
       const currentDate = startDate.clone().add(i, 'days');
       const dayKey = currentDate.format('YYYY-MM-DD');
       const isScheduled =
-        habit.repeatType === 'day'
-          ? habit.everyDay || (habit.daysOfWeek && habit.daysOfWeek.includes(currentDate.format('ddd')))
-          : habit.repeatType === 'month' && habit.selectedMonthDays && habit.selectedMonthDays.includes(currentDate.date().toString())
+        flow.repeatType === 'day'
+          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
+          : flow.repeatType === 'month' && flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString())
           || true;
 
       if (isScheduled) {
@@ -198,9 +198,9 @@ export const ActivityProvider = ({ children }) => {
           activities.push({ date: dayKey, status: 'Inactive' });
           continue;
         }
-        if (habit.trackingType === 'Quantitative') {
+        if (flow.trackingType === 'Quantitative') {
           const count = dayStat.quantitative?.count || 0;
-          const goal = dayStat.quantitative?.goal || habit.goal || 1;
+          const goal = dayStat.quantitative?.goal || flow.goal || 1;
           totalCount += count;
           if (count >= goal) {
             activities.push({ date: dayKey, status: 'Completed' });
@@ -211,12 +211,12 @@ export const ActivityProvider = ({ children }) => {
           } else if (dayStat.symbol === '-') {
             activities.push({ date: dayKey, status: 'Inactive' });
           }
-        } else if (habit.trackingType === 'Time-based') {
+        } else if (flow.trackingType === 'Time-based') {
           const duration = dayStat.timebased?.totalDuration || 0;
           const pauses = dayStat.timebased?.pausesCount || 0;
-          const goalSeconds = ((dayStat.timebased?.hours || habit.hours || 0) * 3600) +
-                            ((dayStat.timebased?.minutes || habit.minutes || 0) * 60) +
-                            (dayStat.timebased?.seconds || habit.seconds || 0);
+          const goalSeconds = ((dayStat.timebased?.hours || flow.hours || 0) * 3600) +
+                            ((dayStat.timebased?.minutes || flow.minutes || 0) * 60) +
+                            (dayStat.timebased?.seconds || flow.seconds || 0);
           totalDuration += duration;
           totalPauses += pauses;
           if (duration >= goalSeconds) {
@@ -251,17 +251,17 @@ export const ActivityProvider = ({ children }) => {
       },
       quantitative: {
         totalCount,
-        unitText: habit.unitText || '',
+        unitText: flow.unitText || '',
       },
     };
   };
 
-  const getEmotionalActivity = (habitId) => {
-    const habit = habits.find((h) => h.id === habitId) || {};
-    const status = habit.status || {};
-    const startDate = moment(habit.startDate);
+  const getEmotionalActivity = (flowId) => {
+    const flow = flows.find((h) => h.id === flowId) || {};
+    const status = flow.status || {};
+    const startDate = moment(flow.startDate);
     if (!startDate.isValid()) {
-      console.warn('Invalid startDate for habit:', habit.id, habit.title);
+      console.warn('Invalid startDate for flow:', flow.id, flow.title);
       return { totalEmotions: 0, byEmotion: { Happy: 0, Sad: 0, Angry: 0, Excited: 0, Calm: 0 } };
     }
     const endDate = moment();
@@ -273,9 +273,9 @@ export const ActivityProvider = ({ children }) => {
       const currentDate = startDate.clone().add(i, 'days');
       const dayKey = currentDate.format('YYYY-MM-DD');
       const isScheduled =
-        habit.repeatType === 'day'
-          ? habit.everyDay || (habit.daysOfWeek && habit.daysOfWeek.includes(currentDate.format('ddd')))
-          : habit.repeatType === 'month' && habit.selectedMonthDays && habit.selectedMonthDays.includes(currentDate.date().toString())
+        flow.repeatType === 'day'
+          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
+          : flow.repeatType === 'month' && flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString())
           || true;
 
       if (isScheduled) {
@@ -305,7 +305,7 @@ export const ActivityProvider = ({ children }) => {
       getActivityStats,
       getEmotionalActivity,
     }),
-    [habits]
+    [flows]
   );
 
   return <ActivityContext.Provider value={value}>{children}</ActivityContext.Provider>;

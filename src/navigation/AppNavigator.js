@@ -4,14 +4,19 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar, ActivityIndicator, View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as Haptics from 'react-native-haptic-feedback';
+import * as Haptics from 'expo-haptics';
 import AuthNavigator from './AuthNavigator';
 import TabNavigator from './TabNavigator';
+import Splash from '../screens/info/Splash';
+import Onboarding from '../screens/info/Onboarding';
+import Firsttime from '../screens/info/Firsttime';
 import useAuth from '../hooks/useAuth';
-import { HabitsProvider } from '../context/HabitContext';
+import useFirstTime from '../hooks/useFirstTime';
+import { FlowsProvider } from '../context/FlowContext';
+import { PlanProvider } from '../context/PlanContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { ActivityProvider } from '../context/ActivityContext';
-import { colors } from '../styles';
+import { colors } from '../../styles';
 
 const screenOptions = {
   headerShown: false,
@@ -37,13 +42,15 @@ const screenOptions = {
 const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  const { isFirstLaunch, isLoading: firstTimeLoading } = useFirstTime();
 
   useEffect(() => {
-    Haptics.trigger('selection');
+    Haptics.selectionAsync();
   }, []);
 
-  if (isLoading) {
+  // Show loading while checking auth and first time status
+  if (authLoading || firstTimeLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.light.primaryOrange} />
@@ -53,9 +60,10 @@ const AppNavigator = () => {
 
   return (
     <ThemeProvider>
-      <HabitsProvider>
-        <ActivityProvider>
-          <SafeAreaProvider>
+      <FlowsProvider>
+        <PlanProvider>
+          <ActivityProvider>
+            <SafeAreaProvider>
             <StatusBar
               translucent
               backgroundColor="transparent"
@@ -63,6 +71,16 @@ const AppNavigator = () => {
             />
             <NavigationContainer>
               <Stack.Navigator screenOptions={screenOptions}>
+                {/* Show splash screen first */}
+                <Stack.Screen name="Splash" component={Splash} />
+                
+                {/* Show onboarding for first time users */}
+                <Stack.Screen name="Onboarding" component={Onboarding} />
+                
+                {/* Show first time welcome screen */}
+                <Stack.Screen name="Firsttime" component={Firsttime} />
+                
+                {/* Main app navigation */}
                 {user ? (
                   <Stack.Screen name="Main" component={TabNavigator} />
                 ) : (
@@ -70,9 +88,10 @@ const AppNavigator = () => {
                 )}
               </Stack.Navigator>
             </NavigationContainer>
-          </SafeAreaProvider>
-        </ActivityProvider>
-      </HabitsProvider>
+            </SafeAreaProvider>
+          </ActivityProvider>
+        </PlanProvider>
+      </FlowsProvider>
     </ThemeProvider>
   );
 };

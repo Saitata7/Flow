@@ -1,0 +1,83 @@
+---
+description: 
+  Global UI / UX rules for the Flow app.
+  These rules must always be respected when Cursor generates or edits screens, components, or layouts.
+
+globs:
+  - "src/screens/**/*"
+  - "src/components/**/*"
+  - "styles/**/*"
+alwaysApply: true
+
+rules:
+  - name: "Base Geometry"
+    text: |
+      • All cards, boxes, buttons, and modals must use a **squircle** corner radius from layout.squircle.
+      • Keep corner radii consistent (do not mix square and circle).
+      • Only Cards or floating elements may use shadows.
+
+  - name: "Responsiveness"
+    text: |
+      • Layouts must scale from iPhone SE width to large tablets.
+      • Use Flexbox with % or Dimensions API, not fixed px.
+      • Support portrait & landscape, dynamic font scaling, safe areas.
+
+  - name: "Bottom Tab Safety"
+    text: |
+      • Screen content may never collide with the bottom tab bar.
+      • Wrap in SafeAreaView and add paddingBottom = layout.tabSpacing.
+      • Floating buttons need marginBottom > tab height.
+
+  - name: "Headers"
+    text: |
+      • Use shared Header component with left(back/avatar), center(title), right(actions).
+      • Keep height consistent across stacks.
+
+  - name: "Cards & Containers"
+    text: |
+      • Use common/Card.js for containers.
+      • Default padding = layout.cardPadding.
+      • Variants: filled | outlined; support elevation.
+
+  - name: "Buttons & Inputs"
+    text: |
+      • Use common/Button.js only (no inline touchables).
+      • Inputs must validate inline and avoid keyboard overlap (KeyboardAvoidingView).
+
+  - name: "Section Layout"
+    text: |
+      • Divide screens into sections with spacing tokens.
+      • Each page is self-contained: styles must not leak between modules.
+
+  - name: "Avoid UI Collisions"
+    text: |
+      • Floating items must clear tab bar and headers.
+      • Use modal presentation if overlays would collide.
+
+  - name: "Accessibility"
+    text: |
+      • Touch targets >= 44x44.
+      • Add accessibilityLabel / hint for every touchable.
+      • Maintain WCAG AA color contrast.
+
+  - name: "Animations"
+    text: |
+      • Use subtle transitions (fade/slide) for screens.
+      • Scale down ~90% on tap, no blocking animations.
+
+  - name: "Theming"
+    text: |
+      • Support light/dark themes via styles/colors.js.
+      • Never hardcode hex colors in UI.
+
+  - name: "Missing Elements"
+    text: |
+      • Provide EmptyState, ErrorBanner, Skeleton loader, Toast as global components.
+      • New screens should reuse them instead of reimplementing.
+
+  - name: "Testing"
+    text: |
+      • Snapshot each screen with react-native-testing-library.
+      • Test across device presets and dark/light mode.
+
+---

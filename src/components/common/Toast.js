@@ -5,7 +5,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } fr
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import PropTypes from 'prop-types';
-import { colors, typography, spacing, radius, shadows } from '../../../styles';
+import { colors, typography, layout } from '../../../styles';
 
 const Toast = ({
   type = 'info',
@@ -151,34 +151,34 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radius.xl,
+    padding: layout.spacing.md,
+    borderRadius: layout.borderRadius.xl,
     ...(Platform.OS === 'ios' ? { borderCurve: 'continuous' } : {}),
-    ...shadows.elevatedShadow,
+    ...layout.shadows.large,
     position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
+    left: layout.spacing.md,
+    right: layout.spacing.md,
   },
   icon: {
-    fontSize: typography.sizes.title3,
-    marginRight: spacing.sm,
+    fontSize: 20,
+    marginRight: layout.spacing.sm,
   },
   content: {
     flex: 1,
   },
   message: {
-    fontSize: typography.sizes.headline,
-    fontWeight: typography.weights.semibold,
+    fontSize: 17,
+    fontWeight: '600',
   },
   description: {
-    fontSize: typography.sizes.body,
-    marginTop: spacing.xs,
+    fontSize: 17,
+    marginTop: layout.spacing.xs,
     opacity: 0.9,
   },
   action: {
-    fontSize: typography.sizes.headline,
-    fontWeight: typography.weights.semibold,
-    marginLeft: spacing.sm,
+    fontSize: 17,
+    fontWeight: '600',
+    marginLeft: layout.spacing.sm,
   },
 });
 

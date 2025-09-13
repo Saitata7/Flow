@@ -4,7 +4,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Platform, StyleSheet }
 import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import PropTypes from 'prop-types';
-import { colors, typography, layout, spacing, shadows, radius } from '../../../styles';
+import { colors, typography, layout } from '../../../styles';
 
 const Button = ({
   variant = 'primary',
@@ -50,7 +50,7 @@ const Button = ({
     switch (variant) {
       case 'primary':
         return {
-          backgroundColor: disabled ? colors.light.primaryOrangeVariants.light : colors.light.primaryOrange,
+          backgroundColor: disabled ? colors.light.secondaryText : colors.light.primaryOrange,
           borderColor: 'transparent',
           textColor: colors.light.cardBackground,
         };
@@ -74,10 +74,16 @@ const Button = ({
         };
       case 'fab':
         return {
-          backgroundColor: disabled ? colors.light.primaryOrangeVariants.light : colors.light.primaryOrange,
+          backgroundColor: disabled ? colors.light.secondaryText : colors.light.primaryOrange,
           borderColor: 'transparent',
           textColor: colors.light.cardBackground,
-          borderRadius: radius.circle,
+          borderRadius: 20,
+        };
+      case 'destructive':
+        return {
+          backgroundColor: disabled ? colors.light.secondaryText : colors.light.error,
+          borderColor: 'transparent',
+          textColor: colors.light.cardBackground,
         };
       default:
         return {};
@@ -88,21 +94,21 @@ const Button = ({
     switch (size) {
       case 'small':
         return { 
-          height: layout.button.smallHeight, 
-          paddingHorizontal: spacing.sm, 
-          fontSize: typography.sizes.footnote 
+          height: 32, 
+          paddingHorizontal: layout.spacing.sm, 
+          fontSize: 13 
         };
       case 'large':
         return { 
           height: 56, 
-          paddingHorizontal: spacing.lg, 
-          fontSize: typography.sizes.title3 
+          paddingHorizontal: layout.spacing.lg, 
+          fontSize: 20 
         };
       default: // medium
         return { 
-          height: layout.button.standardHeight, 
-          paddingHorizontal: spacing.md, 
-          fontSize: typography.sizes.headline 
+          height: 44, 
+          paddingHorizontal: layout.spacing.md, 
+          fontSize: 17 
         };
     }
   };
@@ -131,7 +137,7 @@ const Button = ({
     },
   ];
 
-  const IconComponent = icon ? <Text style={[textStyle, { marginHorizontal: spacing.xs }]}>{icon}</Text> : null;
+  const IconComponent = icon ? <Text style={[textStyle, { marginHorizontal: layout.spacing.xs }]}>{icon}</Text> : null;
 
   return (
     <TouchableOpacity
@@ -158,7 +164,7 @@ const Button = ({
 };
 
 Button.propTypes = {
-  variant: PropTypes.oneOf(['primary', 'secondary', 'text', 'icon', 'fab']),
+  variant: PropTypes.oneOf(['primary', 'secondary', 'text', 'icon', 'fab', 'destructive']),
   size: PropTypes.oneOf(['small', 'medium', 'large']),
   title: PropTypes.string,
   onPress: PropTypes.func,
@@ -175,17 +181,17 @@ const styles = StyleSheet.create({
   button: {
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: radius.squircle,
+    borderRadius: layout.borderRadius.lg,
     ...(Platform.OS === 'ios' ? { borderCurve: 'continuous' } : {}),
-    ...shadows.buttonShadow,
+    ...layout.shadows.small,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   text: {
-    fontFamily: typography.fonts.family.medium,
-    fontWeight: typography.weights.medium,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    fontWeight: '500',
   },
 });
 

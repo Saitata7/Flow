@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Makemyhabit",
-    "slug": "Makemyhabit",
+    "name": "Flow",
+    "slug": "Flow",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.Makemyhabit"
+      "bundleIdentifier": "com.anonymous.Flow"
     },
     "android": {
       "adaptiveIcon": {
@@ -22,7 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Makemyhabit"
+      "package": "com.anonymous.Flow"
     },
     "web": {
       "favicon": "./assets/favicon.png"

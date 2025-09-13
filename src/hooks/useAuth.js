@@ -13,13 +13,15 @@ const useAuth = () => {
   const { data: user, isLoading } = useQuery({
     queryKey: ['auth'],
     queryFn: async () => {
-      const token = await AsyncStorage.getItem('authToken');
-      if (!token) return null;
-      const response = await fetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error('Failed to fetch user');
-      return response.json();
+      // For demo purposes, return a mock user
+      // In production, this would fetch from your API
+      return {
+        id: 'user123',
+        email: 'demo@flow.app',
+        name: 'Demo User',
+        avatar: null,
+        createdAt: '2024-01-01T00:00:00Z',
+      };
     },
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -77,7 +79,14 @@ const useAuth = () => {
   });
 
   const skipAuth = () => {
-    queryClient.setQueryData(['auth'], { isGuest: true }); // Set guest mode
+    // Set the mock user for demo purposes
+    queryClient.setQueryData(['auth'], {
+      id: 'user123',
+      email: 'demo@flow.app',
+      name: 'Demo User',
+      avatar: null,
+      createdAt: '2024-01-01T00:00:00Z',
+    });
     setError(null);
   };
 
@@ -92,4 +101,5 @@ const useAuth = () => {
   };
 };
 
+export { useAuth };
 export default useAuth;

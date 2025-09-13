@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Plan",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the plan"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the plan",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "type": {
+      "type": "string",
+      "enum": ["Public", "Private", "Group"],
+      "description": "Type of the plan"
+    },
+    "category": {
+      "type": "string",
+      "description": "Category of the plan",
+      "maxLength": 50
+    },
+    "ownerId": {
+      "type": "string",
+      "description": "ID of the user who owns this plan"
+    },
+    "participants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of participant user IDs"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": ["public", "private", "group"],
+      "description": "Visibility level of the plan"
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "description": "Version of the schema used"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the plan was created"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the plan was last updated"
+    }
+  },
+  "required": ["id", "title", "type", "ownerId"],
+  "additionalProperties": false
+}

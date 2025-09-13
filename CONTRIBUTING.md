@@ -42,3 +42,55 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 * [ ] All CI checks pass
 
 ---
+
+
+
+👩‍💻 Contributing Guidelines – Flow App
+
+Thanks for helping build Flow, a platform for emotional well-being.
+
+Branching & Releases
+
+main – production
+
+develop – integration branch
+
+feature/<name> – new features
+
+hotfix/<name> – urgent fixes
+
+Code Standards
+
+Follow ESLint & Prettier (configured).
+
+Use functional React + hooks.
+
+Keep business logic in services/, not UI.
+
+New domain models must be added to /types and DATA_MODELS.md.
+
+Commits & PRs
+
+Conventional Commits style.
+
+Include tests for logic & services.
+
+Update documentation (README, ARCHITECTURE) if you change design.
+
+All PRs must pass CI (lint, typecheck, tests).
+
+Testing Strategy
+
+Unit tests for services and hooks.
+
+Integration tests for offline queue & cheat mode.
+
+Snapshot tests for key UI components.
+
+Contribution Values
+
+Respect privacy & data sensitivity.
+
+Uphold positive UX: language, colors, and notifications must be mindful.
+
+Discuss large architectural shifts before PR.

@@ -20,9 +20,8 @@ const fallbackColors = {
 };
 
 const Login = ({ navigation, route }) => {
-  const { login, isLoading, error } = useAuth();
+  const { login, skipAuth, isLoading, error } = useAuth();
   const { colors: themeColors } = useAppTheme();
-  const { onSkip } = route.params || {}; // Get onSkip from route params
   const insets = useSafeAreaInsets();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [formErrors, setFormErrors] = useState({});
@@ -55,7 +54,7 @@ const Login = ({ navigation, route }) => {
 
     try {
       await login({ email, password, idempotencyKey: key });
-      navigation.replace('MainTabs');
+      // Navigation will happen automatically when user state changes
     } catch (err) {
       setShowToast(true);
     }
@@ -64,6 +63,11 @@ const Login = ({ navigation, route }) => {
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setFormErrors((prev) => ({ ...prev, [field]: null }));
+  };
+
+  const handleSkip = () => {
+    skipAuth();
+    // Navigation will happen automatically when user state changes
   };
 
   const animatedStyle = {
@@ -129,7 +133,7 @@ const Login = ({ navigation, route }) => {
         <Button
           variant="text"
           title="Skip for Now"
-          onPress={onSkip}
+          onPress={handleSkip}
           style={styles.linkButton}
         />
       </Animated.View>

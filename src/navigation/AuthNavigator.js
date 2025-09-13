@@ -1,10 +1,11 @@
 // navigation/AuthNavigator.js
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import * as Haptics from 'react-native-haptic-feedback';
-import Login from '../auth/Login';
-import Register from '../auth/Register';
-import { colors } from '../styles';
+import * as Haptics from 'expo-haptics';
+import Login from '../screens/auth/Login';
+import Register from '../screens/auth/Register';
+import ForgotPassword from '../screens/auth/ForgotPassword';
+import { colors } from '../../styles';
 
 const screenOptions = {
   headerShown: false,
@@ -34,11 +35,11 @@ const AuthNavigator = () => {
     <Stack.Navigator
       initialRouteName="Login"
       screenOptions={screenOptions}
-      onTransitionStart={() => Haptics.trigger('impactMedium')}
+      onTransitionStart={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
     >
       <Stack.Screen name="Login" component={Login} />
       <Stack.Screen name="Register" component={Register} />
-      {/* Add ForgotPassword screen if needed */}
+      <Stack.Screen name="ForgotPassword" component={ForgotPassword} />
     </Stack.Navigator>
   );
 };

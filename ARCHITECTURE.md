@@ -1,140 +1,137 @@
+## 🏛️ Flow Architecture Overview
 
-# ARCHITECTURE.md
-
-## 🏛️ High-Level Architecture
-
-The app follows an **offline-first, service-oriented architecture** with clear separation of concerns:
+Flow is designed as a **mobile-first, offline-first SaaS** for emotional tracking and community sharing.
 
 ### Layers
 
-1. **UI Layer** – `components/` + `screens/`
+1. **UI Layer** – `components/`, `screens/`
 
-   * Stateless UI, consumes data via hooks & contexts.
+   * Pure presentation; data via hooks.
+2. **Hooks/State** – `hooks/`, `context/`
 
-2. **State & Hooks** – `hooks/` + `context/`
+   * Local state, cache, subscriptions.
+3. **Business Logic** – `services/`
 
-   * Handles local state, caching, subscriptions.
-   * UI-only concerns, minimal business logic.
-
-3. **Business Logic Services** – `services/`
-
-   * Implements domain logic (habit scoring, cheat mode rules, sync queue).
-   * Handles communication with Firebase/Redis.
-
+   * Mood scoring, cheat mode, sync, analytics.
 4. **Backend Enforcement** – `backend/cloudFunctions/`
 
-   * Enforces cheat mode, ownership, audit logs, and stats materialization.
+   * Cheat mode validation, audit logs, leaderboard computation.
 
 ---
 
-## 📊 Data Models
+## 🧭 Navigation Architecture
 
-### Habit
+Flow uses **React Navigation v7** with a bottom tab navigator as the primary navigation pattern.
+
+### Navigation Structure
+
+```
+TabNavigator (Bottom Tabs)
+├── Home Tab
+│   ├── HomePage (main dashboard)
+│   ├── AddFlow (modal/stack)
+│   ├── FlowDetails (stack)
+│   └── EditFlow (stack)
+├── Stats Tab
+│   ├── StatsScreen (analytics dashboard)
+│   └── FlowStatsDetail (stack)
+├── Plans Tab
+│   ├── PlansDashboard (plans overview)
+│   ├── AddPlanFlow (stack)
+│   ├── PlanDetail (stack)
+│   └── PlanInstanceDetail (stack)
+└── Settings Tab
+    └── SettingsScreen (app preferences)
+```
+
+### Key Features
+
+- **Theme Support**: Dynamic light/dark mode with `ThemeContext`
+- **Accessibility**: Screen reader labels, 44pt minimum touch targets
+- **Responsive**: Adapts to tablet/phone screen sizes
+- **Haptic Feedback**: Light impact on tab press
+- **Badge Support**: Notification badges on Plans tab
+- **Safe Areas**: Proper handling of notches and home indicators
+
+### Navigation Flow
+
+1. **App Entry**: After authentication → `TabNavigator`
+2. **Tab Persistence**: Last selected tab maintained on app restart
+3. **Stack Navigation**: Each tab can have its own stack for detail screens
+4. **Modal Presentation**: Add flows/plans presented as modals
+5. **Deep Linking**: Support for direct navigation to specific screens
+
+### Implementation Details
+
+- **Tab Bar**: Custom styled with theme colors, shadows, and responsive sizing
+- **Icons**: Vector-based Ionicons with focused/unfocused states
+- **Labels**: Typography system integration with proper font scaling
+- **Keyboard Handling**: Tab bar hides when keyboard is visible
+- **Performance**: Lazy loading of screens, optimized re-renders
+
+---
+
+## 📊 Data Models (simplified)
+
+### Flow Entry
 
 ```json
 {
   "id": "uuid",
-  "title": "Drink Water",
-  "description": "Stay hydrated",
-  "trackingType": "Quantitative", // Binary | Quantitative | Time-based
-  "frequency": "Daily",
-  "everyDay": true,
-  "daysOfWeek": ["Mon","Wed","Fri"],
-  "reminderTime": "2025-07-16T08:00:00Z",
-  "reminderLevel": "1",
-  "cheatMode": false,
+  "date": "2025-09-12",
+  "mood": "calm",
+  "energy": 7,
+  "notes": "Morning walk helped",
+  "tags": ["gratitude", "nature"],
+  "edited": false,
   "createdAt": "ISO",
   "updatedAt": "ISO",
-  "ownerId": "user123",
-  "schemaVersion": 2
-}
-```
-
-### Habit Entry (per day)
-
-```json
-{
-  "date": "2025-07-16",
-  "symbol": "+", // ✓ | ✗ | +
-  "emotion": "happy",
-  "note": "Finished a chapter",
-  "quantitative": { "unitText": "glasses", "count": 3 },
-  "timebased": { "totalDuration": 1800 },
-  "edited": true,
-  "editedBy": "user123",
-  "editedAt": "ISO",
-  "createdAt": "ISO",
-  "timestamp": "ISO"
-}
-```
-
-### Plan
-
-```json
-{
-  "id": "plan123",
-  "title": "100 Pushups Challenge",
-  "type": "Public", // Public | Private | Group
-  "category": "Fitness",
-  "ownerId": "user123",
-  "participants": ["user123", "user456"],
-  "visibility": "public",
   "schemaVersion": 2
 }
 ```
 
 ---
 
-## 🔒 Cheat Mode Rules
+## 🔒 Cheat Mode & Scoring
 
-* **OFF**: Cannot edit past days (server enforces, rejects writes).
-* **ON**: Can edit past days, but entries are flagged as `edited=true`.
-* **Scoring**: Two leaderboards – strict (ignores edited), flexible (includes edited).
-* **Audit Log**: Every edit creates an audit record.
-
----
-
-## 🔁 Offline & Sync Rules
-
-* Local writes are queued with `idempotencyKey`.
-* Background service replays queue when online.
-* Firestore is source of truth, Redis caches leaderboards.
-* TTLs: 24–48h for caches.
-* Conflict resolution: Server wins, client shows diff.
+* **CheatMode OFF**: entries locked after 24h.
+* **CheatMode ON**: user can adjust past entries, flagged as `edited`.
+* **Scores**: two sets – strict (for leaderboards), flexible (personal).
+* Server validates cheat mode on write; audit logs track edits.
 
 ---
 
-## 📈 Stats Materialization
+## 🔁 Offline & Sync Strategy
 
-* Cloud Functions update `/habitStats/{habitId}` on entry writes.
-* Redis caches leaderboards for group plans.
-* Separate `strict` vs `flexible` stats.
+* React Query + AsyncStorage for cached reads.
+* `syncService` handles queued writes with idempotency keys.
+* TTL: 24h for flows, 48h for historical reads.
+* Conflict resolution: server authoritative; client merges or prompts.
 
 ---
 
-## 🔐 Security
+## 📈 Analytics & Stats
+
+* Materialized stats in `/flowStats` (strict & flexible).
+* Redis caches leaderboards.
+* Cloud Functions recompute aggregates on entry write.
+
+---
+
+## 🔐 Security & Privacy
 
 * Firestore rules enforce ownership.
-* Cheat mode lock enforced server-side.
-* Audit logs are immutable.
-* JWT + Idempotency keys for API calls.
+* Only backend can flip `edited` false → true.
+* Data flagged with schema version.
+* Optional HIPAA/SOC2 if scaling to healthcare.
 
 ---
 
-## 📦 Deployment & CI/CD
+## 🚀 Deployment & CI/CD
 
-* GitHub Actions CI: lint + test + typecheck.
-* Staging & production Firebase projects.
-* Feature flags for gradual rollout.
+* GitHub Actions: lint, test, build.
+* Feature flags for new screens (Snaps, AI coach).
+* Release tags (`v2.0.0`) follow semver.
 
 ---
 
-## 📅 Version Roadmap
-
-* **v1**: Core habit tracker (done)
-* **v2**: Plans (personal, public, group), profile share page, export.
-* **v3**: Leaderboards, trainer dashboards, redis cache.
-* **v4**: Social feed + motivational snaps.
-* **v5**: AI-assisted habit recommendations.
-* **v6**: Enterprise APIs (healthcare, HR wellness).
-* **v7+**: Advanced gamification, marketplace for trainers, monetization.

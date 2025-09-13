@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 import PropTypes from 'prop-types';
-import { colors, layout, spacing, shadows, radius } from '../../../styles';
+import { colors, layout } from '../../../styles';
 
 const Card = ({ 
   children, 
@@ -14,23 +14,23 @@ const Card = ({
 }) => {
   const getPadding = () => {
     switch (padding) {
-      case 'xs': return spacing.xs;
-      case 'sm': return spacing.sm;
-      case 'lg': return spacing.lg;
-      case 'xl': return spacing.xl;
-      default: return spacing.md;
+      case 'xs': return layout.spacing.xs;
+      case 'sm': return layout.spacing.sm;
+      case 'lg': return layout.spacing.lg;
+      case 'xl': return layout.spacing.xl;
+      default: return layout.spacing.md;
     }
   };
 
   const getMargin = () => {
     switch (margin) {
-      case 'xs': return spacing.xs;
-      case 'sm': return spacing.sm;
-      case 'md': return spacing.md;
-      case 'lg': return spacing.lg;
-      case 'xl': return spacing.xl;
+      case 'xs': return layout.spacing.xs;
+      case 'sm': return layout.spacing.sm;
+      case 'md': return layout.spacing.md;
+      case 'lg': return layout.spacing.lg;
+      case 'xl': return layout.spacing.xl;
       case 'none': return 0;
-      default: return spacing.sm;
+      default: return layout.spacing.sm;
     }
   };
 
@@ -38,24 +38,20 @@ const Card = ({
     switch (variant) {
       case 'elevated':
         return {
-          ...layout.card,
-          ...shadows.elevatedShadow,
+          ...layout.shadows.large,
         };
       case 'outlined':
         return {
-          ...layout.card,
           borderWidth: 1,
-          borderColor: colors.light.tertiaryText,
+          borderColor: colors.light.border,
         };
       case 'filled':
         return {
-          ...layout.card,
           backgroundColor: colors.light.progressBackground,
         };
       default:
         return {
-          ...layout.card,
-          ...(elevated ? shadows.elevatedShadow : shadows.cardShadow),
+          // No shadows for default variant
         };
     }
   };
@@ -89,7 +85,7 @@ Card.propTypes = {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.light.cardBackground,
-    borderRadius: radius.squircle,
+    borderRadius: layout.borderRadius.lg,
     ...(Platform.OS === 'ios' ? { borderCurve: 'continuous' } : {}),
   },
 });

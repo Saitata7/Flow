@@ -1,35 +1,43 @@
-# README.md
 
-## 📱 Habit Tracker + Social Plans App
+🌊 Flow – Mood & Positive Energy Tracker
 
-This project is a scalable **habit tracker** combined with **social plan sharing** features. Users can track personal habits, join group challenges, and follow trainer-defined plans. The system supports offline-first usage, gamification (via cheat mode & leaderboards), and long-term enterprise API integration (healthcare, corporate wellness, education).
+Flow is a next-generation mobile app designed to help people track moods, emotions, and daily actions that build a positive “flow state.” Unlike a simple habit tracker, Flow focuses on emotional well-being, mindfulness, and energy balance. Users can record feelings, share uplifting flows, join supportive plans, and see analytics that guide them toward sustained happiness.
 
-### ✨ Core Features
+✨ Core Features
 
-* **Habit Tracking**: Binary, Quantitative, and Time-based tracking modes.
-* **Plans**: Personal, public, and trainer-led group plans.
-* **Gamification**: Cheat mode toggle, strict vs flexible scoring, leaderboards.
-* **Profile Sharing**: Public pages for showcasing progress & activity.
-* **Offline Support**: Local queue, cache, and background sync.
-* **Export & Integration**: Export plans, sync with enterprise systems.
+Flow Entries: Track mood, energy, gratitude, focus, or custom signals.
 
-### 🚀 Tech Stack
+Plans & Challenges: Create personal rituals or public/group challenges to cultivate better flow.
 
-* **Frontend**: React Native + React Navigation + React Query.
-* **Backend**: Firebase (Auth, Firestore, Cloud Functions), Redis (leaderboards/cache).
-* **Infra**: Terraform / IaC for cloud infra, GitHub Actions for CI/CD.
-* **Testing**: Jest + React Testing Library.
-* **Observability**: Sentry (error tracking), custom metrics (sync queue health).
+Gamification: Cheat mode (strict vs flexible scoring), badges, streaks, gentle reminders.
 
-### 📂 Project Structure (v2)
+Community: Share flows, motivate peers, follow trainers/coaches.
 
-See `ARCHITECTURE.md` for details.
+Offline First: Local queue, caching, background sync.
 
-### 📖 Documentation
+Export & Integrations: Export data or integrate with wellness/health apps.
 
-* `CONTRIBUTING.md`: How to contribute.
-* `ARCHITECTURE.md`: High-level design, rules, and API contracts.
-* `docs/`: API usage, schema definitions, migrations.
-* `openapi/`: Swagger/OpenAPI definitions for APIs.
+🚀 Tech Stack
 
----
+Frontend: React Native, React Navigation, React Query, TypeScript.
+
+Backend: Firebase (Auth, Firestore, Cloud Functions), Redis (leaderboards/cache).
+
+Infra: GitHub Actions CI/CD, Terraform (optional).
+
+Testing: Jest, React Testing Library.
+
+Observability: Sentry, custom metrics.
+
+📂 Project Structure (v2)
+
+See ARCHITECTURE.md for details.
+
+📖 Documentation
+
+CONTRIBUTING.md: Contributing rules.
+
+ARCHITECTURE.md: Deep architecture & data rules.
+
+docs/: API schemas, migrations, feature flags.
+
