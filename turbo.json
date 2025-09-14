@@ -38,6 +38,12 @@
     },
     "clean": {
       "cache": false
+    },
+    "openapi:generate": {
+      "dependsOn": ["^build"]
+    },
+    "migrate": {
+      "cache": false
     }
   }
 }

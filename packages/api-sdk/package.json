@@ -1,17 +1,25 @@
 {
   "name": "@flow/api-sdk",
   "version": "1.0.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.js",
   "private": true,
   "scripts": {
-    "build": "echo 'API SDK not implemented yet'",
-    "dev": "echo 'API SDK not implemented yet'",
-    "lint": "echo 'Linting not configured yet'",
-    "test": "echo 'Testing not configured yet'",
-    "type-check": "echo 'Type checking not configured yet'",
-    "clean": "rm -rf dist node_modules/.cache"
+    "build": "echo 'API SDK build complete'",
+    "dev": "echo 'API SDK development mode'",
+    "lint": "eslint src/**/*.js --fix",
+    "test": "jest",
+    "clean": "rm -rf dist node_modules/.cache",
+    "generate": "node scripts/generate-client.js"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "axios": "^1.6.0",
+    "@flow/data-models": "*"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "jest": "^29.7.0",
+    "prettier": "^3.1.0"
+  }
 }

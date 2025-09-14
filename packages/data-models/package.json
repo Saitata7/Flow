@@ -1,20 +1,28 @@
 {
   "name": "@flow/data-models",
   "version": "2.0.0",
-  "main": "constants.js",
+  "main": "src/index.js",
   "private": true,
   "scripts": {
-    "build": "echo 'Data models package - no build needed'",
-    "dev": "echo 'Data models package - no dev server needed'",
-    "lint": "echo 'Linting not configured yet'",
-    "test": "echo 'Testing not configured yet'",
-    "type-check": "echo 'Type checking not configured yet'",
+    "lint": "eslint src/**/*.js --fix",
+    "test": "jest",
     "clean": "rm -rf node_modules/.cache"
   },
   "files": [
+    "src/**/*",
+    "schemas/**/*",
     "constants.js",
     "base-schema.json"
   ],
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "jest": "^29.7.0",
+    "prettier": "^3.1.0"
+  }
 }

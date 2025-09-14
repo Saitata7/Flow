@@ -1,0 +1,244 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "User Profile Schema",
+  "description": "Schema for user profile data in the Flow app",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique user identifier"
+    },
+    "username": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{3,20}$",
+      "description": "Unique handle for public URLs (3-20 chars, alphanumeric + _ -)"
+    },
+    "displayName": {
+      "type": "string",
+      "maxLength": 50,
+      "description": "User's display name"
+    },
+    "avatarUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL to user's avatar image"
+    },
+    "bio": {
+      "type": "string",
+      "maxLength": 500,
+      "description": "User's bio/description"
+    },
+    "joinedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date user signed up"
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "personalPlans": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of personal plans"
+        },
+        "publicPlans": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of public plans"
+        },
+        "followers": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of followers"
+        },
+        "following": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of users being followed"
+        },
+        "badges": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of earned badges"
+        }
+      },
+      "required": ["personalPlans", "publicPlans", "followers", "following", "badges"],
+      "additionalProperties": false
+    },
+    "social": {
+      "type": "object",
+      "properties": {
+        "twitter": {
+          "type": "string",
+          "description": "Twitter handle or URL"
+        },
+        "linkedin": {
+          "type": "string",
+          "format": "uri",
+          "description": "LinkedIn profile URL"
+        },
+        "github": {
+          "type": "string",
+          "format": "uri",
+          "description": "GitHub profile URL"
+        },
+        "instagram": {
+          "type": "string",
+          "description": "Instagram handle"
+        }
+      },
+      "additionalProperties": false
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": ["twitter", "linkedin", "github", "instagram", "facebook", "youtube", "tiktok", "website"],
+            "description": "Social platform or website"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to the profile/page"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "Custom label for the link"
+          }
+        },
+        "required": ["platform", "url"],
+        "additionalProperties": false
+      },
+      "description": "Array of social links to unify social accounts",
+      "maxItems": 10
+    },
+    "achievements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique achievement identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Achievement name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Achievement description"
+          },
+          "earnedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the achievement was earned"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Icon identifier for the achievement"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["streak", "milestone", "social", "challenge", "special"],
+            "description": "Category of the achievement"
+          }
+        },
+        "required": ["id", "name", "earnedAt"],
+        "additionalProperties": false
+      },
+      "description": "Array of earned achievements"
+    },
+    "profileTheme": {
+      "type": "object",
+      "properties": {
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Primary color in hex format"
+        },
+        "secondaryColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Secondary color in hex format"
+        },
+        "bannerUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to profile banner image"
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Accent color for highlights"
+        }
+      },
+      "description": "Profile theme customization",
+      "additionalProperties": false
+    },
+    "visibility": {
+      "type": "object",
+      "properties": {
+        "bio": {
+          "type": "boolean",
+          "description": "Whether bio is visible to others"
+        },
+        "stats": {
+          "type": "boolean",
+          "description": "Whether stats are visible to others"
+        },
+        "plans": {
+          "type": "boolean",
+          "description": "Whether plans are visible to others"
+        }
+      },
+      "required": ["bio", "stats", "plans"],
+      "additionalProperties": false
+    },
+    "schemaVersion": {
+      "type": "integer",
+      "description": "Schema version for migration purposes"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Profile creation timestamp"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Profile last update timestamp"
+    },
+    "deletedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When the profile was soft-deleted (null if not deleted)"
+    }
+  },
+  "required": [
+    "id",
+    "username",
+    "displayName",
+    "avatarUrl",
+    "bio",
+    "joinedAt",
+    "stats",
+    "social",
+    "links",
+    "achievements",
+    "profileTheme",
+    "visibility",
+    "schemaVersion",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": false
+}

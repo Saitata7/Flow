@@ -52,6 +52,15 @@ export default function AddFlow({ navigation }) {
   const [secondsInput, setSecondsInput] = useState('00');
   const [goal, setGoal] = useState(0);
   const [goalInput, setGoalInput] = useState('');
+  
+  // New v2 schema fields
+  const [planId, setPlanId] = useState(null);
+  const [goalObject, setGoalObject] = useState(null);
+  const [progressMode, setProgressMode] = useState('sum');
+  const [tags, setTags] = useState([]);
+  const [tagInput, setTagInput] = useState('');
+  const [archived, setArchived] = useState(false);
+  const [visibility, setVisibility] = useState('private');
 
   // Populate fields when editing
   useEffect(() => {
@@ -82,6 +91,14 @@ export default function AddFlow({ navigation }) {
         setGoal(flowToEdit.goal);
         setGoalInput(flowToEdit.goal.toString());
       }
+      
+      // Populate v2 schema fields
+      setPlanId(flowToEdit.planId || null);
+      setGoalObject(flowToEdit.goal || null);
+      setProgressMode(flowToEdit.progressMode || 'sum');
+      setTags(flowToEdit.tags || []);
+      setArchived(flowToEdit.archived || false);
+      setVisibility(flowToEdit.visibility || 'private');
     }
   }, [flowToEdit]);
 
@@ -91,6 +108,18 @@ export default function AddFlow({ navigation }) {
     } else {
       setSelectedDays([...selectedDays, day]);
     }
+  };
+
+  const addTag = () => {
+    const trimmedTag = tagInput.trim();
+    if (trimmedTag && !tags.includes(trimmedTag) && tags.length < 10) {
+      setTags([...tags, trimmedTag]);
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
   const handleSave = async () => {
@@ -177,6 +206,15 @@ export default function AddFlow({ navigation }) {
         minutes: trackingType === 'Time-based' ? minutes : undefined,
         seconds: trackingType === 'Time-based' ? seconds : undefined,
         goal: trackingType === 'Quantitative' ? goal : undefined,
+        
+        // New v2 schema fields
+        planId,
+        goal: goalObject,
+        progressMode,
+        tags,
+        archived,
+        visibility,
+        ownerId: user?.id || 'user123',
       };
 
       try {
@@ -537,6 +575,127 @@ export default function AddFlow({ navigation }) {
               </Text>
             </View>
           </TouchableOpacity>
+
+          {/* New v2 Schema Fields */}
+          <Text style={styles.label}>Progress Mode</Text>
+          <TouchableOpacity
+            style={[styles.optionButton, progressMode === 'sum' && styles.optionButtonSelected]}
+            onPress={() => setProgressMode('sum')}
+          >
+            <View>
+              <Text style={progressMode === 'sum' ? styles.optionTextSelected : styles.optionText}>
+                Sum (Accumulate)
+              </Text>
+              <Text style={progressMode === 'sum' ? styles.optionSubTextSelected : styles.optionSubText}>
+                Add up all values over time
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.optionButton, progressMode === 'average' && styles.optionButtonSelected]}
+            onPress={() => setProgressMode('average')}
+          >
+            <View>
+              <Text style={progressMode === 'average' ? styles.optionTextSelected : styles.optionText}>
+                Average
+              </Text>
+              <Text style={progressMode === 'average' ? styles.optionSubTextSelected : styles.optionSubText}>
+                Calculate average over time
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.optionButton, progressMode === 'latest' && styles.optionButtonSelected]}
+            onPress={() => setProgressMode('latest')}
+          >
+            <View>
+              <Text style={progressMode === 'latest' ? styles.optionTextSelected : styles.optionText}>
+                Latest
+              </Text>
+              <Text style={progressMode === 'latest' ? styles.optionSubTextSelected : styles.optionSubText}>
+                Use the most recent value
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.label}>Tags</Text>
+          <View style={styles.tagInputContainer}>
+            <TextInput
+              style={styles.tagInput}
+              value={tagInput}
+              onChangeText={setTagInput}
+              placeholder="Add a tag..."
+              onSubmitEditing={addTag}
+            />
+            <TouchableOpacity style={styles.addTagButton} onPress={addTag}>
+              <Text style={styles.addTagText}>+</Text>
+            </TouchableOpacity>
+          </View>
+          {tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {tags.map((tag, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.tag}
+                  onPress={() => removeTag(tag)}
+                >
+                  <Text style={styles.tagText}>{tag} ×</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <Text style={styles.label}>Visibility</Text>
+          <TouchableOpacity
+            style={[styles.optionButton, visibility === 'private' && styles.optionButtonSelected]}
+            onPress={() => setVisibility('private')}
+          >
+            <View>
+              <Text style={visibility === 'private' ? styles.optionTextSelected : styles.optionText}>
+                Private
+              </Text>
+              <Text style={visibility === 'private' ? styles.optionSubTextSelected : styles.optionSubText}>
+                Only you can see this flow
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.optionButton, visibility === 'friends' && styles.optionButtonSelected]}
+            onPress={() => setVisibility('friends')}
+          >
+            <View>
+              <Text style={visibility === 'friends' ? styles.optionTextSelected : styles.optionText}>
+                Friends
+              </Text>
+              <Text style={visibility === 'friends' ? styles.optionSubTextSelected : styles.optionSubText}>
+                Visible to your friends
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.optionButton, visibility === 'public' && styles.optionButtonSelected]}
+            onPress={() => setVisibility('public')}
+          >
+            <View>
+              <Text style={visibility === 'public' ? styles.optionTextSelected : styles.optionText}>
+                Public
+              </Text>
+              <Text style={visibility === 'public' ? styles.optionSubTextSelected : styles.optionSubText}>
+                Visible to everyone
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>Archived</Text>
+            <Switch
+              style={styles.toggleSwitch}
+              value={archived}
+              onValueChange={setArchived}
+              trackColor={{ false: '#ccc', true: '#F5A623' }}
+              thumbColor="#fff"
+            />
+          </View>
         </ScrollView>
         <TouchableOpacity style={styles.bottomButton} onPress={handleSave}>
           <Text style={styles.saveFlowText}>
@@ -730,6 +889,50 @@ const styles = StyleSheet.create({
   saveFlowText: {
     color: '#fff',
     fontSize: 18,
+    fontWeight: '600',
+  },
+  tagInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  tagInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 14,
+    padding: 12,
+    backgroundColor: '#fff',
+  },
+  addTagButton: {
+    marginLeft: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F5A623',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addTagText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    gap: 8,
+  },
+  tag: {
+    backgroundColor: '#F5A623',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  tagText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: '600',
   },
 });

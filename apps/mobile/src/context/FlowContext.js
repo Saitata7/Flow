@@ -74,21 +74,43 @@ export const FlowsProvider = ({ children }) => {
   const addFlow = useCallback(
     async (flow) => {
       try {
+        const now = new Date().toISOString();
         const newFlow = {
+          // Required fields
           id: flow.id || Date.now().toString(),
           title: flow.title,
-          description: flow.description || '',
           trackingType: flow.trackingType,
           frequency: flow.frequency || 'Daily',
+          ownerId: flow.ownerId || 'user123', // TODO: Get from auth context
+          schemaVersion: 2,
+          createdAt: now,
+          updatedAt: now,
+          
+          // Optional fields with defaults
+          description: flow.description || '',
           everyDay: flow.everyDay || false,
           daysOfWeek: flow.daysOfWeek || [],
           reminderTime: flow.time || null,
           reminderLevel: flow.reminderLevel || '1',
+          cheatMode: flow.cheatMode || false,
+          
+          // New v2 fields
+          planId: flow.planId || null,
+          goal: flow.goal || null,
+          progressMode: flow.progressMode || 'sum',
+          tags: flow.tags || [],
+          archived: flow.archived || false,
+          visibility: flow.visibility || 'private',
+          deletedAt: null,
+          
+          // Legacy fields for backward compatibility
           goal: flow.trackingType === 'Quantitative' ? flow.goal || 0 : undefined,
           hours: flow.trackingType === 'Time-based' ? flow.hours || 0 : undefined,
           minutes: flow.trackingType === 'Time-based' ? flow.minutes || 0 : undefined,
           seconds: flow.trackingType === 'Time-based' ? flow.seconds || 0 : undefined,
           unitText: flow.trackingType === 'Quantitative' ? flow.unitText || '' : undefined,
+          
+          // Status tracking
           status: generateStatusDates(
             flow.trackingType,
             flow.trackingType === 'Quantitative' ? flow.unitText : undefined,
@@ -112,6 +134,7 @@ export const FlowsProvider = ({ children }) => {
   const updateFlowStatus = useCallback(
     async (id, date, updates, fromQueue = false) => {
       try {
+        const now = new Date().toISOString();
         const updatedFlows = flows.map((flow) => {
           if (flow.id !== id) return flow;
           const currentStatus = flow.status[date] || {
@@ -153,12 +176,24 @@ export const FlowsProvider = ({ children }) => {
             newStatus.symbol = updates.symbol || '➖';
           }
 
+          // Update v2 fields
           newStatus.emotion = updates.emotion ?? currentStatus.emotion;
           newStatus.note = updates.note ?? currentStatus.note;
-          newStatus.timestamp = updates.timestamp || new Date().toISOString();
+          newStatus.timestamp = updates.timestamp || now;
+          
+          // Add new FlowEntry v2 fields
+          newStatus.moodScore = updates.moodScore ?? currentStatus.moodScore;
+          newStatus.device = updates.device || 'mobile';
+          newStatus.geo = updates.geo ?? currentStatus.geo;
+          newStatus.streakCount = updates.streakCount ?? currentStatus.streakCount;
+          newStatus.edited = updates.edited || false;
+          newStatus.editedBy = updates.editedBy ?? currentStatus.editedBy;
+          newStatus.editedAt = updates.editedAt ?? currentStatus.editedAt;
+          newStatus.deletedAt = updates.deletedAt ?? currentStatus.deletedAt;
 
           return {
             ...flow,
+            updatedAt: now,
             status: {
               ...flow.status,
               [date]: newStatus
@@ -182,8 +217,14 @@ export const FlowsProvider = ({ children }) => {
   const updateFlow = useCallback(
     async (id, updates, fromQueue = false) => {
       try {
+        const now = new Date().toISOString();
         const updatedFlows = flows.map((flow) =>
-          flow.id === id ? { ...flow, ...updates } : flow
+          flow.id === id ? { 
+            ...flow, 
+            ...updates, 
+            updatedAt: now,
+            schemaVersion: 2 // Ensure schema version is updated
+          } : flow
         );
         await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
         setFlows(updatedFlows);
@@ -199,14 +240,51 @@ export const FlowsProvider = ({ children }) => {
   );
 
   const deleteFlow = useCallback(
-    async (id) => {
+    async (id, softDelete = true) => {
       try {
-        const updatedFlows = flows.filter((flow) => flow.id !== id);
-        await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
-        setFlows(updatedFlows);
-        console.log('Deleted flow:', id);
+        if (softDelete) {
+          // Soft delete - set deletedAt timestamp
+          const now = new Date().toISOString();
+          const updatedFlows = flows.map((flow) =>
+            flow.id === id ? { 
+              ...flow, 
+              deletedAt: now,
+              updatedAt: now
+            } : flow
+          );
+          await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
+          setFlows(updatedFlows);
+          console.log('Soft deleted flow:', id);
+        } else {
+          // Hard delete - remove from array
+          const updatedFlows = flows.filter((flow) => flow.id !== id);
+          await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
+          setFlows(updatedFlows);
+          console.log('Hard deleted flow:', id);
+        }
       } catch (e) {
         console.error('Failed to delete flow:', e);
+      }
+    },
+    [flows]
+  );
+
+  const restoreFlow = useCallback(
+    async (id) => {
+      try {
+        const now = new Date().toISOString();
+        const updatedFlows = flows.map((flow) =>
+          flow.id === id ? { 
+            ...flow, 
+            deletedAt: null,
+            updatedAt: now
+          } : flow
+        );
+        await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
+        setFlows(updatedFlows);
+        console.log('Restored flow:', id);
+      } catch (e) {
+        console.error('Failed to restore flow:', e);
       }
     },
     [flows]
@@ -227,17 +305,52 @@ export const FlowsProvider = ({ children }) => {
     [updateFlowStatus]
   );
 
+  // Helper functions for filtering flows
+  const getActiveFlows = useCallback(() => {
+    return flows.filter(flow => !flow.deletedAt && !flow.archived);
+  }, [flows]);
+
+  const getArchivedFlows = useCallback(() => {
+    return flows.filter(flow => !flow.deletedAt && flow.archived);
+  }, [flows]);
+
+  const getDeletedFlows = useCallback(() => {
+    return flows.filter(flow => flow.deletedAt);
+  }, [flows]);
+
+  const getFlowsByPlan = useCallback((planId) => {
+    return flows.filter(flow => !flow.deletedAt && flow.planId === planId);
+  }, [flows]);
+
+  const getFlowsByTag = useCallback((tag) => {
+    return flows.filter(flow => !flow.deletedAt && flow.tags?.includes(tag));
+  }, [flows]);
+
   return (
     <FlowsContext.Provider
       value={{
+        // Data
         flows,
+        activeFlows: getActiveFlows(),
+        archivedFlows: getArchivedFlows(),
+        deletedFlows: getDeletedFlows(),
+        
+        // Actions
         addFlow,
         updateFlow,
         updateFlowStatus,
         deleteFlow,
+        restoreFlow,
         updateCount,
         updateTimeBased,
-        setFlows
+        setFlows,
+        
+        // Filters
+        getFlowsByPlan,
+        getFlowsByTag,
+        getActiveFlows,
+        getArchivedFlows,
+        getDeletedFlows
       }}
     >
       {children}

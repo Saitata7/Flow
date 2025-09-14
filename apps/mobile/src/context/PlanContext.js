@@ -50,7 +50,32 @@ export const PlanProvider = ({ children }) => {
   const createPlan = async (planData) => {
     try {
       setLoading(true);
-      const newPlan = await planService.createPlan(planData, `create-${Date.now()}`);
+      
+      // Ensure new plan has v2 schema fields
+      const now = new Date().toISOString();
+      const enhancedPlanData = {
+        ...planData,
+        schemaVersion: 2,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: null,
+        
+        // Set defaults for new v2 fields
+        planKind: planData.planKind || 'Challenge',
+        status: planData.status || 'draft',
+        tags: planData.tags || [],
+        rules: planData.rules || {
+          frequency: 'daily',
+          scoring: {
+            method: 'binary',
+            pointsPerCompletion: 1
+          },
+          cheatModePolicy: 'flexible',
+          maxParticipants: 100
+        }
+      };
+      
+      const newPlan = await planService.createPlan(enhancedPlanData, `create-${Date.now()}`);
       await loadAllPlans(); // Reload all plans
       return newPlan;
     } catch (err) {
@@ -64,7 +89,16 @@ export const PlanProvider = ({ children }) => {
   const updatePlan = async (planId, updateData) => {
     try {
       setLoading(true);
-      const updatedPlan = await planService.updatePlan(planId, updateData, `update-${Date.now()}`);
+      
+      // Ensure update includes schema version and timestamp
+      const now = new Date().toISOString();
+      const enhancedUpdateData = {
+        ...updateData,
+        updatedAt: now,
+        schemaVersion: 2
+      };
+      
+      const updatedPlan = await planService.updatePlan(planId, enhancedUpdateData, `update-${Date.now()}`);
       await loadAllPlans(); // Reload all plans
       return updatedPlan;
     } catch (err) {
@@ -75,10 +109,39 @@ export const PlanProvider = ({ children }) => {
     }
   };
 
-  const deletePlan = async (planId) => {
+  const deletePlan = async (planId, softDelete = true) => {
     try {
       setLoading(true);
-      await planService.deletePlan(planId, `delete-${Date.now()}`);
+      
+      if (softDelete) {
+        // Soft delete - set deletedAt timestamp
+        const now = new Date().toISOString();
+        await planService.updatePlan(planId, { 
+          deletedAt: now, 
+          updatedAt: now 
+        }, `soft-delete-${Date.now()}`);
+      } else {
+        // Hard delete - remove completely
+        await planService.deletePlan(planId, `hard-delete-${Date.now()}`);
+      }
+      
+      await loadAllPlans(); // Reload all plans
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const restorePlan = async (planId) => {
+    try {
+      setLoading(true);
+      const now = new Date().toISOString();
+      await planService.updatePlan(planId, { 
+        deletedAt: null, 
+        updatedAt: now 
+      }, `restore-${Date.now()}`);
       await loadAllPlans(); // Reload all plans
     } catch (err) {
       setError(err.message);
@@ -168,11 +231,40 @@ export const PlanProvider = ({ children }) => {
     }
   };
 
+  // Helper functions for filtering plans
+  const getActivePlans = () => {
+    return [...personalPlans, ...publicPlans].filter(plan => !plan.deletedAt && plan.status === 'active');
+  };
+
+  const getDraftPlans = () => {
+    return personalPlans.filter(plan => !plan.deletedAt && plan.status === 'draft');
+  };
+
+  const getArchivedPlans = () => {
+    return [...personalPlans, ...publicPlans].filter(plan => !plan.deletedAt && plan.status === 'archived');
+  };
+
+  const getDeletedPlans = () => {
+    return [...personalPlans, ...publicPlans].filter(plan => plan.deletedAt);
+  };
+
+  const getPlansByKind = (planKind) => {
+    return [...personalPlans, ...publicPlans].filter(plan => !plan.deletedAt && plan.planKind === planKind);
+  };
+
+  const getPlansByTag = (tag) => {
+    return [...personalPlans, ...publicPlans].filter(plan => !plan.deletedAt && plan.tags?.includes(tag));
+  };
+
   const value = {
     // Data
     personalPlans,
     publicPlans,
     favouritePlans,
+    activePlans: getActivePlans(),
+    draftPlans: getDraftPlans(),
+    archivedPlans: getArchivedPlans(),
+    deletedPlans: getDeletedPlans(),
     loading,
     error,
     
@@ -180,6 +272,7 @@ export const PlanProvider = ({ children }) => {
     createPlan,
     updatePlan,
     deletePlan,
+    restorePlan,
     joinPlan,
     leavePlan,
     addToFavourites,
@@ -187,6 +280,14 @@ export const PlanProvider = ({ children }) => {
     getPlanById,
     searchPlans,
     loadAllPlans,
+    
+    // Filters
+    getPlansByKind,
+    getPlansByTag,
+    getActivePlans,
+    getDraftPlans,
+    getArchivedPlans,
+    getDeletedPlans,
     
     // Utilities
     clearError: () => setError(null),

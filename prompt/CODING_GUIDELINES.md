@@ -1,51 +1,77 @@
-Purpose
+# Flow – Coding Guidelines
 
-Coding standards for the Flow app so all contributors (and AI tools like Cursor) generate predictable, maintainable code.
+> Applies to all workspaces: `apps/*`, `services/*`, `packages/*`
 
-File & Folder Naming
+---
 
-Use camelCase for JS/TS files (e.g., habitService.js).
+## 1️⃣ General Principles
+- Keep **runtime code** separate from docs/tests.
+- Never mix mobile/web code with backend logic.
+- Keep commits small & meaningful (one feature/fix per commit).
+- Use TypeScript everywhere (mobile, web, services, packages).
 
-React components: PascalCase (e.g., FlowCard.js).
+---
 
-Tests mirror source folder with .test.js suffix.
+## 2️⃣ Monorepo Rules
+- All workspaces must have their own `package.json`.
+- Shared code lives in `packages/`.
+- Only `apps/` can import from `services/` via `packages/api-sdk` (never direct).
+- `docs/` and `tests/` are excluded from production bundles.
 
-Place domain logic in services/, not inside Context or UI.
+---
 
-Components
+## 3️⃣ File & Folder Conventions
+| Item | Rule |
+|------|------|
+| Components | `PascalCase` files under `src/components/` |
+| Screens | `PascalCase` under `src/screens/<feature>` |
+| Services / Hooks | `camelCase` filenames |
+| API Controllers | `<domain>.controller.ts` |
+| Routes | `<domain>.routes.ts` |
+| Redis Utils | `<purpose>.cache.ts` |
+| Tests | Mirror source path, suffix with `.test.ts` |
+| Config | `*.config.ts` or `.json` |
 
-Keep components stateless; connect via hooks.
+---
 
-Break complex screens into small composable pieces.
+## 4️⃣ Code Style
+- Use **Prettier** for formatting.
+- Use **ESLint (Airbnb + Prettier)** for linting.
+- Max line length: 100 chars.
+- Prefer `async/await` over raw Promises.
+- Destructure props & params.
+- Never suppress TypeScript errors with `any` unless unavoidable.
 
-Use propTypes or TypeScript interfaces.
+---
 
-Services
+## 5️⃣ Error Handling
+- Use central error middleware in `services/api`.
+- Throw domain-specific errors (`FlowNotFoundError`, etc.).
+- Log errors (with userId & requestId) but never leak PII.
 
-One service per domain: flowService, planService, statsService.
+---
 
-Always handle errors & return typed results.
+## 6️⃣ Testing
+- Unit tests for utils, services, SDK.
+- Integration tests for API endpoints.
+- Snapshot tests for shared UI.
+- All new code requires tests before merge.
 
-Keep network calls here; no fetch in UI components.
+---
 
-Context & Hooks
+## 7️⃣ Security
+- Validate all inputs against JSON schemas (`packages/data-models`).
+- Sanitize user-generated content (bio, notes).
+- Never log secrets or access tokens.
 
-Context: for light UI state (theme, auth, sync status).
+---
 
-Hooks: for data fetching, caching, domain logic composition.
+## 8️⃣ Git & Branching
+- `main`: production.
+- `develop`: staging.
+- Feature branches: `feat/<topic>`.
+- Hotfix branches: `hotfix/<topic>`.
 
-Testing
+---
 
-Unit test services & hooks.
-
-Integration tests for sync queue, offline edits, cheat mode.
-
-Code Quality
-
-Use ESLint & Prettier.
-
-Avoid long functions (>40 lines).
-
-Comment tricky logic (e.g., conflict resolution).
-
-Write docstrings for services and hooks.
+> **Golden Rule:** If a module grows >500 lines or has >3 responsibilities, refactor into smaller files.

@@ -13,14 +13,50 @@ const useAuth = () => {
   const { data: user, isLoading } = useQuery({
     queryKey: ['auth'],
     queryFn: async () => {
-      // For demo purposes, return a mock user
+      // For demo purposes, return a mock user with v2 schema
       // In production, this would fetch from your API
       return {
         id: 'user123',
+        username: 'demo_user',
+        displayName: 'Demo User',
+        avatarUrl: null,
+        bio: 'Welcome to Flow! This is a demo profile.',
+        joinedAt: '2024-01-01T00:00:00Z',
+        stats: {
+          personalPlans: 0,
+          publicPlans: 0,
+          followers: 0,
+          following: 0,
+          badges: []
+        },
+        social: {
+          twitter: null,
+          linkedin: null,
+          github: null,
+          instagram: null
+        },
+        links: [],
+        achievements: [],
+        profileTheme: {
+          primaryColor: '#007AFF',
+          secondaryColor: '#5856D6',
+          bannerUrl: null,
+          accentColor: '#FF9500'
+        },
+        visibility: {
+          bio: true,
+          stats: true,
+          plans: true
+        },
+        schemaVersion: 2,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+        deletedAt: null,
+        
+        // Legacy fields for backward compatibility
         email: 'demo@flow.app',
         name: 'Demo User',
         avatar: null,
-        createdAt: '2024-01-01T00:00:00Z',
       };
     },
     staleTime: 5 * 60 * 1000,
@@ -79,13 +115,49 @@ const useAuth = () => {
   });
 
   const skipAuth = () => {
-    // Set the mock user for demo purposes
+    // Set the mock user for demo purposes with v2 schema
     queryClient.setQueryData(['auth'], {
       id: 'user123',
+      username: 'demo_user',
+      displayName: 'Demo User',
+      avatarUrl: null,
+      bio: 'Welcome to Flow! This is a demo profile.',
+      joinedAt: '2024-01-01T00:00:00Z',
+      stats: {
+        personalPlans: 0,
+        publicPlans: 0,
+        followers: 0,
+        following: 0,
+        badges: []
+      },
+      social: {
+        twitter: null,
+        linkedin: null,
+        github: null,
+        instagram: null
+      },
+      links: [],
+      achievements: [],
+      profileTheme: {
+        primaryColor: '#007AFF',
+        secondaryColor: '#5856D6',
+        bannerUrl: null,
+        accentColor: '#FF9500'
+      },
+      visibility: {
+        bio: true,
+        stats: true,
+        plans: true
+      },
+      schemaVersion: 2,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+      deletedAt: null,
+      
+      // Legacy fields for backward compatibility
       email: 'demo@flow.app',
       name: 'Demo User',
       avatar: null,
-      createdAt: '2024-01-01T00:00:00Z',
     });
     setError(null);
   };
