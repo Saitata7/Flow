@@ -1,0 +1,17 @@
+{
+  "name": "@flow/api-sdk",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "private": true,
+  "scripts": {
+    "build": "echo 'API SDK not implemented yet'",
+    "dev": "echo 'API SDK not implemented yet'",
+    "lint": "echo 'Linting not configured yet'",
+    "test": "echo 'Testing not configured yet'",
+    "type-check": "echo 'Type checking not configured yet'",
+    "clean": "rm -rf dist node_modules/.cache"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

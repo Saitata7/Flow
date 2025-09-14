@@ -1,0 +1,17 @@
+{
+  "name": "@flow/cache",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Cache service not implemented yet'",
+    "dev": "echo 'Cache service not implemented yet'",
+    "start": "echo 'Cache service not implemented yet'",
+    "lint": "echo 'Linting not configured yet'",
+    "test": "echo 'Testing not configured yet'",
+    "type-check": "echo 'Type checking not configured yet'",
+    "clean": "rm -rf dist logs tmp node_modules/.cache"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

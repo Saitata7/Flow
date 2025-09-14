@@ -1,0 +1,16 @@
+{
+  "name": "@flow/web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Web app not implemented yet'",
+    "build": "echo 'Web app not implemented yet'",
+    "start": "echo 'Web app not implemented yet'",
+    "lint": "echo 'Linting not configured yet'",
+    "test": "echo 'Testing not configured yet'",
+    "type-check": "echo 'Type checking not configured yet'",
+    "clean": "rm -rf .next out dist node_modules/.cache"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

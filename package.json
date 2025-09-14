@@ -2,6 +2,7 @@
   "name": "flow",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "yarn@1.22.22",
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -12,11 +13,15 @@
     "android": "yarn workspace @flow/mobile android",
     "ios": "yarn workspace @flow/mobile ios",
     "web": "yarn workspace @flow/mobile web",
-    "build": "yarn workspaces run build",
-    "test": "yarn workspaces run test",
-    "lint": "yarn workspaces run lint"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean"
   },
   "devDependencies": {
+    "turbo": "^2.0.0",
     "yarn": "^1.22.0"
   }
 }
