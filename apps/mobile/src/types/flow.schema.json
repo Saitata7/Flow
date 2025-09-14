@@ -54,6 +54,53 @@
       "type": "boolean",
       "description": "Whether cheat mode is enabled for this flow"
     },
+    "planId": {
+      "type": ["string", "null"],
+      "description": "ID of the parent plan (optional - links flow to plan)"
+    },
+    "goal": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["number", "duration", "count"],
+          "description": "Type of goal value"
+        },
+        "value": {
+          "type": "number",
+          "description": "Target value per period"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement (e.g., 'minutes', 'steps', 'glasses')"
+        }
+      },
+      "description": "Goal configuration for quantitative/time flows",
+      "additionalProperties": false
+    },
+    "progressMode": {
+      "type": "string",
+      "enum": ["sum", "average", "latest"],
+      "description": "How to calculate progress: sum (accumulate), average (over time), latest (last value wins)"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 30
+      },
+      "description": "Tags for filtering and searching flows",
+      "maxItems": 10
+    },
+    "archived": {
+      "type": "boolean",
+      "description": "Whether the flow is archived (keeps history without cluttering UI)"
+    },
+    "visibility": {
+      "type": "string",
+      "enum": ["private", "friends", "public"],
+      "description": "Visibility level of the flow"
+    },
     "createdAt": {
       "type": "string",
       "format": "date-time",
@@ -64,6 +111,11 @@
       "format": "date-time",
       "description": "When the flow was last updated"
     },
+    "deletedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When the flow was soft-deleted (null if not deleted)"
+    },
     "ownerId": {
       "type": "string",
       "description": "ID of the user who owns this flow"
@@ -73,6 +125,6 @@
       "description": "Version of the schema used"
     }
   },
-  "required": ["id", "title", "trackingType", "frequency", "ownerId"],
+  "required": ["id", "title", "trackingType", "frequency", "ownerId", "schemaVersion", "createdAt", "updatedAt"],
   "additionalProperties": false
 }

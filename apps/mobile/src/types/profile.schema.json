@@ -8,6 +8,11 @@
       "type": "string",
       "description": "Unique user identifier"
     },
+    "username": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{3,20}$",
+      "description": "Unique handle for public URLs (3-20 chars, alphanumeric + _ -)"
+    },
     "displayName": {
       "type": "string",
       "maxLength": 50,
@@ -22,6 +27,11 @@
       "type": "string",
       "maxLength": 500,
       "description": "User's bio/description"
+    },
+    "joinedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date user signed up"
     },
     "stats": {
       "type": "object",
@@ -81,6 +91,99 @@
       },
       "additionalProperties": false
     },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": ["twitter", "linkedin", "github", "instagram", "facebook", "youtube", "tiktok", "website"],
+            "description": "Social platform or website"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to the profile/page"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 50,
+            "description": "Custom label for the link"
+          }
+        },
+        "required": ["platform", "url"],
+        "additionalProperties": false
+      },
+      "description": "Array of social links to unify social accounts",
+      "maxItems": 10
+    },
+    "achievements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique achievement identifier"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Achievement name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Achievement description"
+          },
+          "earnedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the achievement was earned"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Icon identifier for the achievement"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["streak", "milestone", "social", "challenge", "special"],
+            "description": "Category of the achievement"
+          }
+        },
+        "required": ["id", "name", "earnedAt"],
+        "additionalProperties": false
+      },
+      "description": "Array of earned achievements"
+    },
+    "profileTheme": {
+      "type": "object",
+      "properties": {
+        "primaryColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Primary color in hex format"
+        },
+        "secondaryColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Secondary color in hex format"
+        },
+        "bannerUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to profile banner image"
+        },
+        "accentColor": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Accent color for highlights"
+        }
+      },
+      "description": "Profile theme customization",
+      "additionalProperties": false
+    },
     "visibility": {
       "type": "object",
       "properties": {
@@ -113,15 +216,25 @@
       "type": "string",
       "format": "date-time",
       "description": "Profile last update timestamp"
+    },
+    "deletedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When the profile was soft-deleted (null if not deleted)"
     }
   },
   "required": [
     "id",
+    "username",
     "displayName",
     "avatarUrl",
     "bio",
+    "joinedAt",
     "stats",
     "social",
+    "links",
+    "achievements",
+    "profileTheme",
     "visibility",
     "schemaVersion",
     "createdAt",

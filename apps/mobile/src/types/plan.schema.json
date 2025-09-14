@@ -13,10 +13,20 @@
       "minLength": 1,
       "maxLength": 100
     },
+    "description": {
+      "type": "string",
+      "description": "Description of the plan",
+      "maxLength": 500
+    },
+    "planKind": {
+      "type": "string",
+      "enum": ["Challenge", "Template", "CoachPlan"],
+      "description": "Differentiates challenge vs template vs coaching plan"
+    },
     "type": {
       "type": "string",
       "enum": ["Public", "Private", "Group"],
-      "description": "Type of the plan"
+      "description": "Type of the plan (legacy field - use planKind instead)"
     },
     "category": {
       "type": "string",
@@ -33,6 +43,69 @@
         "type": "string"
       },
       "description": "Array of participant user IDs"
+    },
+    "startDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Start date of the plan"
+    },
+    "endDate": {
+      "type": "string",
+      "format": "date",
+      "description": "End date of the plan"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "archived"],
+      "description": "Current status of the plan"
+    },
+    "rules": {
+      "type": "object",
+      "properties": {
+        "frequency": {
+          "type": "string",
+          "enum": ["daily", "weekly", "monthly"],
+          "description": "How often the plan should be executed"
+        },
+        "scoring": {
+          "type": "object",
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["binary", "points", "streak"],
+              "description": "Scoring method for the plan"
+            },
+            "pointsPerCompletion": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Points awarded per completion"
+            }
+          },
+          "description": "Scoring configuration",
+          "additionalProperties": false
+        },
+        "cheatModePolicy": {
+          "type": "string",
+          "enum": ["strict", "flexible", "disabled"],
+          "description": "Policy for cheat mode in this plan"
+        },
+        "maxParticipants": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum number of participants allowed"
+        }
+      },
+      "description": "Rules and configuration for the plan",
+      "additionalProperties": false
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 30
+      },
+      "description": "Tags for filtering and searching plans",
+      "maxItems": 10
     },
     "visibility": {
       "type": "string",
@@ -52,8 +125,13 @@
       "type": "string",
       "format": "date-time",
       "description": "When the plan was last updated"
+    },
+    "deletedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "When the plan was soft-deleted (null if not deleted)"
     }
   },
-  "required": ["id", "title", "type", "ownerId"],
+  "required": ["id", "title", "planKind", "ownerId", "schemaVersion", "createdAt", "updatedAt"],
   "additionalProperties": false
 }
