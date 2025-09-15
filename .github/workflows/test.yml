@@ -1,0 +1,397 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * *' # Run daily at 2 AM UTC
+
+env:
+  NODE_VERSION: '20'
+  YARN_VERSION: '1.22.19'
+
+jobs:
+  # Lint and format check
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run ESLint
+        run: yarn lint
+
+      - name: Check Prettier formatting
+        run: yarn format:check
+
+      - name: Type check (if applicable)
+        run: yarn type-check
+        continue-on-error: true
+
+  # Unit and integration tests
+  test-api:
+    name: API Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: flow_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run API unit tests
+        run: yarn workspace @flow/api test:unit
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/flow_test
+          REDIS_URL: redis://localhost:6379/1
+
+      - name: Run API integration tests
+        run: yarn workspace @flow/api test:integration
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/flow_test
+          REDIS_URL: redis://localhost:6379/1
+
+      - name: Upload API coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./services/api/coverage/lcov.info
+          flags: api
+          name: api-coverage
+
+  test-mobile:
+    name: Mobile Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run mobile unit tests
+        run: yarn workspace @flow/mobile test:unit
+        env:
+          NODE_ENV: test
+
+      - name: Run mobile integration tests
+        run: yarn workspace @flow/mobile test:integration
+        env:
+          NODE_ENV: test
+
+      - name: Upload mobile coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./apps/mobile/coverage/lcov.info
+          flags: mobile
+          name: mobile-coverage
+
+  test-web:
+    name: Web Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run web unit tests
+        run: yarn workspace @flow/web test:unit
+        env:
+          NODE_ENV: test
+
+      - name: Run web integration tests
+        run: yarn workspace @flow/web test:integration
+        env:
+          NODE_ENV: test
+
+      - name: Upload web coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./apps/web/coverage/lcov.info
+          flags: web
+          name: web-coverage
+
+  test-packages:
+    name: Package Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run data-models tests
+        run: yarn workspace @flow/data-models test
+        env:
+          NODE_ENV: test
+
+      - name: Run api-sdk tests
+        run: yarn workspace @flow/api-sdk test
+        env:
+          NODE_ENV: test
+
+      - name: Run feature-flags tests
+        run: yarn workspace @flow/feature-flags test
+        env:
+          NODE_ENV: test
+
+      - name: Run ui-kit tests
+        run: yarn workspace @flow/ui-kit test
+        env:
+          NODE_ENV: test
+
+      - name: Upload package coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./packages/*/coverage/lcov.info
+          flags: packages
+          name: package-coverage
+
+  # End-to-end tests
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [test-api]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: flow_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run global E2E tests
+        run: yarn test:e2e
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/flow_test
+          REDIS_URL: redis://localhost:6379/1
+
+      - name: Run API E2E tests
+        run: yarn workspace @flow/api test:e2e
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/flow_test
+          REDIS_URL: redis://localhost:6379/1
+
+  # Performance tests
+  test-performance:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [test-api]
+    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: flow_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run performance tests
+        run: yarn test:performance
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/flow_test
+          REDIS_URL: redis://localhost:6379/1
+
+  # Security tests
+  test-security:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Run security audit
+        run: yarn audit --audit-level moderate
+
+      - name: Run security tests
+        run: yarn test:security
+        env:
+          NODE_ENV: test
+
+  # Coverage report
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [test-api, test-mobile, test-web, test-packages]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Generate coverage report
+        run: yarn test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: true
+
+  # Test summary
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [lint, test-api, test-mobile, test-web, test-packages, test-e2e, test-performance, test-security, coverage]
+    if: always()
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Test Summary
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Format | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| API Tests | ${{ needs.test-api.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Mobile Tests | ${{ needs.test-mobile.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Web Tests | ${{ needs.test-web.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Package Tests | ${{ needs.test-packages.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.test-e2e.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance Tests | ${{ needs.test-performance.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Tests | ${{ needs.test-security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage | ${{ needs.coverage.result }} |" >> $GITHUB_STEP_SUMMARY

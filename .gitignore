@@ -29,6 +29,21 @@ apps/mobile/ios/*.xcodeproj/project.xcworkspace/xcuserdata/
 apps/mobile/metro.config.js.bak
 apps/mobile/babel.config.js.bak
 
+# Firebase Configuration Files (SENSITIVE - DO NOT COMMIT)
+apps/mobile/android/app/google-services.json
+apps/mobile/ios/GoogleService-Info.plist
+apps/mobile/firebase-config.json
+apps/mobile/.env.local
+apps/mobile/.env.production
+
+# Firebase Admin SDK Files (SENSITIVE - DO NOT COMMIT)
+services/api/keys/
+services/api/*firebase-adminsdk*.json
+services/api/.env.firebase
+services/api/.env.local
+services/api/.env.production
+services/api/env.production
+
 # Web App (Next.js/React)
 apps/web/.next/
 apps/web/out/

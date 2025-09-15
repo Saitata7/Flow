@@ -1,0 +1,21 @@
+# Firebase Admin SDK Configuration
+# Extract these values from your Firebase Admin SDK JSON file
+# NEVER commit this file to git!
+
+# Project Configuration
+FIREBASE_PROJECT_ID=quick-doodad-472200-k0
+FIREBASE_PRIVATE_KEY_ID=your-private-key-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_CONTENT_HERE\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-fbsvc@quick-doodad-472200-k0.iam.gserviceaccount.com
+FIREBASE_CLIENT_ID=your-client-id
+FIREBASE_AUTH_URI=https://accounts.google.com/o/oauth2/auth
+FIREBASE_TOKEN_URI=https://oauth2.googleapis.com/token
+FIREBASE_AUTH_PROVIDER_X509_CERT_URL=https://www.googleapis.com/oauth2/v1/certs
+FIREBASE_CLIENT_X509_CERT_URL=https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40quick-doodad-472200-k0.iam.gserviceaccount.com
+
+# Usage Instructions:
+# 1. Download your Firebase Admin SDK JSON file from Firebase Console
+# 2. Extract the values from the JSON file
+# 3. Replace the placeholder values above with your actual values
+# 4. Make sure to include the full private key with \n characters
+# 5. Never commit this file to git!

@@ -1,0 +1,111 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: flow-api
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/execution-environment: gen2
+        run.googleapis.com/cpu-throttling: "false"
+        autoscaling.knative.dev/maxScale: "5"
+        autoscaling.knative.dev/minScale: "0"
+        run.googleapis.com/timeout: "300s"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+      - image: us-central1-docker.pkg.dev/PROJECT_ID/flow-registry/flow-api:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "8080"
+        - name: HOST
+          value: "0.0.0.0"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-host
+              key: latest
+        - name: DB_NAME
+          value: "flow"
+        - name: DB_USER
+          value: "flow_user"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-password
+              key: latest
+        - name: REDIS_HOST
+          valueFrom:
+            secretKeyRef:
+              name: redis-host
+              key: latest
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-password
+              key: latest
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: latest
+        - name: FIREBASE_PROJECT_ID
+          valueFrom:
+            secretKeyRef:
+              name: firebase-project-id
+              key: latest
+        - name: FIREBASE_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: firebase-private-key
+              key: latest
+        - name: FIREBASE_CLIENT_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: firebase-client-email
+              key: latest
+        - name: AUTH_PROVIDER
+          value: "firebase"
+        - name: VALID_API_KEYS
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: latest
+        - name: CORS_ORIGIN
+          valueFrom:
+            secretKeyRef:
+              name: cors-origin
+              key: latest
+        - name: LOG_LEVEL
+          value: "info"
+        resources:
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3

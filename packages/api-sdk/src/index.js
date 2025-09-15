@@ -2,9 +2,13 @@ const axios = require('axios');
 
 class FlowApiClient {
   constructor(options = {}) {
-    this.baseURL = options.baseURL || 'http://localhost:4000/v1';
+    // Use production URL if available, otherwise fallback to localhost
+    const productionUrl = process.env.API_BASE_URL || 'https://flow-api-xxxxx-uc.a.run.app/v1';
+    const devUrl = 'http://localhost:4000/v1';
+    
+    this.baseURL = options.baseURL || (process.env.NODE_ENV === 'production' ? productionUrl : devUrl);
     this.apiKey = options.apiKey || null;
-    this.timeout = options.timeout || 10000;
+    this.timeout = options.timeout || 30000;
     
     // Create axios instance
     this.client = axios.create({

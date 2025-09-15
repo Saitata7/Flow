@@ -33,6 +33,43 @@
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
+    "test:unit": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:integration": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "outputs": ["test-results/**", "artifacts/**"]
+    },
+    "test:coverage": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "test:performance": {
+      "dependsOn": ["^build"],
+      "outputs": ["performance-results/**"]
+    },
+    "test:security": {
+      "dependsOn": ["^build"],
+      "outputs": ["security-results/**"]
+    },
+    "test:ci": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**", "test-results/**"]
+    },
+    "lint:fix": {
+      "dependsOn": ["^build"]
+    },
+    "format": {
+      "dependsOn": ["^build"]
+    },
+    "format:check": {
+      "dependsOn": ["^build"]
+    },
     "type-check": {
       "dependsOn": ["^build"]
     },

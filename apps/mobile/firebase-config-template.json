@@ -1,0 +1,64 @@
+{
+  "android": {
+    "file": "android/app/google-services.json",
+    "description": "Firebase configuration file for Android. Download from Firebase Console > Project Settings > Your Apps > Android App",
+    "instructions": [
+      "1. Go to Firebase Console (https://console.firebase.google.com)",
+      "2. Select your project",
+      "3. Go to Project Settings (gear icon)",
+      "4. Scroll down to 'Your apps' section",
+      "5. Click on Android app or add new Android app",
+      "6. Download google-services.json",
+      "7. Replace the placeholder file with the downloaded file"
+    ],
+    "required_fields": [
+      "project_info.project_id",
+      "project_info.project_number", 
+      "project_info.storage_bucket",
+      "client[0].client_info.mobilesdk_app_id",
+      "client[0].client_info.android_client_info.package_name",
+      "client[0].api_key[0].current_key",
+      "client[0].oauth_client[0].client_id"
+    ]
+  },
+  "ios": {
+    "file": "ios/GoogleService-Info.plist",
+    "description": "Firebase configuration file for iOS. Download from Firebase Console > Project Settings > Your Apps > iOS App",
+    "instructions": [
+      "1. Go to Firebase Console (https://console.firebase.google.com)",
+      "2. Select your project", 
+      "3. Go to Project Settings (gear icon)",
+      "4. Scroll down to 'Your apps' section",
+      "5. Click on iOS app or add new iOS app",
+      "6. Download GoogleService-Info.plist",
+      "7. Replace the placeholder file with the downloaded file"
+    ],
+    "required_fields": [
+      "PROJECT_ID",
+      "BUNDLE_ID", 
+      "API_KEY",
+      "GCM_SENDER_ID",
+      "GOOGLE_APP_ID",
+      "STORAGE_BUCKET",
+      "DATABASE_URL",
+      "GOOGLE_SIGN_IN_SERVER_CLIENT_ID"
+    ]
+  },
+  "web": {
+    "file": "src/config/firebaseConfig.js",
+    "description": "Firebase configuration for web (if needed)",
+    "instructions": [
+      "1. Go to Firebase Console > Project Settings",
+      "2. Scroll down to 'Your apps' section", 
+      "3. Click on Web app or add new Web app",
+      "4. Copy the config object",
+      "5. Update the firebaseConfig.js file with your config"
+    ]
+  },
+  "notes": [
+    "These files contain sensitive information and should NEVER be committed to git",
+    "Always use environment variables or secure storage for production",
+    "The placeholder files contain fake values for development only",
+    "Replace with real Firebase project configuration before production deployment"
+  ]
+}

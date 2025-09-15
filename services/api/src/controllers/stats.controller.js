@@ -70,7 +70,7 @@ const calculateFlowStreaks = (entries) => {
       completedEntries++;
       
       // Check if this entry continues the streak
-      if (entryDate.toISOString().split('T')[0] === expectedDate.toISOString().split('T')[0])) {
+      if (entryDate.toISOString().split('T')[0] === expectedDate.toISOString().split('T')[0]) {
         tempStreak++;
         currentStreak = Math.max(currentStreak, tempStreak);
       } else {
