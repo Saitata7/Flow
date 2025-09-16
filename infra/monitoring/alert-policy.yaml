@@ -1,0 +1,126 @@
+# Cloud Monitoring Alert Policy for Flow API
+# This file defines alert policies for monitoring the Flow API service
+
+displayName: "Flow API Service Health"
+documentation:
+  content: "Alert when Flow API service is down or experiencing issues"
+  mimeType: "text/markdown"
+
+conditions:
+  # Service Down Alert
+  - displayName: "Service Down"
+    conditionThreshold:
+      filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="flow-api"'
+      comparison: COMPARISON_LT
+      thresholdValue: 0.95
+      duration: 300s
+      aggregations:
+        - alignmentPeriod: 300s
+          perSeriesAligner: ALIGN_RATE
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+        - alignmentPeriod: 300s
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+
+  # High Error Rate Alert
+  - displayName: "High Error Rate"
+    conditionThreshold:
+      filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="flow-api" AND metric.type="run.googleapis.com/request_count" AND metric.labels.response_code_class!="2xx"'
+      comparison: COMPARISON_GT
+      thresholdValue: 0.05
+      duration: 300s
+      aggregations:
+        - alignmentPeriod: 300s
+          perSeriesAligner: ALIGN_RATE
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+        - alignmentPeriod: 300s
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+
+  # High Response Time Alert
+  - displayName: "High Response Time"
+    conditionThreshold:
+      filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="flow-api" AND metric.type="run.googleapis.com/request_latencies"'
+      comparison: COMPARISON_GT
+      thresholdValue: 2000
+      duration: 300s
+      aggregations:
+        - alignmentPeriod: 300s
+          perSeriesAligner: ALIGN_DELTA
+          crossSeriesReducer: REDUCE_PERCENTILE_95
+          groupByFields:
+            - resource.labels.service_name
+        - alignmentPeriod: 300s
+          crossSeriesReducer: REDUCE_PERCENTILE_95
+          groupByFields:
+            - resource.labels.service_name
+
+  # High Memory Usage Alert
+  - displayName: "High Memory Usage"
+    conditionThreshold:
+      filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="flow-api" AND metric.type="run.googleapis.com/container/memory/utilizations"'
+      comparison: COMPARISON_GT
+      thresholdValue: 0.8
+      duration: 300s
+      aggregations:
+        - alignmentPeriod: 300s
+          perSeriesAligner: ALIGN_MEAN
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+        - alignmentPeriod: 300s
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+
+  # High CPU Usage Alert
+  - displayName: "High CPU Usage"
+    conditionThreshold:
+      filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="flow-api" AND metric.type="run.googleapis.com/container/cpu/utilizations"'
+      comparison: COMPARISON_GT
+      thresholdValue: 0.8
+      duration: 300s
+      aggregations:
+        - alignmentPeriod: 300s
+          perSeriesAligner: ALIGN_MEAN
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+        - alignmentPeriod: 300s
+          crossSeriesReducer: REDUCE_MEAN
+          groupByFields:
+            - resource.labels.service_name
+
+  # Low Request Count Alert (Service Not Being Used)
+  - displayName: "Low Request Count"
+    conditionThreshold:
+      filter: 'resource.type="cloud_run_revision" AND resource.labels.service_name="flow-api" AND metric.type="run.googleapis.com/request_count"'
+      comparison: COMPARISON_LT
+      thresholdValue: 1
+      duration: 600s
+      aggregations:
+        - alignmentPeriod: 600s
+          perSeriesAligner: ALIGN_RATE
+          crossSeriesReducer: REDUCE_SUM
+          groupByFields:
+            - resource.labels.service_name
+        - alignmentPeriod: 600s
+          crossSeriesReducer: REDUCE_SUM
+          groupByFields:
+            - resource.labels.service_name
+
+combiner: OR
+
+notificationChannels:
+  - "projects/PROJECT_ID/notificationChannels/CHANNEL_ID"
+
+alertStrategy:
+  autoClose: 1800s
+
+enabled: true

@@ -1,44 +1,74 @@
-# Multi-stage build for production optimization
-FROM node:20-alpine AS base
+# Multi-stage Dockerfile for Flow API Service
+# Optimized for production deployment on Google Cloud Run
 
-# Install system dependencies
-RUN apk add --no-cache \
-    postgresql-client \
-    curl \
-    dumb-init \
-    && rm -rf /var/cache/apk/*
-
-# Create app directory
+# Stage 1: Build dependencies
+FROM node:20-alpine AS deps
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY yarn.lock* ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN yarn install --frozen-lockfile --production=false
 
-# Copy application code
+# Stage 2: Build application
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy source code
 COPY . .
 
+# Build the application (if needed)
+RUN yarn build || echo "No build step required"
+
+# Stage 3: Production runtime
+FROM node:20-alpine AS runner
+WORKDIR /app
+
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 flow
 
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
 
-# Switch to non-root user
-USER nodejs
+# Copy package files
+COPY package*.json ./
+COPY yarn.lock* ./
 
-# Expose port (Cloud Run uses PORT env var)
+# Install only production dependencies
+RUN yarn install --frozen-lockfile --production=true && yarn cache clean
+
+# Copy built application from builder stage
+COPY --from=builder --chown=flow:nodejs /app/dist ./dist
+COPY --from=builder --chown=flow:nodejs /app/src ./src
+COPY --from=builder --chown=flow:nodejs /app/migrations ./migrations
+
+# Copy necessary config files
+COPY --chown=flow:nodejs package.json ./
+COPY --chown=flow:nodejs README.md ./
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV HOST=0.0.0.0
+
+# Expose port
 EXPOSE 8080
 
-# Health check optimized for Cloud Run
+# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+  CMD node -e "require('http').get('http://localhost:8080/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Switch to non-root user
+USER flow
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["node", "src/index.js"]

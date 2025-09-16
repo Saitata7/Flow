@@ -1,7 +1,14 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
-const config = getDefaultConfig(__dirname);
+const projectRoot = __dirname;
+const monorepoRoot = path.resolve(projectRoot, '../..');
+
+const config = getDefaultConfig(projectRoot);
+
+// Allow TypeScript files for dependencies (like expo)
+config.resolver.sourceExts = ['js', 'jsx', 'ts', 'tsx', 'json'];
+config.resolver.platforms = ['ios', 'android', 'native', 'web'];
 
 // Add path mapping support
 config.resolver.alias = {
@@ -15,9 +22,6 @@ config.resolver.alias = {
 };
 
 // Watch additional folders for monorepo support
-const projectRoot = __dirname;
-const monorepoRoot = path.resolve(projectRoot, '../..');
-
 config.watchFolders = [
   projectRoot,
   monorepoRoot,
@@ -28,5 +32,8 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(monorepoRoot, 'node_modules'),
 ];
+
+// Ensure proper resolution of expo and other packages
+config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
 module.exports = config;

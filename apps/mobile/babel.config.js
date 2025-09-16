@@ -19,5 +19,12 @@ module.exports = function(api) {
         },
       ],
     ],
+    // Allow TypeScript processing for dependencies
+    overrides: [
+      {
+        test: /node_modules\/expo\/.*\.(ts|tsx)$/,
+        presets: ['babel-preset-expo'],
+      },
+    ],
   };
 };

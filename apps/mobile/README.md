@@ -13,6 +13,7 @@ The main React Native application for Flow - a habit tracking and flow state man
 ## Tech Stack
 
 - React Native 0.81.4
+- React 19.1.0
 - Expo SDK 54
 - React Navigation 7
 - Firebase (Authentication, Firestore)
