@@ -131,7 +131,7 @@ const PlanDetail = ({ navigation, route }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+    <SafeAreaView style={[styles.container, { paddingTop: insets.top }]} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -156,7 +156,11 @@ const PlanDetail = ({ navigation, route }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Plan Info */}
         <View style={styles.planInfo}>
           <View style={styles.planHeader}>
@@ -241,7 +245,7 @@ const PlanDetail = ({ navigation, route }) => {
       </ScrollView>
 
       {/* Action Buttons */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + layout.spacing.md }]}>
         {isOwner ? (
           <View style={styles.ownerActions}>
             <Button

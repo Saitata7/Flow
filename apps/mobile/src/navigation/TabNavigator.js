@@ -6,6 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../screens/home/HomePage';
+import NotificationScreen from '../screens/home/NotificationScreen';
+import HomeInfo from '../screens/info/HomeInfo';
 import StatsStack from './StatsStack';
 import ProfileStack from './ProfileStack';
 import PlansStack from './PlansStack';
@@ -97,11 +99,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   return (
     <View style={{
       position: 'absolute',
-      bottom: 0,
+      bottom: -1,
       left: 0,
       right: 0,
       height: tabBarHeight,
-      paddingBottom: Platform.OS === 'android' ? 8 : insets.bottom,
+      paddingBottom: Platform.OS === 'android' ? 24 : insets.bottom + 16,
       paddingTop: Platform.OS === 'android' ? 12 : 8,
       backgroundColor: themeColors.cardBackground,
       borderTopWidth: Platform.OS === 'android' ? 0.5 : 1,
@@ -298,6 +300,20 @@ const TabNavigator = () => {
       <Tab.Screen
         name="EditFlow"
         component={EditFlowScreen}
+        options={{
+          tabBarButton: () => null,
+        }}
+      />
+      <Tab.Screen
+        name="NotificationScreen"
+        component={NotificationScreen}
+        options={{
+          tabBarButton: () => null,
+        }}
+      />
+      <Tab.Screen
+        name="HomeInfo"
+        component={HomeInfo}
         options={{
           tabBarButton: () => null,
         }}

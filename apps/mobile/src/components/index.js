@@ -30,3 +30,6 @@ export { default as ColorPicker } from './Settings/ColorPicker';
 export { default as AvatarUploader } from './profile/AvatarUploader';
 export { default as SocialLinks } from './profile/SocialLinks';
 export { default as StatsSummary } from './profile/StatsSummary';
+
+// Home components
+export { default as FlowGrid } from './home/FlowGrid';

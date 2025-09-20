@@ -20,6 +20,11 @@ export const colors = {
     flowMissed: '#FF3B30',
     primaryOrangeVariants: {
       light: '#FFB84D',
+      dark: '#FF8C00',
+      vibrant: '#FF7A00',
+    },
+    infoVariants: {
+      light: '#E3F2FD',
     },
     progressBackground: '#E5E5EA',
     border: '#D1D1D6',
@@ -41,6 +46,11 @@ export const colors = {
     flowMissed: '#FF453A',
     primaryOrangeVariants: {
       light: '#FFB84D',
+      dark: '#FF8C00',
+      vibrant: '#FF7A00',
+    },
+    infoVariants: {
+      light: '#1A237E',
     },
     progressBackground: '#3A3A3C',
     border: '#38383A',

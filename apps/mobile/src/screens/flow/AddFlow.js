@@ -6,7 +6,6 @@ import {
   Switch,
   StyleSheet,
   Platform,
-  Pressable,
   ScrollView,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -20,13 +19,14 @@ import { usePlanContext } from '../../context/PlanContext';
 import { useRoute } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { LinearGradient } from 'expo-linear-gradient';
-import { validateFlowData, validateNumericInput } from '../../utils/validation';
+import { validateNumericInput } from '../../utils/validation';
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const daysInMonth = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
 
 export default function AddFlow({ navigation }) {
-  const { addFlow } = useContext(FlowsContext);
+  const flowsContext = useContext(FlowsContext);
+  const { addFlow } = flowsContext || {};
   const { createPlan } = usePlanContext();
   const { user } = useAuth();
   const route = useRoute();
@@ -47,22 +47,20 @@ export default function AddFlow({ navigation }) {
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
   const [seconds, setSeconds] = useState(0);
+  const [goal, setGoal] = useState(0);
   const [hoursInput, setHoursInput] = useState('00');
   const [minutesInput, setMinutesInput] = useState('00');
   const [secondsInput, setSecondsInput] = useState('00');
-  const [goal, setGoal] = useState(0);
-  const [goalInput, setGoalInput] = useState('');
-  
-  // New v2 schema fields
+  const [goalInput, setGoalInput] = useState('0');
+
+  // v2 schema fields
   const [planId, setPlanId] = useState(null);
-  const [goalObject, setGoalObject] = useState(null);
   const [progressMode, setProgressMode] = useState('sum');
   const [tags, setTags] = useState([]);
-  const [tagInput, setTagInput] = useState('');
   const [archived, setArchived] = useState(false);
   const [visibility, setVisibility] = useState('private');
+  const [cheatMode, setCheatMode] = useState(false);
 
-  // Populate fields when editing
   useEffect(() => {
     if (flowToEdit) {
       setTitle(flowToEdit.title || '');
@@ -94,11 +92,11 @@ export default function AddFlow({ navigation }) {
       
       // Populate v2 schema fields
       setPlanId(flowToEdit.planId || null);
-      setGoalObject(flowToEdit.goal || null);
       setProgressMode(flowToEdit.progressMode || 'sum');
       setTags(flowToEdit.tags || []);
       setArchived(flowToEdit.archived || false);
       setVisibility(flowToEdit.visibility || 'private');
+      setCheatMode(flowToEdit.cheatMode || false);
     }
   }, [flowToEdit]);
 
@@ -110,42 +108,15 @@ export default function AddFlow({ navigation }) {
     }
   };
 
-  const addTag = () => {
-    const trimmedTag = tagInput.trim();
-    if (trimmedTag && !tags.includes(trimmedTag) && tags.length < 10) {
-      setTags([...tags, trimmedTag]);
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (tagToRemove) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
-  };
-
   const handleSave = async () => {
-    // Prepare data for validation
-    const flowData = {
-      title: title.trim(),
-      description: description.trim(),
-      trackingType,
-      frequency,
-      everyDay,
-      selectedDays,
-      reminderTimeEnabled,
-      reminderTime,
-      reminderLevel,
-      unitText: trackingType === 'Quantitative' ? unitText.trim() : '',
-      hours: trackingType === 'Time-based' ? hours : 0,
-      minutes: trackingType === 'Time-based' ? minutes : 0,
-      seconds: trackingType === 'Time-based' ? seconds : 0,
-      goal: trackingType === 'Quantitative' ? goal : 0,
-    };
-
-    // Comprehensive validation
-    const validation = await validateFlowData(flowData);
-    if (!validation.valid) {
-      const firstError = Object.values(validation.errors)[0];
-      Alert.alert('Validation Error', firstError);
+    // Basic validation
+    if (!title || title.trim().length < 3) {
+      Alert.alert('Validation Error', 'Title must be at least 3 characters');
+      return;
+    }
+    
+    if (trackingType === 'Quantitative' && (!unitText || unitText.trim().length === 0)) {
+      Alert.alert('Validation Error', 'Unit text is required for quantitative flows');
       return;
     }
 
@@ -159,7 +130,7 @@ export default function AddFlow({ navigation }) {
       const planData = {
         title,
         description,
-        category: 'mindfulness', // Default category for personal plans
+        category: 'mindfulness',
         visibility: 'private',
         ownerId: user.id,
         trackingType,
@@ -176,18 +147,23 @@ export default function AddFlow({ navigation }) {
         goal: trackingType === 'Quantitative' ? goal : undefined,
         participants: [{ userId: user.id, role: 'owner', joinedAt: new Date().toISOString() }],
         analytics: {
-          strictScore: 0,
-          flexibleScore: 0,
-          streak: 0,
+          totalParticipants: 1,
+          completionRate: 0,
+          averageScore: 0,
         },
+        status: 'active',
+        startDate: new Date().toISOString(),
+        endDate: null,
       };
 
       try {
         await createPlan(planData);
-        navigation.goBack();
-      } catch (e) {
-        console.error('Error saving personal plan:', e);
-        Alert.alert('Error', 'Failed to save personal plan. Please try again.');
+        Alert.alert('Success!', 'Plan created successfully!', [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+      } catch (error) {
+        console.error('Error creating plan:', error);
+        Alert.alert('Error', 'Failed to create plan. Please try again.');
       }
     } else {
       // Create as a flow
@@ -205,21 +181,27 @@ export default function AddFlow({ navigation }) {
         hours: trackingType === 'Time-based' ? hours : undefined,
         minutes: trackingType === 'Time-based' ? minutes : undefined,
         seconds: trackingType === 'Time-based' ? seconds : undefined,
-        goal: trackingType === 'Quantitative' ? goal : undefined,
-        
-        // New v2 schema fields
+        goal: trackingType === 'Quantitative' ? goal : null,
         planId,
-        goal: goalObject,
         progressMode,
         tags,
         archived,
         visibility,
+        cheatMode,
         ownerId: user?.id || 'user123',
+        schemaVersion: 2,
       };
 
       try {
+        if (!addFlow) {
+          Alert.alert('Error', 'Flow context not available. Please restart the app.');
+          return;
+        }
+        
         await addFlow(newFlow);
-        navigation.goBack();
+        Alert.alert('Success!', 'Flow created successfully!', [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
       } catch (e) {
         console.error('Error saving flow:', e);
         Alert.alert('Error', 'Failed to save flow. Please try again.');
@@ -228,197 +210,236 @@ export default function AddFlow({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
-    >
-      <LinearGradient
-        colors={['#FFE3C3', '#FFFFFF']}
-        style={styles.gradientBackground}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FEDFCD" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-          <Text style={styles.label}>Title</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="e.g., Read for 30 minutes"
-          />
-
-          <Text style={styles.label}>Description</Text>
-          <TextInput
-            style={styles.input}
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Optional description about your flow..."
-          />
-
-          <Text style={styles.label}>Flow Tracking Type</Text>
+        {/* Header */}
+        <View style={styles.header}>
           <TouchableOpacity
-            style={[styles.optionButton, trackingType === 'Binary' && styles.optionButtonSelected]}
-            onPress={() => setTrackingType('Binary')}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
           >
-            <View>
-              <Text style={trackingType === 'Binary' ? styles.optionTextSelected : styles.optionText}>
-                Binary (Yes/No)
-              </Text>
-              <Text style={trackingType === 'Binary' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Simple did/didn't completion tracking
-              </Text>
-            </View>
+            <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, trackingType === 'Quantitative' && styles.optionButtonSelected]}
-            onPress={() => setTrackingType('Quantitative')}
-          >
-            <View>
-              <Text style={trackingType === 'Quantitative' ? styles.optionTextSelected : styles.optionText}>
-                Quantitative
-              </Text>
-              <Text style={trackingType === 'Quantitative' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Track specific numbers (e.g., 8 glasses of water, 50 push-ups)
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, trackingType === 'Time-based' && styles.optionButtonSelected]}
-            onPress={() => setTrackingType('Time-based')}
-          >
-            <View>
-              <Text style={trackingType === 'Time-based' ? styles.optionTextSelected : styles.optionText}>
-                Time-based
-              </Text>
-              <Text style={trackingType === 'Time-based' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Track duration (e.g., 30 minutes of reading, 1 hour of exercise)
-              </Text>
-            </View>
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Create New Flow</Text>
+          <View style={styles.placeholder} />
+        </View>
 
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Title Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Flow Title</Text>
+            <TextInput
+              style={styles.modernInput}
+              value={title}
+              onChangeText={setTitle}
+              placeholder="e.g., Read for 30 minutes"
+              placeholderTextColor="#999"
+            />
+          </View>
+
+          {/* Description Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Description</Text>
+            <TextInput
+              style={[styles.modernInput, styles.textArea]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Optional description about your flow..."
+              placeholderTextColor="#999"
+              multiline
+              numberOfLines={3}
+            />
+          </View>
+
+          {/* Tracking Type Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Tracking Type</Text>
+            <View style={styles.trackingTypeContainer}>
+              <TouchableOpacity
+                style={[styles.trackingTypeButton, trackingType === 'Binary' && styles.trackingTypeButtonSelected]}
+                onPress={() => setTrackingType('Binary')}
+              >
+                <Text style={styles.trackingTypeIcon}>✓</Text>
+                <Text style={[styles.trackingTypeText, trackingType === 'Binary' && styles.trackingTypeTextSelected]}>
+                  Binary
+                </Text>
+                <Text style={styles.trackingTypeSubtext}>Yes/No tracking</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.trackingTypeButton, trackingType === 'Quantitative' && styles.trackingTypeButtonSelected]}
+                onPress={() => setTrackingType('Quantitative')}
+              >
+                <Text style={styles.trackingTypeIcon}>📊</Text>
+                <Text style={[styles.trackingTypeText, trackingType === 'Quantitative' && styles.trackingTypeTextSelected]}>
+                  Quantitative
+                </Text>
+                <Text style={styles.trackingTypeSubtext}>Numbers tracking</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.trackingTypeButton, trackingType === 'Time-based' && styles.trackingTypeButtonSelected]}
+                onPress={() => setTrackingType('Time-based')}
+              >
+                <Text style={styles.trackingTypeIcon}>⏱️</Text>
+                <Text style={[styles.trackingTypeText, trackingType === 'Time-based' && styles.trackingTypeTextSelected]}>
+                  Time-based
+                </Text>
+                <Text style={styles.trackingTypeSubtext}>Duration tracking</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Quantitative Settings */}
           {trackingType === 'Quantitative' && (
-            <View>
-              <Text style={styles.label}>Unit</Text>
-              <TextInput
-                style={styles.input}
-                value={unitText}
-                onChangeText={setUnitText}
-                placeholder="e.g., glasses, steps"
-              />
-              <Text style={styles.label}>Goal (Optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={goalInput}
-                  onChangeText={(text) => {
-                    const cleanText = text.replace(/[^0-9]/g, '');
-                    setGoalInput(cleanText);
-                  }}
-                  onBlur={() => {
-                    const validation = validateNumericInput(goalInput, 0, 9999, 'Goal');
-                    if (validation.valid) {
-                      const num = parseInt(goalInput) || 0;
-                      setGoal(num);
-                      setGoalInput(num.toString());
-                    } else {
-                      Alert.alert('Invalid Input', validation.error);
-                      setGoalInput('0');
-                      setGoal(0);
-                    }
-                  }}
-                keyboardType="numeric"
-                placeholder="e.g., 8"
-              />
-            </View>
-          )}
-
-          {trackingType === 'Time-based' && (
-            <View style={styles.timeBasedContainer}>
-              <Text style={styles.label}>Goal Duration</Text>
-              <View style={styles.timerInput}>
-                <TextInput
-                  style={styles.timerField}
-                  value={hoursInput}
-                  onChangeText={(text) => {
-                    const cleanText = text.replace(/[^0-9]/g, '');
-                    setHoursInput(cleanText);
-                  }}
-                  onBlur={() => {
-                    const validation = validateNumericInput(hoursInput, 0, 23, 'Hours');
-                    if (validation.valid) {
-                      const num = parseInt(hoursInput) || 0;
-                      setHours(num);
-                      setHoursInput(num.toString().padStart(2, '0'));
-                    } else {
-                      Alert.alert('Invalid Input', validation.error);
-                      setHoursInput('00');
-                      setHours(0);
-                    }
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  placeholder="00"
-                />
-                <Text style={styles.timerLabel}>hrs</Text>
-                <Text style={styles.timerSeparator}>:</Text>
-                <TextInput
-                  style={styles.timerField}
-                  value={minutesInput}
-                  onChangeText={(text) => {
-                    const cleanText = text.replace(/[^0-9]/g, '');
-                    setMinutesInput(cleanText);
-                  }}
-                  onBlur={() => {
-                    const validation = validateNumericInput(minutesInput, 0, 59, 'Minutes');
-                    if (validation.valid) {
-                      const num = parseInt(minutesInput) || 0;
-                      setMinutes(num);
-                      setMinutesInput(num.toString().padStart(2, '0'));
-                    } else {
-                      Alert.alert('Invalid Input', validation.error);
-                      setMinutesInput('00');
-                      setMinutes(0);
-                    }
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  placeholder="00"
-                />
-                <Text style={styles.timerLabel}>mins</Text>
-                <Text style={styles.timerSeparator}>:</Text>
-                <TextInput
-                  style={styles.timerField}
-                  value={secondsInput}
-                  onChangeText={(text) => {
-                    const cleanText = text.replace(/[^0-9]/g, '');
-                    setSecondsInput(cleanText);
-                  }}
-                  onBlur={() => {
-                    const validation = validateNumericInput(secondsInput, 0, 59, 'Seconds');
-                    if (validation.valid) {
-                      const num = parseInt(secondsInput) || 0;
-                      setSeconds(num);
-                      setSecondsInput(num.toString().padStart(2, '0'));
-                    } else {
-                      Alert.alert('Invalid Input', validation.error);
-                      setSecondsInput('00');
-                      setSeconds(0);
-                    }
-                  }}
-                  keyboardType="numeric"
-                  maxLength={2}
-                  placeholder="00"
-                />
-                <Text style={styles.timerLabel}>sec</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Quantitative Settings</Text>
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Unit</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    value={unitText}
+                    onChangeText={setUnitText}
+                    placeholder="e.g., glasses, steps"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Goal (Optional)</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    value={goalInput}
+                    onChangeText={(text) => {
+                      const cleanText = text.replace(/[^0-9]/g, '');
+                      setGoalInput(cleanText);
+                    }}
+                    onBlur={() => {
+                      const validation = validateNumericInput(goalInput, 0, 9999, 'Goal');
+                      if (validation.valid) {
+                        const num = parseInt(goalInput) || 0;
+                        setGoal(num);
+                        setGoalInput(num.toString());
+                      } else {
+                        Alert.alert('Invalid Input', validation.error);
+                        setGoalInput('0');
+                        setGoal(0);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    placeholder="e.g., 8"
+                    placeholderTextColor="#999"
+                  />
+                </View>
               </View>
             </View>
           )}
 
-          <View style={styles.frequencyContainer}>
-            <Text style={styles.label}>Frequency</Text>
-            <View style={styles.frequencyOptions}>
+          {/* Time-based Settings */}
+          {trackingType === 'Time-based' && (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Time Duration</Text>
+              <View style={styles.timeInputRow}>
+                <View style={styles.timeInputGroup}>
+                  <Text style={styles.inputLabel}>Hours</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    value={hoursInput}
+                    onChangeText={(text) => {
+                      const cleanText = text.replace(/[^0-9]/g, '');
+                      setHoursInput(cleanText);
+                    }}
+                    onBlur={() => {
+                      const validation = validateNumericInput(hoursInput, 0, 23, 'Hours');
+                      if (validation.valid) {
+                        const num = parseInt(hoursInput) || 0;
+                        setHours(num);
+                        setHoursInput(num.toString().padStart(2, '0'));
+                      } else {
+                        Alert.alert('Invalid Input', validation.error);
+                        setHoursInput('00');
+                        setHours(0);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    placeholder="00"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                <View style={styles.timeInputGroup}>
+                  <Text style={styles.inputLabel}>Minutes</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    value={minutesInput}
+                    onChangeText={(text) => {
+                      const cleanText = text.replace(/[^0-9]/g, '');
+                      setMinutesInput(cleanText);
+                    }}
+                    onBlur={() => {
+                      const validation = validateNumericInput(minutesInput, 0, 59, 'Minutes');
+                      if (validation.valid) {
+                        const num = parseInt(minutesInput) || 0;
+                        setMinutes(num);
+                        setMinutesInput(num.toString().padStart(2, '0'));
+                      } else {
+                        Alert.alert('Invalid Input', validation.error);
+                        setMinutesInput('00');
+                        setMinutes(0);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    placeholder="00"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+                <View style={styles.timeInputGroup}>
+                  <Text style={styles.inputLabel}>Seconds</Text>
+                  <TextInput
+                    style={styles.modernInput}
+                    value={secondsInput}
+                    onChangeText={(text) => {
+                      const cleanText = text.replace(/[^0-9]/g, '');
+                      setSecondsInput(cleanText);
+                    }}
+                    onBlur={() => {
+                      const validation = validateNumericInput(secondsInput, 0, 59, 'Seconds');
+                      if (validation.valid) {
+                        const num = parseInt(secondsInput) || 0;
+                        setSeconds(num);
+                        setSecondsInput(num.toString().padStart(2, '0'));
+                      } else {
+                        Alert.alert('Invalid Input', validation.error);
+                        setSecondsInput('00');
+                        setSeconds(0);
+                      }
+                    }}
+                    keyboardType="numeric"
+                    placeholder="00"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Frequency Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Frequency</Text>
+            <View style={styles.frequencyContainer}>
               <TouchableOpacity
                 style={[styles.frequencyButton, frequency === 'Daily' && styles.frequencyButtonSelected]}
                 onPress={() => setFrequency('Daily')}
               >
-                <Text style={frequency === 'Daily' ? styles.frequencyTextSelected : styles.frequencyText}>
+                <Text style={[styles.frequencyText, frequency === 'Daily' && styles.frequencyTextSelected]}>
                   Daily
                 </Text>
               </TouchableOpacity>
@@ -426,15 +447,17 @@ export default function AddFlow({ navigation }) {
                 style={[styles.frequencyButton, frequency === 'Monthly' && styles.frequencyButtonSelected]}
                 onPress={() => setFrequency('Monthly')}
               >
-                <Text style={frequency === 'Monthly' ? styles.frequencyTextSelected : styles.frequencyText}>
+                <Text style={[styles.frequencyText, frequency === 'Monthly' && styles.frequencyTextSelected]}>
                   Monthly
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
 
+          {/* Days Selection Card */}
           {frequency === 'Daily' && (
-            <View>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Schedule</Text>
               <View style={styles.toggleRow}>
                 <Text style={styles.toggleLabel}>Every Day</Text>
                 <Switch
@@ -447,33 +470,36 @@ export default function AddFlow({ navigation }) {
               </View>
               {!everyDay && (
                 <View style={styles.daysContainer}>
-                  {daysOfWeek.map((day) => (
-                    <TouchableOpacity
-                      key={day}
-                      onPress={() => toggleDay(day)}
-                      style={[
-                        styles.dayButton,
-                        selectedDays.includes(day) && styles.dayButtonSelected,
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: selectedDays.includes(day) ? '#fff' : '#333',
-                          fontWeight: '600',
-                        }}
+                  <Text style={styles.inputLabel}>Days of Week</Text>
+                  <View style={styles.daysGrid}>
+                    {daysOfWeek.map((day) => (
+                      <TouchableOpacity
+                        key={day}
+                        onPress={() => toggleDay(day)}
+                        style={[
+                          styles.dayButton,
+                          selectedDays.includes(day) && styles.dayButtonSelected,
+                        ]}
                       >
-                        {day}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                        <Text
+                          style={[
+                            styles.dayButtonText,
+                            selectedDays.includes(day) && styles.dayButtonTextSelected,
+                          ]}
+                        >
+                          {day}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               )}
             </View>
           )}
 
           {frequency === 'Monthly' && (
-            <View style={styles.monthDaysContainer}>
-              <Text style={styles.label}>Days of Month</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Days of Month</Text>
               <View style={styles.monthDaysGrid}>
                 {daysInMonth.map((day) => (
                   <TouchableOpacity
@@ -485,10 +511,10 @@ export default function AddFlow({ navigation }) {
                     ]}
                   >
                     <Text
-                      style={{
-                        color: selectedDays.includes(day) ? '#fff' : '#333',
-                        fontWeight: '600',
-                      }}
+                      style={[
+                        styles.dayButtonText,
+                        selectedDays.includes(day) && styles.dayButtonTextSelected,
+                      ]}
                     >
                       {day}
                     </Text>
@@ -498,9 +524,11 @@ export default function AddFlow({ navigation }) {
             </View>
           )}
 
-          <View style={styles.reminderTimeContainer}>
+          {/* Reminder Time Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Reminder</Text>
             <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Reminder Time</Text>
+              <Text style={styles.toggleLabel}>Enable Reminder</Text>
               <Switch
                 style={styles.toggleSwitch}
                 value={reminderTimeEnabled}
@@ -510,19 +538,90 @@ export default function AddFlow({ navigation }) {
               />
             </View>
             {reminderTimeEnabled && (
-              <Pressable
+              <TouchableOpacity
+                style={styles.timePickerButton}
                 onPress={() => setShowTimePicker(true)}
-                style={({ pressed }) => [
-                  styles.timeInput,
-                  pressed && styles.timeInputPressed,
-                ]}
               >
-                <Text style={styles.timeInputText}>
+                <Text style={styles.timePickerText}>
                   {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             )}
           </View>
+
+          {/* Advanced Settings Card */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Advanced Settings</Text>
+            
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Cheat Mode</Text>
+              <Switch
+                style={styles.toggleSwitch}
+                value={cheatMode}
+                onValueChange={setCheatMode}
+                trackColor={{ false: '#ccc', true: '#F5A623' }}
+                thumbColor="#fff"
+              />
+            </View>
+            
+            <View style={styles.toggleRow}>
+              <Text style={styles.toggleLabel}>Archived</Text>
+              <Switch
+                style={styles.toggleSwitch}
+                value={archived}
+                onValueChange={setArchived}
+                trackColor={{ false: '#ccc', true: '#F5A623' }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Visibility</Text>
+                <View style={styles.visibilityContainer}>
+                  <TouchableOpacity
+                    style={[styles.visibilityButton, visibility === 'private' && styles.visibilityButtonSelected]}
+                    onPress={() => setVisibility('private')}
+                  >
+                    <Text style={[styles.visibilityText, visibility === 'private' && styles.visibilityTextSelected]}>
+                      Private
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.visibilityButton, visibility === 'public' && styles.visibilityButtonSelected]}
+                    onPress={() => setVisibility('public')}
+                  >
+                    <Text style={[styles.visibilityText, visibility === 'public' && styles.visibilityTextSelected]}>
+                      Public
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Progress Mode</Text>
+                <View style={styles.progressModeContainer}>
+                  <TouchableOpacity
+                    style={[styles.progressModeButton, progressMode === 'sum' && styles.progressModeButtonSelected]}
+                    onPress={() => setProgressMode('sum')}
+                  >
+                    <Text style={[styles.progressModeText, progressMode === 'sum' && styles.progressModeTextSelected]}>
+                      Sum
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.progressModeButton, progressMode === 'average' && styles.progressModeButtonSelected]}
+                    onPress={() => setProgressMode('average')}
+                  >
+                    <Text style={[styles.progressModeText, progressMode === 'average' && styles.progressModeTextSelected]}>
+                      Average
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </View>
+
           {showTimePicker && (
             <DateTimePicker
               value={reminderTime || new Date()}
@@ -530,409 +629,353 @@ export default function AddFlow({ navigation }) {
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onChange={(event, selectedTime) => {
                 setShowTimePicker(false);
-                if (selectedTime) setReminderTime(selectedTime);
+                if (selectedTime) {
+                  setReminderTime(selectedTime);
+                }
               }}
             />
           )}
-
-          <Text style={styles.label}>Reminder Level</Text>
-          <TouchableOpacity
-            style={[styles.optionButton, reminderLevel === '1' && styles.optionButtonSelected]}
-            onPress={() => setReminderLevel('1')}
-          >
-            <View>
-              <Text style={reminderLevel === '1' ? styles.optionTextSelected : styles.optionText}>
-                Level 1 - Notification
-              </Text>
-              <Text style={reminderLevel === '1' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Simple notification that can be dismissed
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, reminderLevel === '2' && styles.optionButtonSelected]}
-            onPress={() => setReminderLevel('2')}
-          >
-            <View>
-              <Text style={reminderLevel === '2' ? styles.optionTextSelected : styles.optionText}>
-                Level 2 - Alert
-              </Text>
-              <Text style={reminderLevel === '2' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Persistent alert with sound
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, reminderLevel === '3' && styles.optionButtonSelected]}
-            onPress={() => setReminderLevel('3')}
-          >
-            <View>
-              <Text style={reminderLevel === '3' ? styles.optionTextSelected : styles.optionText}>
-                Level 3 - Alarm
-              </Text>
-              <Text style={reminderLevel === '3' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Loud alarm with snooze option
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* New v2 Schema Fields */}
-          <Text style={styles.label}>Progress Mode</Text>
-          <TouchableOpacity
-            style={[styles.optionButton, progressMode === 'sum' && styles.optionButtonSelected]}
-            onPress={() => setProgressMode('sum')}
-          >
-            <View>
-              <Text style={progressMode === 'sum' ? styles.optionTextSelected : styles.optionText}>
-                Sum (Accumulate)
-              </Text>
-              <Text style={progressMode === 'sum' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Add up all values over time
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, progressMode === 'average' && styles.optionButtonSelected]}
-            onPress={() => setProgressMode('average')}
-          >
-            <View>
-              <Text style={progressMode === 'average' ? styles.optionTextSelected : styles.optionText}>
-                Average
-              </Text>
-              <Text style={progressMode === 'average' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Calculate average over time
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, progressMode === 'latest' && styles.optionButtonSelected]}
-            onPress={() => setProgressMode('latest')}
-          >
-            <View>
-              <Text style={progressMode === 'latest' ? styles.optionTextSelected : styles.optionText}>
-                Latest
-              </Text>
-              <Text style={progressMode === 'latest' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Use the most recent value
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Tags</Text>
-          <View style={styles.tagInputContainer}>
-            <TextInput
-              style={styles.tagInput}
-              value={tagInput}
-              onChangeText={setTagInput}
-              placeholder="Add a tag..."
-              onSubmitEditing={addTag}
-            />
-            <TouchableOpacity style={styles.addTagButton} onPress={addTag}>
-              <Text style={styles.addTagText}>+</Text>
-            </TouchableOpacity>
-          </View>
-          {tags.length > 0 && (
-            <View style={styles.tagsContainer}>
-              {tags.map((tag, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.tag}
-                  onPress={() => removeTag(tag)}
-                >
-                  <Text style={styles.tagText}>{tag} ×</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          <Text style={styles.label}>Visibility</Text>
-          <TouchableOpacity
-            style={[styles.optionButton, visibility === 'private' && styles.optionButtonSelected]}
-            onPress={() => setVisibility('private')}
-          >
-            <View>
-              <Text style={visibility === 'private' ? styles.optionTextSelected : styles.optionText}>
-                Private
-              </Text>
-              <Text style={visibility === 'private' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Only you can see this flow
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, visibility === 'friends' && styles.optionButtonSelected]}
-            onPress={() => setVisibility('friends')}
-          >
-            <View>
-              <Text style={visibility === 'friends' ? styles.optionTextSelected : styles.optionText}>
-                Friends
-              </Text>
-              <Text style={visibility === 'friends' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Visible to your friends
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.optionButton, visibility === 'public' && styles.optionButtonSelected]}
-            onPress={() => setVisibility('public')}
-          >
-            <View>
-              <Text style={visibility === 'public' ? styles.optionTextSelected : styles.optionText}>
-                Public
-              </Text>
-              <Text style={visibility === 'public' ? styles.optionSubTextSelected : styles.optionSubText}>
-                Visible to everyone
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>Archived</Text>
-            <Switch
-              style={styles.toggleSwitch}
-              value={archived}
-              onValueChange={setArchived}
-              trackColor={{ false: '#ccc', true: '#F5A623' }}
-              thumbColor="#fff"
-            />
-          </View>
         </ScrollView>
-        <TouchableOpacity style={styles.bottomButton} onPress={handleSave}>
-          <Text style={styles.saveFlowText}>
-            {createAsPlan 
-              ? (flowToEdit ? 'Update Plan' : 'Save Plan')
-              : (flowToEdit ? 'Update Flow' : 'Save Flow')
-            }
-          </Text>
-        </TouchableOpacity>
-      </LinearGradient>
-    </KeyboardAvoidingView>
+
+        {/* Modern Save Button */}
+        <View style={styles.saveButtonContainer}>
+          <LinearGradient
+            colors={['#FFB366', '#FF8C00']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.saveButtonGradient}
+          >
+            <TouchableOpacity 
+              style={styles.saveButton} 
+              onPress={handleSave}
+            >
+              <Text style={styles.saveButtonText}>
+                {createAsPlan 
+                  ? (flowToEdit ? 'Update Plan' : 'Save Plan')
+                  : (flowToEdit ? 'Update Flow' : 'Save Flow')
+                }
+              </Text>
+            </TouchableOpacity>
+          </LinearGradient>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  gradientBackground: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FEDFCD',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#FEDFCD',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  backButtonText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  placeholder: {
+    width: 40,
+  },
+  scrollView: {
     flex: 1,
   },
-  container: {
-    padding: 16,
+  scrollContent: {
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
-  label: {
-    marginTop: 16,
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    bottom: 5,
+    color: '#333',
+    marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  input: {
+  modernInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 4,
-    backgroundColor: '#fff',
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#FFFFFF',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  timeInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 8,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
+  },
+  trackingTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  trackingTypeButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  trackingTypeButtonSelected: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  trackingTypeIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  trackingTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  trackingTypeTextSelected: {
+    color: '#92400E',
+  },
+  trackingTypeSubtext: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  inputGroup: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  timeInputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  timeInputGroup: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  frequencyContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  frequencyButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 4,
+    borderRadius: 12,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderColor: 'transparent',
     alignItems: 'center',
   },
-  timeInputPressed: {
-    backgroundColor: '#F2A005',
-    borderColor: '#F2A005',
+  frequencyButtonSelected: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
   },
-  timeInputText: {
-    color: '#F2A005',
+  frequencyText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  frequencyTextSelected: {
+    color: '#92400E',
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   toggleLabel: {
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-  toggleSwitch: {
-    marginRight: 16,
-  },
-  daysContainer: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    marginTop: 12,
-    gap: 8,
-  },
-  dayButton: {
-    width: 50,
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#F5A623',
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    backgroundColor: '#fff',
-  },
-  dayButtonSelected: {
-    backgroundColor: '#F2A005',
-    borderColor: '#F2A005',
-  },
-  optionButton: {
-    borderWidth: 1,
-    borderColor: '#F2A005',
-    borderRadius: 14,
-    padding: 12,
-    marginTop: 4,
-    backgroundColor: '#fff',
-  },
-  optionButtonSelected: {
-    backgroundColor: '#F2A005',
-    borderColor: '#F2A005',
-  },
-  optionText: {
-    color: '#333',
-    fontWeight: '600',
-  },
-  optionTextSelected: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  optionSubText: {
-    color: '#888',
-    fontSize: 12,
-  },
-  optionSubTextSelected: {
-    color: '#fff',
-    fontSize: 12,
-  },
-  frequencyContainer: {
-    marginTop: 16,
-  },
-  frequencyOptions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  frequencyButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  frequencyButtonSelected: {
-    backgroundColor: '#F2A005',
-    borderColor: '#F2A005',
-  },
-  frequencyText: {
-    color: '#333',
-    fontWeight: '600',
-  },
-  frequencyTextSelected: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  timeBasedContainer: {
-    marginTop: 4,
-  },
-  timerInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  timerField: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 14,
-    padding: 12,
-    textAlign: 'center',
-    backgroundColor: '#fff',
-    width: 60,
-  },
-  timerLabel: {
-    color: '#333',
     fontSize: 16,
     fontWeight: '600',
+    color: '#374151',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  timerSeparator: {
-    fontSize: 20,
-    color: '#333',
+  toggleSwitch: {
+    transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
   },
-  monthDaysContainer: {
-    marginTop: 12,
+  daysContainer: {
+    marginTop: 16,
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  dayButton: {
+    width: '14%',
+    aspectRatio: 1,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  dayButtonSelected: {
+    backgroundColor: '#F59E0B',
+    borderColor: '#F59E0B',
+  },
+  dayButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  dayButtonTextSelected: {
+    color: '#FFFFFF',
   },
   monthDaysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    justifyContent: 'space-between',
   },
-  reminderTimeContainer: {
-    marginTop: 16,
-  },
-  bottomButton: {
-    padding: 16,
-    backgroundColor: '#F5A623',
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  saveFlowText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  tagInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  tagInput: {
-    flex: 1,
+  timePickerButton: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 14,
-    padding: 12,
-    backgroundColor: '#fff',
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
   },
-  addTagButton: {
-    marginLeft: 8,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F5A623',
-    justifyContent: 'center',
+  timePickerText: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  saveButtonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    backgroundColor: '#FEDFCD',
+  },
+  saveButtonGradient: {
+    borderRadius: 18,
+    overflow: 'hidden',
+  },
+  saveButton: {
+    paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  addTagText: {
-    color: '#fff',
+  saveButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  tagsContainer: {
+  visibilityContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-    gap: 8,
+    justifyContent: 'space-between',
   },
-  tag: {
-    backgroundColor: '#F5A623',
+  visibilityButton: {
+    flex: 1,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    marginHorizontal: 2,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
   },
-  tagText: {
-    color: '#fff',
-    fontSize: 12,
+  visibilityButtonSelected: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  visibilityText: {
+    fontSize: 14,
     fontWeight: '600',
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  visibilityTextSelected: {
+    color: '#92400E',
+  },
+  progressModeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressModeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 2,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  progressModeButtonSelected: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#F59E0B',
+  },
+  progressModeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  progressModeTextSelected: {
+    color: '#92400E',
   },
 });

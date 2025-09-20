@@ -1,632 +1,506 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Dimensions,
-  Platform,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import moment from 'moment';
-import { ProgressChart } from 'react-native-chart-kit';
 import { FlowsContext } from '../../context/FlowContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/common/card';
 import Button from '../../components/common/Button';
 import { colors, typography, layout } from '../../../styles';
+import statsService from '../../services/statsService';
+import FlowStatsSummary from '../../components/FlowStats/FlowStatsSummary';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const StatsScreen = ({ navigation }) => {
-  const { flows } = useContext(FlowsContext);
-  const { theme = 'light', textSize = 'medium', highContrast = false } = useContext(ThemeContext) || {};
+  const { flows, activeFlows } = useContext(FlowsContext);
+  const { theme = 'light' } = useContext(ThemeContext) || {};
+  const [selectedTimeframe, setSelectedTimeframe] = useState('7D');
   const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
-  const now = moment();
+  const [viewMode, setViewMode] = useState('overview'); // 'overview' or 'summary'
 
-  // Get theme colors
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
 
-  // Calculate current streak for a single flow
-  const calculateCurrentStreak = (flow) => {
-    let currentStreak = 0;
-    const startDate = moment(flow.startDate);
-    const endDate = now;
-    for (let i = 0; i <= endDate.diff(startDate, 'days'); i++) {
-      const currentDate = startDate.clone().add(i, 'days');
-      const dayKey = currentDate.format('YYYY-MM-DD');
-      const isScheduled =
-        flow.repeatType === 'day'
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString());
-      if (isScheduled) {
-        const status = flow.status?.[dayKey];
-        if (status?.symbol === '✅') currentStreak++;
-        else currentStreak = 0;
-      }
-    }
-    return currentStreak;
-  };
-
-  // Calculate best streak for a single flow
-  const calculateBestStreak = (flow) => {
-    let maxStreak = 0;
-    let currentStreak = 0;
-    const startDate = moment(flow.startDate);
-    const endDate = now;
-    for (let i = 0; i <= endDate.diff(startDate, 'days'); i++) {
-      const currentDate = startDate.clone().add(i, 'days');
-      const dayKey = currentDate.format('YYYY-MM-DD');
-      const isScheduled =
-        flow.repeatType === 'day'
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString());
-      if (isScheduled) {
-        const status = flow.status?.[dayKey];
-        if (status?.symbol === '✅') currentStreak++;
-        else currentStreak = 0;
-        maxStreak = Math.max(maxStreak, currentStreak);
-      }
-    }
-    return maxStreak;
-  };
-
-  // Scoreboard calculation for a single flow
-  const getScoreboard = (flowId, currentMonth) => {
-    const flow = flows.find((h) => h.id === flowId) || {};
-    const status = flow.status || {};
-    const daysInMonth = moment(currentMonth).daysInMonth();
-    let completed = 0;
-    let failed = 0;
-    let skipped = 0;
-    let streakBonus = 0;
-    let emotionBonus = 0;
-    let notesCount = 0;
-    let currentStreak = 0;
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dateKey = moment(currentMonth).date(day).format('YYYY-MM-DD');
-      const dayStatus = status[dateKey]?.symbol;
-      const hasEmotion = !!status[dateKey]?.emotion;
-      const hasNote = status[dateKey]?.note && status[dateKey].note.trim().length > 0;
-
-      if (dayStatus === '✅') {
-        completed++;
-        currentStreak++;
-        if (currentStreak >= 2) {
-          streakBonus += 5; // +5 points for each day in a streak (2+ consecutive days)
-        }
-      } else {
-        currentStreak = 0; // Reset streak on failed or skipped
-        if (dayStatus === '❌') {
-          failed++;
-        } else {
-          skipped++;
-        }
-      }
-
-      if (hasEmotion) {
-        emotionBonus += 2; // +2 points for each day with an emotion
-      }
-      if (hasNote) {
-        notesCount += 1; // +1 point for each day with a note
-      }
+  // Calculate comprehensive stats using the stats service
+  const stats = useMemo(() => {
+    if (!flows || flows.length === 0) {
+      return {
+        overall: {
+          totalCompleted: 0,
+          totalScheduled: 0,
+          totalPoints: 0,
+          totalFlows: 0,
+          activeFlows: 0,
+          successRate: 0,
+          avgDailyCompletion: 0,
+          dailyData: []
+        },
+        flowPerformance: [],
+        weeklyTrends: [],
+        achievements: [],
+        heatMapData: { contributionData: [], maxCount: 0 }
+      };
     }
 
-    const completionRate = daysInMonth > 0 ? (completed / daysInMonth) * 100 : 0;
-    const finalScore = (completed * 10) + streakBonus + emotionBonus + notesCount;
-
-    return {
-      completed,
-      failed,
-      skipped,
-      streakBonus,
-      emotionBonus,
-      notesCount,
-      completionRate: parseFloat(completionRate.toFixed(1)),
-      finalScore,
-    };
-  };
-
-  // Calculate overall stats
-  const calculateOverallStats = () => {
-    let completed = 0;
-    let missed = 0;
-    let inactive = 0;
-    let scheduledDays = 0;
-    let overallPoints = 0;
-
-    flows.forEach((flow) => {
-      const startDate = moment(flow.startDate);
-      if (!startDate.isValid()) return;
-
-      const endDate = now;
-      const diffInDays = endDate.diff(startDate, 'days') + 1;
-
-      for (let i = 0; i < diffInDays; i++) {
-        const currentDate = startDate.clone().add(i, 'days');
-        const dayKey = currentDate.format('YYYY-MM-DD');
-        const isScheduled =
-          flow.repeatType === 'day'
-            ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
-            : flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString());
-
-        if (isScheduled) {
-          scheduledDays++;
-          const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') completed++;
-          else if (status?.symbol === '❌') missed++;
-          else inactive++;
-        }
-      }
-
-      // Sum finalScore for each flow in the current month
-      const scoreboard = getScoreboard(flow.id, currentMonth);
-      overallPoints += scoreboard.finalScore;
+    return statsService.calculateOverallStats(flows, {
+      timeframe: selectedTimeframe,
+      currentMonth: currentMonth,
+      includeArchived: false,
+      includeDeleted: false
     });
+  }, [flows, selectedTimeframe, currentMonth]);
 
-    const overallScore = scheduledDays > 0 ? (completed / scheduledDays) * 100 : 0;
-    const consistency = scheduledDays > 0 ? (completed / scheduledDays) * 100 : 0;
-    const currentStreak = Math.max(...flows.map(calculateCurrentStreak), 0); // Ensure non-negative
-    const bestStreak = Math.max(...flows.map(calculateBestStreak), 0); // Ensure non-negative
-
-    return { completed, missed, inactive, overallScore, scheduledDays, consistency, currentStreak, bestStreak, overallPoints };
+  // Chart configurations
+  const chartConfig = {
+    backgroundColor: '#FFFFFF',
+    backgroundGradientFrom: '#FFFFFF',
+    backgroundGradientTo: '#FFFFFF',
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    style: {
+      borderRadius: 12,
+    },
+    propsForDots: {
+      r: '3',
+      strokeWidth: '2',
+      stroke: '#FF9500',
+    },
+    propsForBackgroundLines: {
+      strokeDasharray: '',
+      stroke: '#E5E5E5',
+      strokeWidth: 1,
+    },
+    propsForLabels: {
+      fontSize: 10,
+      fill: '#000000',
+    },
+    propsForVerticalLabels: {
+      fontSize: 10,
+      fill: '#000000',
+    },
+    propsForHorizontalLabels: {
+      fontSize: 10,
+      fill: '#000000',
+    },
   };
 
-  const { completed, missed, inactive, overallScore, scheduledDays, consistency, currentStreak, bestStreak, overallPoints } = calculateOverallStats();
+  // Handle empty state
+  if (!flows || flows.length === 0) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+        <View style={styles.emptyState}>
+          <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
+          <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>No Flows Yet</Text>
+          <Text style={[styles.emptySubtitle, { color: themeColors.secondaryText }]}>
+            Create your first flow to start tracking your habits and see analytics here.
+          </Text>
+          <Button
+            variant="primary"
+            title="Create Flow"
+            onPress={() => navigation.navigate('AddFlow')}
+            style={styles.emptyButton}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-  // Calculate flow-specific stats
-  const calculateFlowStats = (flow) => {
-    const startDate = moment(flow.startDate);
-    const endDate = now;
-    const diffDays = endDate.diff(startDate, 'days') + 1;
+  // Render metric card
+  const MetricCard = ({ title, value, subtitle, icon, color }) => (
+    <View style={styles.metricCard}>
+      <LinearGradient
+        colors={[color + '20', color + '10']}
+        style={styles.metricGradient}
+      >
+        <View style={styles.metricHeader}>
+          <Ionicons name={icon} size={20} color={color} />
+        </View>
+        <Text style={[styles.metricValue, { color: themeColors.primaryText }]}>{value}</Text>
+        <Text style={[styles.metricTitle, { color: themeColors.secondaryText }]}>{title}</Text>
+        {subtitle && (
+          <Text style={[styles.metricSubtitle, { color: themeColors.tertiaryText }]}>{subtitle}</Text>
+        )}
+      </LinearGradient>
+    </View>
+  );
 
-    let completed = 0;
-    let flowScheduledDays = 0;
+  // Render flow performance card
+  const FlowPerformanceCard = ({ flow }) => (
+    <TouchableOpacity
+      style={[styles.flowCard, { backgroundColor: themeColors.cardBackground }]}
+      activeOpacity={0.8}
+      onPress={() => navigation.navigate('FlowStatsDetail', { flowId: flow.id })}
+    >
+      <View style={styles.flowCardHeader}>
+        <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+        <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? colors.light.success : flow.performance >= 60 ? colors.light.warning : colors.light.error }]}>
+          <Text style={styles.performanceText}>{flow.performance.toFixed(0)}%</Text>
+        </View>
+      </View>
 
-    for (let i = 0; i < diffDays; i++) {
-      const currentDate = startDate.clone().add(i, 'days');
-      const dayKey = currentDate.format('YYYY-MM-DD');
-      const isScheduled =
-        flow.repeatType === 'day'
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString());
+      <View style={styles.flowCardBody}>
+        <View style={styles.flowStats}>
+          <View style={styles.flowStat}>
+            <Text style={[styles.flowStatValue, { color: themeColors.primaryText }]}>{flow.completed}</Text>
+            <Text style={[styles.flowStatLabel, { color: themeColors.secondaryText }]}>Completed</Text>
+          </View>
+          <View style={styles.flowStat}>
+            <Text style={[styles.flowStatValue, { color: themeColors.primaryText }]}>{flow.streak}</Text>
+            <Text style={[styles.flowStatLabel, { color: themeColors.secondaryText }]}>Best Streak</Text>
+          </View>
+          <View style={styles.flowStat}>
+            <Text style={[styles.flowStatValue, { color: themeColors.primaryText }]}>{flow.type}</Text>
+            <Text style={[styles.flowStatLabel, { color: themeColors.secondaryText }]}>Type</Text>
+          </View>
+        </View>
 
-      if (isScheduled) {
-        flowScheduledDays++;
-        const status = flow.status?.[dayKey];
-        if (status?.symbol === '✅') completed++;
-      }
-    }
+        <View style={styles.progressBar}>
+          <View
+            style={[
+              styles.progressFill,
+              {
+                width: `${flow.performance}%`,
+                backgroundColor: flow.performance >= 80 ? colors.light.success : flow.performance >= 60 ? colors.light.warning : colors.light.error
+              }
+            ]}
+          />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
 
-    const score = flowScheduledDays > 0 ? (completed / flowScheduledDays) * 100 : 0;
-    return { completed, flowScheduledDays, score };
-  };
-
-  // Progress Trend for combined Activity Breakdown chart
-  const activityBreakdownData = {
-    labels: ['Completed', 'Missed', 'Inactive'],
-    data: [
-      scheduledDays > 0 ? completed / scheduledDays : 0,
-      scheduledDays > 0 ? missed / scheduledDays : 0,
-      scheduledDays > 0 ? inactive / scheduledDays : 0,
-    ],
-  };
-
-  // Overall Habit Chart data
-  const overallHabitData = {
-    labels: flows.map(flow => flow.title),
-    data: flows.map(flow => {
-      const { score } = calculateFlowStats(flow);
-      return score / 100; // Normalize to 0-1 for ProgressChart
-    }),
-  };
-
-  // Custom Heat Map data for Monthly Activity
-  const generateContributionData = () => {
+  // Generate heat map data
+  const generateHeatMapData = () => {
     const startOfMonth = moment(currentMonth).startOf('month');
     const endOfMonth = moment(currentMonth).endOf('month');
     const daysInMonth = endOfMonth.diff(startOfMonth, 'days') + 1;
+    
     const contributionData = [];
+    let maxCount = 0;
 
     for (let i = 0; i < daysInMonth; i++) {
       const currentDate = startOfMonth.clone().add(i, 'days');
       const dayKey = currentDate.format('YYYY-MM-DD');
       let count = 0;
+      
       flows.forEach(flow => {
-        const isScheduled =
-          flow.repeatType === 'day'
-            ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
-            : flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString());
+        const isScheduled = flow.repeatType === 'day' 
+          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(currentDate.format('ddd')))
+          : flow.selectedMonthDays && flow.selectedMonthDays.includes(currentDate.date().toString());
+        
         if (isScheduled) {
           const status = flow.status?.[dayKey];
           if (status?.symbol === '✅') count++;
         }
       });
-      contributionData.push({ date: dayKey, count });
-    }
-    return contributionData;
-  };
-
-  const contributionData = generateContributionData();
-  const maxCount = Math.max(...contributionData.map(d => d.count), 1); // Avoid division by zero
-  const uniqueCounts = [...new Set(contributionData.map(d => d.count))].sort((a, b) => a - b); // Unique task counts for legend
-
-  // Achievements logic
-  const determineAchievements = () => {
-    const achievements = [];
-    flows.forEach(flow => {
-      const { completed, score } = calculateFlowStats(flow);
-      const currentStreak = calculateCurrentStreak(flow);
-      const bestStreak = calculateBestStreak(flow);
-
-      if (completed >= 10) {
-        achievements.push({ title: `Milestone: ${flow.title}`, icon: '🎉', description: `You’ve completed ${flow.title} 10 times! Keep going for a new milestone.` });
-      }
-      if (score >= 80) {
-        achievements.push({ title: `High Consistency: ${flow.title}`, icon: '🌟', description: `Amazing dedication! Your consistency rate for ${flow.title} is above 80%.` });
-      }
-      if (currentStreak >= 7 || bestStreak >= 7) {
-        achievements.push({ title: `Streak Star: ${flow.title}`, icon: '⭐', description: `Streak Star! You’ve hit a 7-day streak for ${flow.title}.` });
-      }
-      if (currentStreak >= 21 || bestStreak >= 21) {
-        achievements.push({ title: `Streak Champion: ${flow.title}`, icon: '🏆', description: `21 consecutive days for ${flow.title}—impressive!` });
-      }
-      if (currentStreak >= 30 || bestStreak >= 30) {
-        achievements.push({ title: `Month Master: ${flow.title}`, icon: '🔥', description: `Month Master! 30 consecutive days for ${flow.title}—outstanding!` });
-      }
-    });
-    return achievements;
-  };
-
-  // Insights logic
-  const generateInsights = () => {
-    const insights = [];
-    const today = now.format('YYYY-MM-DD');
-    const todayHabits = flows.filter(flow => {
-      const isScheduled =
-        flow.repeatType === 'day'
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(now.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(now.date().toString());
-      return isScheduled;
-    });
-
-    if (todayHabits.length >= 5) {
-      insights.push({ text: 'You have a productivity day! Keep up the great work.', icon: '🚀' });
-    } else if (todayHabits.length <= 2) {
-      insights.push({ text: 'Today is a relax day. Take time to recharge.', icon: '😌' });
+      
+      contributionData.push({ 
+        date: dayKey, 
+        count,
+        day: currentDate.date(),
+        dayOfWeek: currentDate.day(),
+        isToday: currentDate.isSame(moment(), 'day'),
+      });
+      
+      maxCount = Math.max(maxCount, count);
     }
 
-    const todayCompleted = todayHabits.reduce((count, flow) => {
-      const status = flow.status?.[today];
-      return status?.symbol === '✅' ? count + 1 : count;
-    }, 0);
-    if (todayCompleted >= 4) {
-      insights.push({ text: 'Excellent consistency! You’re building strong flows.', icon: '✅' });
-    } else if (todayCompleted <= 1) {
-      insights.push({ text: 'Let’s try to complete more flows tomorrow for even better progress.', icon: '📅' });
-    }
-
-    const todayMissed = todayHabits.reduce((count, flow) => {
-      const status = flow.status?.[today];
-      return status?.symbol === '❌' ? count + 1 : count;
-    }, 0);
-    if (todayMissed >= 3) {
-      insights.push({ text: 'You missed several flows today. Reflect on what held you back.', icon: '🤔' });
-    } else if (todayMissed === 0) {
-      insights.push({ text: 'Great job on sticking to your flows!', icon: '🎉' });
-    }
-
-    const todayInactive = todayHabits.reduce((count, flow) => {
-      const status = flow.status?.[today];
-      return !status ? count + 1 : count;
-    }, 0);
-    if (todayInactive >= 3) {
-      insights.push({ text: 'You haven’t updated your flows much today. Stay engaged!', icon: '⏰' });
-    } else if (todayInactive === 0) {
-      insights.push({ text: 'You’re actively tracking your flows. Well done!', icon: '👍' });
-    }
-
-    const todaySadLogs = todayHabits.reduce((count, flow) => {
-      const status = flow.status?.[today];
-      return status?.emotion === 'sad' ? count + 1 : count;
-    }, 0);
-    if (todaySadLogs >= 3) {
-      insights.push({ text: 'You’ve had several sad moments recently. Time to do something uplifting!', icon: '😔' });
-    } else if (todaySadLogs === 0) {
-      insights.push({ text: 'Your mood looks positive lately. Keep it up!', icon: '😊' });
-    }
-
-    const todayNotes = todayHabits.reduce((count, flow) => {
-      const status = flow.status?.[today];
-      return status?.note ? count + 1 : count;
-    }, 0);
-    if (todayNotes >= 3) {
-      insights.push({ text: 'Your reflections are insightful. Keep journaling for better self-awareness.', icon: '📝' });
-    } else if (todayNotes === 0) {
-      insights.push({ text: 'Try adding notes to capture your thoughts and feelings about your flows.', icon: '✍️' });
-    }
-
-    return insights;
+    return { contributionData, maxCount };
   };
 
-  const achievements = determineAchievements();
-  const insights = generateInsights();
+  const heatMapData = generateHeatMapData();
 
-  const renderFlowCard = (flow) => {
-    const { score } = calculateFlowStats(flow);
-    const streak = calculateCurrentStreak(flow);
-
-    return (
-      <Card
-        key={flow.id}
-        variant="default"
-        padding="md"
-        margin="sm"
-        style={styles.flowCard}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.navigate('FlowStatsDetail', { flowId: flow.id, initialTab: 'stats' })}
-          style={styles.flowButton}
-          accessibilityLabel={`View details for ${flow.title} flow`}
-          accessibilityHint="Double tap to view detailed statistics for this flow"
-        >
-          <View style={styles.flowRow}>
-            <View style={styles.flowTitleContainer}>
-              <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.title}</Text>
-              {streak >= 7 && (
-                <Text style={[styles.streakText, { color: themeColors.warning }]}>
-                  🔥 {streak} day streak
-                </Text>
-              )}
-            </View>
-            <View style={styles.flowScoreContainer}>
-              <Text style={[styles.flowScoreText, { color: themeColors.primaryText }]}>
-                {score.toFixed(0)}%
-              </Text>
-              <Text style={[styles.flowScoreLabel, { color: themeColors.secondaryText }]}>
-                Score
-            </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Card>
-    );
+  const getIntensityColor = (count, maxCount) => {
+    if (count === 0) return themeColors.progressBackground;
+    
+    const intensity = count / maxCount;
+    if (intensity <= 0.25) return colors.light.success + '40';
+    if (intensity <= 0.5) return colors.light.success + '60';
+    if (intensity <= 0.75) return colors.light.success + '80';
+    return colors.light.success;
   };
 
-  // Custom Heat Map rendering
-  const renderHeatMap = () => {
-    const squareSize = (screenWidth - 48) / 7 * 0.8; // Reduced by 20%
-    return (
-      <View style={styles.heatMap}>
-        {contributionData.map((item, index) => {
-          const intensity = item.count / maxCount;
-          const backgroundColor =
-            item.count === 0
-              ? themeColors.progressBackground
-              : `rgba(52, 199, 89, ${0.3 + intensity * 0.7})`; // Using success color
-          return (
-            <View
-              key={index}
-              style={[styles.heatMapSquare, { backgroundColor, width: squareSize, height: squareSize }]}
-            />
-          );
-        })}
-      </View>
-    );
+  const performanceChartData = {
+    labels: stats.overall.dailyData.map(d => d.displayDate).slice(-7),
+    datasets: [
+      {
+        data: stats.overall.dailyData.map(d => d.percentage).slice(-7),
+        color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
+        strokeWidth: 3,
+      },
+    ],
   };
 
-  // Custom Heat Map Legend
-  const renderHeatMapLegend = () => {
-    return (
-      <View style={styles.legend}>
-        {uniqueCounts.map((count, index) => {
-          const intensity = count / maxCount;
-          const backgroundColor =
-            count === 0
-              ? themeColors.progressBackground
-              : `rgba(52, 199, 89, ${0.3 + intensity * 0.7})`; // Using success color
-          return (
-            <View key={index} style={styles.legendItem}>
-              <View style={[styles.heatMapSquare, { backgroundColor, width: 14, height: 14 }]} />
-              <Text style={[styles.legendText, { color: themeColors.secondaryText }]}>{count} {count === 1 ? 'task' : 'tasks'}</Text>
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
-
-  // Month navigation
-  const handlePreviousMonth = () => {
-    setCurrentMonth(moment(currentMonth).subtract(1, 'month').startOf('month'));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentMonth(moment(currentMonth).add(1, 'month').startOf('month'));
-  };
-
-  // Handle empty states
-  const renderEmptyState = (message, icon = '📊') => (
-    <View style={styles.emptyState}>
-      <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>{icon}</Text>
-      <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>{message}</Text>
-    </View>
-  );
-
-
-  const chartConfig = {
-    backgroundGradientFromOpacity: 0,
-    backgroundGradientToOpacity: 0,
-    color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`, // Using primaryOrange
-    color2: (opacity = 1) => `rgba(255, 59, 48, ${opacity})`, // Using error color
-    color3: (opacity = 1) => `rgba(142, 142, 147, ${opacity})`, // Using secondaryText
-    labelColor: (opacity = 1) => `rgba(${isDark ? '255, 255, 255' : '0, 0, 0'}, ${opacity})`,
-    style: {
-      borderRadius: 0,
-      shadowColor: 'transparent',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0,
-      elevation: 0,
+  const activityDistributionData = [
+    {
+      name: 'Completed',
+      population: stats.overall.totalCompleted,
+      color: colors.light.success,
+      legendFontColor: themeColors.primaryText,
+      legendFontSize: 12,
     },
-    barPercentage: 0.5,
-  };
+    {
+      name: 'Missed',
+      population: stats.overall.totalScheduled - stats.overall.totalCompleted,
+      color: colors.light.error,
+      legendFontColor: themeColors.primaryText,
+      legendFontSize: 12,
+    },
+  ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
       <ScrollView 
-        contentContainerStyle={[styles.contentContainer, { paddingBottom: layout.spacing.xl + 80 }]} // Account for tab bar
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={styles.headerContainer}>
-          <Text style={[styles.header, { color: themeColors.primaryText }]}>Statistics</Text>
-          <Text style={[styles.subtitle, { color: themeColors.secondaryText }]}>
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: themeColors.primaryText }]}>Statistics</Text>
+          <Text style={[styles.headerSubtitle, { color: themeColors.secondaryText }]}>
             Track your progress and discover insights
           </Text>
         </View>
 
-        {/* Overall Score Card */}
-        <Card variant="default" padding="lg" margin="md">
-          <View style={styles.scoreContainer}>
-            <View style={styles.scoreMainRow}>
-              <View style={styles.scoreNumberContainer}>
-                <Text style={[styles.scoreNumber, { color: themeColors.primaryOrange }]}>{overallScore.toFixed(0)}</Text>
-                <Text style={[styles.scoreDenominator, { color: themeColors.secondaryText }]}>/100</Text>
-              </View>
-              <View style={styles.scoreStatsContainer}>
-                <View style={styles.scoreStatItem}>
-                  <Text style={[styles.scoreStatValue, { color: themeColors.primaryText }]}>{overallPoints}</Text>
-                  <Text style={[styles.scoreStatLabel, { color: themeColors.secondaryText }]}>Points</Text>
-                </View>
-                <View style={styles.scoreStatItem}>
-                  <Text style={[styles.scoreStatValue, { color: themeColors.primaryText }]}>{currentStreak}</Text>
-                  <Text style={[styles.scoreStatLabel, { color: themeColors.secondaryText }]}>Streak</Text>
-          </View>
-        </View>
-          </View>
-            <Text style={[styles.scoreLabel, { color: themeColors.primaryText }]}>Overall Flow Score</Text>
-          </View>
-        </Card>
-
-        {/* Key Metrics */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Key Metrics</Text>
-        <View style={styles.metricsRow}>
-          <Card variant="default" padding="md" margin="sm" style={styles.metricCard}>
-            <Text style={[styles.metricLabel, { color: themeColors.secondaryText }]}>Success Rate</Text>
-            <Text style={[styles.metricValue, { color: themeColors.primaryText }]}>{overallScore.toFixed(0)}%</Text>
-          </Card>
-          <Card variant="default" padding="md" margin="sm" style={styles.metricCard}>
-            <Text style={[styles.metricLabel, { color: themeColors.secondaryText }]}>Best Streak</Text>
-            <Text style={[styles.metricValue, { color: themeColors.primaryText }]}>{bestStreak} days</Text>
-          </Card>
-        </View>
-
-        {/* Activity Breakdown Chart */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Activity Breakdown</Text>
-        <Card variant="default" padding="md" margin="md">
-          <ProgressChart
-            data={activityBreakdownData}
-            width={screenWidth - 64}
-            height={200}
-            strokeWidth={16}
-            radius={32}
-            chartConfig={chartConfig}
-            hideLegend={false}
-          />
-        </Card>
-
-        {/* Overall Habit Chart */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Overall Flow Chart</Text>
-        <Card variant="default" padding="md" margin="md">
-          <ProgressChart
-            data={overallHabitData}
-            width={screenWidth - 64}
-            height={200}
-            strokeWidth={16}
-            radius={32}
-            chartConfig={chartConfig}
-            hideLegend={false}
-          />
-        </Card>
-
-        {/* Monthly Activity Heat Map */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Monthly Activity</Text>
-        <Card variant="default" padding="md" margin="md">
-          <View style={styles.monthNav}>
-            <Button
-              variant="icon"
-              onPress={handlePreviousMonth}
-              accessibilityLabel="Previous month"
-              accessibilityHint="Double tap to view previous month's activity"
+        {/* View Mode Toggle */}
+        <View style={styles.viewModeSelector}>
+          <TouchableOpacity
+            style={[
+              styles.viewModeButton,
+              viewMode === 'overview' && styles.activeViewModeButton,
+              { backgroundColor: viewMode === 'overview' ? colors.light.primaryOrange : themeColors.cardBackground }
+            ]}
+            onPress={() => setViewMode('overview')}
+          >
+            <Text
+              style={[
+                styles.viewModeText,
+                { color: viewMode === 'overview' ? '#FFFFFF' : themeColors.primaryText }
+              ]}
             >
-              <Ionicons name="chevron-back" size={24} color={themeColors.primaryText} />
-            </Button>
-            <Text style={[styles.chartTitle, { color: themeColors.primaryText }]}>
-              {currentMonth.format('MMMM YYYY')}
+              Overview
             </Text>
-            <Button
-              variant="icon"
-              onPress={handleNextMonth}
-              accessibilityLabel="Next month"
-              accessibilityHint="Double tap to view next month's activity"
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.viewModeButton,
+              viewMode === 'summary' && styles.activeViewModeButton,
+              { backgroundColor: viewMode === 'summary' ? colors.light.primaryOrange : themeColors.cardBackground }
+            ]}
+            onPress={() => setViewMode('summary')}
+          >
+            <Text
+              style={[
+                styles.viewModeText,
+                { color: viewMode === 'summary' ? '#FFFFFF' : themeColors.primaryText }
+              ]}
             >
-              <Ionicons name="chevron-forward" size={24} color={themeColors.primaryText} />
-            </Button>
+              Summary
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Timeframe Selector */}
+        <View style={styles.timeframeSelector}>
+          {['7D', '30D', '1Y'].map((timeframe) => (
+            <TouchableOpacity
+              key={timeframe}
+              style={[
+                styles.timeframeButton,
+                selectedTimeframe === timeframe && styles.activeTimeframeButton,
+                { backgroundColor: selectedTimeframe === timeframe ? colors.light.primaryOrange : themeColors.cardBackground }
+              ]}
+              onPress={() => setSelectedTimeframe(timeframe)}
+            >
+              <Text
+                style={[
+                  styles.timeframeText,
+                  { color: selectedTimeframe === timeframe ? '#FFFFFF' : themeColors.primaryText }
+                ]}
+              >
+                {timeframe}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Render based on view mode */}
+        {viewMode === 'summary' ? (
+          <FlowStatsSummary navigation={navigation} />
+        ) : (
+          <>
+
+        {/* Analytics */}
+        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Analytics</Text>
+        <View style={styles.metricsGrid}>
+          <MetricCard
+            title="Success Rate"
+            value={`${stats.overall.successRate.toFixed(1)}%`}
+            subtitle={`${stats.overall.totalCompleted}/${stats.overall.totalScheduled} completed`}
+            icon="checkmark-circle"
+            color={colors.light.success}
+          />
+          <MetricCard
+            title="Total Points"
+            value={stats.overall.totalPoints.toLocaleString()}
+            subtitle="This period"
+            icon="star"
+            color={colors.light.primaryOrange}
+          />
+          <MetricCard
+            title="Avg Daily"
+            value={`${stats.overall.avgDailyCompletion.toFixed(1)}%`}
+            subtitle="Completion rate"
+            icon="calendar"
+            color={colors.light.info}
+          />
+          <MetricCard
+            title="Active Flows"
+            value={`${stats.overall.activeFlows}`}
+            subtitle="Currently tracking"
+            icon="list"
+            color={colors.light.warning}
+          />
+        </View>
+
+        {/* Daily Performance Trend */}
+        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Daily Performance Trend</Text>
+        <Card variant="default" padding="lg" margin="md">
+          <View style={styles.chartHeader}>
+            <Text style={[styles.chartSubtitle, { color: themeColors.secondaryText }]}>
+              Your daily completion rate over the last 7 days
+            </Text>
+            <View style={styles.chartStats}>
+              <View style={styles.chartStatItem}>
+                <Text style={[styles.chartStatValue, { color: themeColors.primaryText }]}>
+                  {stats.overall.avgDailyCompletion.toFixed(1)}%
+                </Text>
+                <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Avg</Text>
+              </View>
+              <View style={styles.chartStatItem}>
+                <Text style={[styles.chartStatValue, { color: colors.light.success }]}>
+                  {Math.max(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1)}%
+                </Text>
+                <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Best</Text>
+              </View>
+              <View style={styles.chartStatItem}>
+                <Text style={[styles.chartStatValue, { color: colors.light.error }]}>
+                  {Math.min(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1)}%
+                </Text>
+                <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Lowest</Text>
+              </View>
+            </View>
           </View>
-          {renderHeatMap()}
-          {renderHeatMapLegend()}
+          <LineChart
+            data={performanceChartData}
+            width={screenWidth - 64}
+            height={160}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+            withDots={true}
+            withShadow={false}
+            withInnerLines={true}
+            withOuterLines={false}
+          />
+          <View style={styles.chartLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.light.primaryOrange }]} />
+              <Text style={[styles.legendText, { color: themeColors.secondaryText }]}>
+                Daily Completion Rate (%)
+              </Text>
+            </View>
+          </View>
         </Card>
 
-        {/* Habit Performance */}
+        {/* Flow Performance */}
         <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Flow Performance</Text>
-        <Card variant="default" padding="md" margin="md">
-          {flows.length === 0 ? (
-            renderEmptyState('No flows to display', '📊')
+        <Card variant="default" padding="lg" margin="md">
+          {stats.flowPerformance.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
+              <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>No flows to display</Text>
+            </View>
           ) : (
             <View style={styles.flowsList}>
-              {flows.map(renderFlowCard)}
+              {stats.flowPerformance.map((flow, index) => (
+                <FlowPerformanceCard key={index} flow={flow} />
+              ))}
             </View>
           )}
         </Card>
 
         {/* Achievements */}
         <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Achievements</Text>
-        <Card variant="default" padding="md" margin="md">
-            {achievements.length === 0 ? (
-            renderEmptyState('No achievements yet', '🏆')
-          ) : (
-            <View style={styles.achievementGrid}>
-              {achievements.map((ach, index) => (
-                <Card key={index} variant="filled" padding="sm" margin="xs" style={styles.achievementCard}>
-                  <Text style={styles.achievementIcon}>{ach.icon}</Text>
-                  <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>{ach.title}</Text>
-                  <Text style={[styles.achievementDescription, { color: themeColors.secondaryText }]}>
-                    {ach.description}
-                  </Text>
-                </Card>
-              ))}
-                </View>
-          )}
+        <Card variant="default" padding="lg" margin="md">
+          <View style={styles.achievementGrid}>
+            {stats.achievements.map((achievement, index) => (
+              <View key={index} style={[styles.achievementCard, { backgroundColor: achievement.color + '20' }]}>
+                <Text style={styles.achievementIcon}>{achievement.icon}</Text>
+                <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>{achievement.title}</Text>
+                <Text style={[styles.achievementDescription, { color: themeColors.secondaryText }]}>
+                  {achievement.description}
+                </Text>
+                <Text style={[styles.achievementProgress, { color: achievement.color }]}>
+                  {achievement.progress}/{achievement.target}
+                </Text>
+              </View>
+            ))}
+          </View>
         </Card>
 
-        {/* Insights */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Insights</Text>
-        <Card variant="default" padding="md" margin="md">
-          {insights.length === 0 ? (
-            renderEmptyState('No insights available', '💡')
-          ) : (
-            insights.map((insight, index) => (
-              <View key={index} style={styles.insightItem}>
-                <Text style={styles.insightIcon}>{insight.icon}</Text>
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>{insight.text}</Text>
+        {/* Overall Insights */}
+        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Overall Insights</Text>
+        <Card variant="default" padding="lg" margin="md">
+          <View style={styles.insightsContainer}>
+            {stats.overall.successRate >= 80 && (
+              <View style={styles.insightItem}>
+                <Ionicons name="trophy" size={20} color={colors.light.success} />
+                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                  Excellent consistency! You're maintaining a {stats.overall.successRate.toFixed(1)}% success rate.
+                </Text>
               </View>
-            ))
-          )}
+            )}
+            {stats.overall.avgDailyCompletion < 50 && (
+              <View style={styles.insightItem}>
+                <Ionicons name="trending-up" size={20} color={colors.light.warning} />
+                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                  Consider focusing on consistency. Your daily average is {stats.overall.avgDailyCompletion.toFixed(1)}%.
+                </Text>
+              </View>
+            )}
+            {stats.overall.activeFlows >= 5 && (
+              <View style={styles.insightItem}>
+                <Ionicons name="star" size={20} color={colors.light.primaryOrange} />
+                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                  You're tracking {stats.overall.activeFlows} flows! Keep up the great work.
+                </Text>
+              </View>
+            )}
+            {stats.overall.totalPoints >= 1000 && (
+              <View style={styles.insightItem}>
+                <Ionicons name="medal" size={20} color={colors.light.info} />
+                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                  Amazing! You've earned {stats.overall.totalPoints.toLocaleString()} points this period.
+                </Text>
+              </View>
+            )}
+          </View>
         </Card>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -637,100 +511,142 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    padding: layout.spacing.md,
-  },
-  headerContainer: {
-    marginBottom: layout.spacing.lg,
-    alignItems: 'center',
+    padding: layout.spacing.sm,
+    paddingBottom: layout.spacing.xl + 80,
   },
   header: {
+    alignItems: 'center',
+    marginBottom: layout.spacing.md,
+  },
+  headerTitle: {
     ...typography.styles.title1,
-    marginBottom: layout.spacing.sm,
-    textAlign: 'center',
-  },
-  subtitle: {
-    ...typography.styles.body,
-    textAlign: 'center',
-    opacity: 0.8,
-  },
-  sectionTitle: {
-    ...typography.styles.title2,
-    marginBottom: layout.spacing.md,
-    textAlign: 'center',
-  },
-  
-  // Score Section
-  scoreContainer: {
-    alignItems: 'center',
-  },
-  scoreMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginBottom: layout.spacing.md,
-  },
-  scoreNumberContainer: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  scoreNumber: {
-    ...typography.styles.largeTitle,
-    fontSize: 48,
     fontWeight: '700',
     marginBottom: layout.spacing.xs,
   },
-  scoreDenominator: {
-    ...typography.styles.title3,
-    opacity: 0.7,
-  },
-  scoreStatsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'space-around',
-  },
-  scoreStatItem: {
-    alignItems: 'center',
-  },
-  scoreStatValue: {
-    ...typography.styles.title2,
-    fontWeight: '700',
-    marginBottom: layout.spacing.xs,
-  },
-  scoreStatLabel: {
+  headerSubtitle: {
     ...typography.styles.caption,
     opacity: 0.8,
   },
-  scoreLabel: {
-    ...typography.styles.title2,
-    textAlign: 'center',
-  },
-  
-  // Metrics Section
-  metricsRow: {
+  timeframeSelector: {
     flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: layout.spacing.md,
+    backgroundColor: colors.light.progressBackground + '30',
+    borderRadius: layout.borderRadius.md,
+    padding: layout.spacing.xs,
+  },
+  timeframeButton: {
+    flex: 1,
+    paddingVertical: layout.spacing.xs,
+    paddingHorizontal: layout.spacing.sm,
+    borderRadius: layout.borderRadius.sm,
+    alignItems: 'center',
+  },
+  activeTimeframeButton: {
+    shadowColor: colors.light.primaryOrange,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  timeframeText: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: layout.spacing.lg,
+    marginBottom: layout.spacing.md,
   },
   metricCard: {
-    flex: 1,
-    alignItems: 'center',
+    width: '48%',
+    marginBottom: layout.spacing.sm,
   },
-  metricLabel: {
-    ...typography.styles.caption,
-    marginBottom: layout.spacing.xs,
+  metricGradient: {
+    padding: layout.spacing.sm,
+    borderRadius: layout.borderRadius.md,
+  },
+  metricHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: layout.spacing.sm,
   },
   metricValue: {
     ...typography.styles.title2,
     fontWeight: '700',
+    marginBottom: layout.spacing.xs,
   },
-  
-  // Chart Section
+  metricTitle: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    marginBottom: layout.spacing.xs,
+    fontSize: 12,
+  },
+  metricSubtitle: {
+    ...typography.styles.caption,
+    fontSize: 10,
+    opacity: 0.8,
+  },
   chartTitle: {
     ...typography.styles.title3,
+    fontWeight: '600',
+    marginBottom: layout.spacing.xs,
+    textAlign: 'center',
+  },
+  chartHeader: {
+    marginBottom: layout.spacing.sm,
+  },
+  chartSubtitle: {
+    ...typography.styles.caption,
     textAlign: 'center',
     marginBottom: layout.spacing.sm,
+    opacity: 0.8,
+    fontSize: 11,
+  },
+  chartStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: layout.spacing.sm,
+    paddingHorizontal: layout.spacing.md,
+  },
+  chartStatItem: {
+    alignItems: 'center',
+  },
+  chartStatValue: {
+    ...typography.styles.title3,
+    fontWeight: '700',
+    marginBottom: layout.spacing.xs,
+  },
+  chartStatLabel: {
+    ...typography.styles.caption,
+    fontSize: 10,
+    opacity: 0.8,
+  },
+  chart: {
+    marginVertical: layout.spacing.sm,
+    borderRadius: layout.borderRadius.lg,
+  },
+  chartLegend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: layout.spacing.sm,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: layout.spacing.xs,
+  },
+  legendText: {
+    ...typography.styles.caption,
+    fontSize: 11,
   },
   monthNav: {
     flexDirection: 'row',
@@ -738,8 +654,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: layout.spacing.md,
   },
-  
-  // Heat Map
   heatMap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -749,62 +663,40 @@ const styles = StyleSheet.create({
   heatMapSquare: {
     margin: 2,
     borderRadius: layout.borderRadius.sm,
-  },
-  legend: {
-    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: layout.spacing.sm,
   },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: layout.spacing.sm,
-  },
-  legendText: {
+  dayNumber: {
     ...typography.styles.caption,
-  },
-  
-  // Flow Cards
-  flowsList: {
-    // Container for flow cards list
-  },
-  flowCard: {
-    marginBottom: layout.spacing.sm,
-  },
-  flowButton: {
-    width: '100%',
-    padding: 0,
-    backgroundColor: 'transparent',
-  },
-  flowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  flowTitleContainer: {
-    flex: 1,
-  },
-  flowCardTitle: {
-    ...typography.styles.title3,
-    marginBottom: layout.spacing.xs,
-  },
-  streakText: {
-    ...typography.styles.caption,
+    fontSize: 10,
     fontWeight: '600',
   },
-  flowScoreContainer: {
-    alignItems: 'flex-end',
+  legend: {
+    alignItems: 'center',
+    marginTop: layout.spacing.md,
   },
-  flowScoreText: {
-    ...typography.styles.title3,
-    fontWeight: '700',
-  },
-  flowScoreLabel: {
+  legendTitle: {
     ...typography.styles.caption,
+    fontWeight: '600',
+    marginBottom: layout.spacing.sm,
   },
-  
-  // Achievements
+  legendItems: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  legendSquare: {
+    width: 12,
+    height: 12,
+    borderRadius: 2,
+    marginRight: layout.spacing.xs,
+  },
+  sectionTitle: {
+    ...typography.styles.title3,
+    fontWeight: '600',
+    marginBottom: layout.spacing.sm,
+    marginTop: layout.spacing.md,
+  },
   achievementGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -812,11 +704,13 @@ const styles = StyleSheet.create({
   },
   achievementCard: {
     width: '48%',
+    padding: layout.spacing.sm,
+    borderRadius: layout.borderRadius.md,
+    marginBottom: layout.spacing.sm,
     alignItems: 'center',
-    backgroundColor: colors.light.warning + '20', // 20% opacity
   },
   achievementIcon: {
-    fontSize: 24,
+    fontSize: 20,
     marginBottom: layout.spacing.xs,
   },
   achievementTitle: {
@@ -824,30 +718,95 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginBottom: layout.spacing.xs,
+    fontSize: 11,
   },
   achievementDescription: {
     ...typography.styles.caption,
-    fontSize: 11,
+    fontSize: 10,
     textAlign: 'center',
-    lineHeight: 14,
+    marginBottom: layout.spacing.xs,
   },
-  
-  // Insights
+  achievementProgress: {
+    ...typography.styles.caption,
+    fontWeight: '700',
+    textAlign: 'center',
+    fontSize: 11,
+  },
+  insightsContainer: {
+    marginTop: layout.spacing.sm,
+  },
   insightItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: layout.spacing.sm,
-  },
-  insightIcon: {
-    fontSize: 20,
-    marginRight: layout.spacing.sm,
+    marginBottom: layout.spacing.md,
   },
   insightText: {
     ...typography.styles.body,
     flex: 1,
+    marginLeft: layout.spacing.sm,
+    lineHeight: 20,
   },
-  
-  // Empty States
+  flowsList: {
+    // Container for flow cards list
+  },
+  flowCard: {
+    padding: layout.spacing.sm,
+    borderRadius: layout.borderRadius.md,
+    marginBottom: layout.spacing.sm,
+  },
+  flowCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: layout.spacing.sm,
+  },
+  flowCardTitle: {
+    ...typography.styles.body,
+    fontWeight: '600',
+    flex: 1,
+    fontSize: 14,
+  },
+  performanceBadge: {
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
+    borderRadius: layout.borderRadius.sm,
+  },
+  performanceText: {
+    ...typography.styles.caption,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  flowCardBody: {
+    marginTop: layout.spacing.sm,
+  },
+  flowStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: layout.spacing.sm,
+  },
+  flowStat: {
+    alignItems: 'center',
+  },
+  flowStatValue: {
+    ...typography.styles.body,
+    fontWeight: '700',
+    marginBottom: layout.spacing.xs,
+    fontSize: 13,
+  },
+  flowStatLabel: {
+    ...typography.styles.caption,
+    fontSize: 10,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: colors.light.progressBackground,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
   emptyState: {
     alignItems: 'center',
     paddingVertical: layout.spacing.xl,
@@ -860,6 +819,56 @@ const styles = StyleSheet.create({
     ...typography.styles.body,
     textAlign: 'center',
     opacity: 0.7,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: layout.spacing.xl,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: layout.spacing.md,
+  },
+  emptyTitle: {
+    ...typography.styles.title2,
+    fontWeight: '600',
+    marginBottom: layout.spacing.sm,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    ...typography.styles.body,
+    textAlign: 'center',
+    opacity: 0.8,
+    marginBottom: layout.spacing.lg,
+  },
+  emptyButton: {
+    marginTop: layout.spacing.md,
+  },
+  viewModeSelector: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: layout.spacing.sm,
+    backgroundColor: colors.light.progressBackground + '30',
+    borderRadius: layout.borderRadius.sm,
+    padding: layout.spacing.xs,
+  },
+  viewModeButton: {
+    flex: 1,
+    paddingVertical: layout.spacing.xs,
+    paddingHorizontal: layout.spacing.sm,
+    borderRadius: layout.borderRadius.sm,
+    alignItems: 'center',
+  },
+  activeViewModeButton: {
+    shadowColor: colors.light.primaryOrange,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  viewModeText: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    fontSize: 12,
   },
 });
 

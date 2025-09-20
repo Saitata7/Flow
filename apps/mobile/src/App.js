@@ -1,8 +1,8 @@
 // src/App.js
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './navigation/AppNavigator';
-import { PlanProvider } from './context/PlanContext';
 
 // Create QueryClient instance with proper configuration
 const queryClient = new QueryClient({
@@ -22,10 +22,10 @@ const queryClient = new QueryClient({
 // Main App component that wraps everything with QueryClientProvider
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <PlanProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
         <AppNavigator />
-      </PlanProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }

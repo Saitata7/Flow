@@ -18,6 +18,7 @@ const Button = ({
   fullWidth = false,
   style = {},
   testID,
+  selected = false,
 }) => {
   const scale = useSharedValue(1);
   const [pressed, setPressed] = useState(false);
@@ -47,6 +48,15 @@ const Button = ({
   }));
 
   const getVariantStyles = () => {
+    // Handle selected state for any variant
+    if (selected) {
+      return {
+        backgroundColor: disabled ? colors.light.secondaryText : colors.light.primaryOrange,
+        borderColor: disabled ? colors.light.secondaryText : colors.light.primaryOrange,
+        textColor: colors.light.cardBackground,
+      };
+    }
+
     switch (variant) {
       case 'primary':
         return {
@@ -84,6 +94,12 @@ const Button = ({
           backgroundColor: disabled ? colors.light.secondaryText : colors.light.error,
           borderColor: 'transparent',
           textColor: colors.light.cardBackground,
+        };
+      case 'toggle':
+        return {
+          backgroundColor: disabled ? colors.light.progressBackground : colors.light.background,
+          borderColor: colors.light.primaryOrange,
+          textColor: colors.light.primaryOrange,
         };
       default:
         return {};
@@ -123,8 +139,19 @@ const Button = ({
       opacity: disabled || loading ? 0.4 : 1,
       backgroundColor: variantStyles.backgroundColor,
       borderColor: variantStyles.borderColor,
-      borderWidth: variant === 'secondary' ? 1 : 0,
+      borderWidth: variant === 'secondary' || variant === 'toggle' ? 1 : 0,
       ...sizeStyles,
+      // Custom styling for toggle variant
+      ...(variant === 'toggle' ? {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: layout.spacing.sm,
+        paddingVertical: layout.spacing.xs,
+        borderRadius: layout.borderRadius.md,
+        gap: layout.spacing.xs,
+        justifyContent: 'center',
+        ...(Platform.OS === 'ios' ? { borderCurve: 'continuous' } : {}),
+      } : {}),
     },
     style,
   ];
@@ -134,6 +161,12 @@ const Button = ({
     {
       color: variantStyles.textColor,
       fontSize: sizeStyles.fontSize,
+      // Custom text styling for toggle variant
+      ...(variant === 'toggle' ? {
+        ...typography.styles.caption1,
+        fontWeight: '500',
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+      } : {}),
     },
   ];
 
@@ -164,7 +197,7 @@ const Button = ({
 };
 
 Button.propTypes = {
-  variant: PropTypes.oneOf(['primary', 'secondary', 'text', 'icon', 'fab', 'destructive']),
+  variant: PropTypes.oneOf(['primary', 'secondary', 'text', 'icon', 'fab', 'destructive', 'toggle']),
   size: PropTypes.oneOf(['small', 'medium', 'large']),
   title: PropTypes.string,
   onPress: PropTypes.func,
@@ -175,6 +208,7 @@ Button.propTypes = {
   fullWidth: PropTypes.bool,
   style: PropTypes.object,
   testID: PropTypes.string,
+  selected: PropTypes.bool,
 };
 
 const styles = StyleSheet.create({

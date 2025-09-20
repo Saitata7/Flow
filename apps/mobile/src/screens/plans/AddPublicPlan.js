@@ -14,7 +14,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/common/Icon';
 import Button from '../../components/common/Button';
 import { colors, typography, layout } from '../../../styles';
@@ -27,6 +27,7 @@ const AddPublicPlan = () => {
   const { createPlan, loading } = usePlanContext();
   const { user } = useAuth();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   // State
   const [title, setTitle] = useState('');
@@ -139,7 +140,7 @@ const AddPublicPlan = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -148,7 +149,10 @@ const AddPublicPlan = () => {
           colors={['#FFE3C3', '#FFFFFF']}
           style={styles.gradientBackground}
         >
-          <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
+          <ScrollView 
+            contentContainerStyle={[styles.scrollContainer, { paddingBottom: insets.bottom + 100 }]} 
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Header */}
             <View style={styles.header}>
               <TouchableOpacity

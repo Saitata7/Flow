@@ -10,12 +10,14 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { colors, typography } from '../../../styles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, typography, layout } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 
 const PlanInstanceDetail = () => {
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { theme } = React.useContext(ThemeContext) || { theme: 'light' };
   
   const { planInstance } = route.params || {};
@@ -109,7 +111,7 @@ const PlanInstanceDetail = () => {
 
   if (!planInstance) {
     return (
-      <SafeAreaView style={dynamicStyles.container}>
+      <SafeAreaView style={dynamicStyles.container} edges={['top']}>
         <View style={dynamicStyles.header}>
           <TouchableOpacity style={dynamicStyles.backButton} onPress={handleBack}>
             <Ionicons 
@@ -120,7 +122,7 @@ const PlanInstanceDetail = () => {
           </TouchableOpacity>
           <Text style={dynamicStyles.headerTitle}>Plan Instance</Text>
         </View>
-        <View style={dynamicStyles.content}>
+        <View style={[dynamicStyles.content, { paddingBottom: insets.bottom + 100 }]}>
           <Text style={dynamicStyles.placeholderText}>
             No plan instance data available
           </Text>
@@ -130,7 +132,7 @@ const PlanInstanceDetail = () => {
   }
 
   return (
-    <SafeAreaView style={dynamicStyles.container}>
+    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
       <View style={dynamicStyles.header}>
         <TouchableOpacity style={dynamicStyles.backButton} onPress={handleBack}>
           <Ionicons 
@@ -144,7 +146,11 @@ const PlanInstanceDetail = () => {
         </Text>
       </View>
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={dynamicStyles.content} 
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Plan Instance Info */}
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>Instance Details</Text>

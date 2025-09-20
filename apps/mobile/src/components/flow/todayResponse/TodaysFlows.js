@@ -3,12 +3,12 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { FlowsContext } from '../../../context/FlowContext';
 import moment from 'moment';
 import ResponseModal from './Response';
-import Binary from './Binary';
-import Quantitative from './Quantitative';
-import Timebased from './Timebased';
+import UnifiedFlowCard from './UnifiedFlowCard';
 
 const TodaysFlows = ({ visibleFlows }) => {
   const { updateFlow, updateCount, updateTimeBased } = useContext(FlowsContext) || {};
+  
+  console.log('TodaysFlows: Received flows:', visibleFlows?.map(f => ({ id: f.id, title: f.title })) || 'No flows');
   const [selectedFlow, setSelectedFlow] = useState(null);
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [note, setNote] = useState('');
@@ -177,6 +177,8 @@ const TodaysFlows = ({ visibleFlows }) => {
     const order = { '-': 0, '✅': 1, '✓': 1, '+': 1, '❌': 2 };
     return order[statusA] - order[statusB];
   });
+  
+  console.log('TodaysFlows: Sorted flows:', sortedFlows.map(f => ({ id: f.id, title: f.title })));
 
   if (!visibleFlows || visibleFlows.length === 0) {
     return (
@@ -190,28 +192,12 @@ const TodaysFlows = ({ visibleFlows }) => {
     <View >
       {sortedFlows.map((flow) => {
         const key = `${flow.id}-${flow.status?.[moment().format('YYYY-MM-DD')]?.symbol || '-'}-${refreshKey}`;
-        if (flow.trackingType === 'Quantitative') {
-          return (
-            <Quantitative
-              key={key}
-              flow={flow}
-            />
-          );
-        } else if (flow.trackingType === 'Time-based') {
-          return (
-            <Timebased
-              key={key}
-              flow={flow}
-            />
-          );
-        } else {
-          return (
-            <Binary
-              key={key}
-              flow={flow}
-            />
-          );
-        }
+        return (
+          <UnifiedFlowCard
+            key={key}
+            flow={flow}
+          />
+        );
       })}
       <ResponseModal
         visible={showResponseModal}

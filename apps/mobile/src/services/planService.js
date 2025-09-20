@@ -1,6 +1,17 @@
 // src/services/planService.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { format, addDays } from 'date-fns';
 import { generateIdempotencyKey } from '../utils/idempotency';
+import { flowService } from './flowService';
+
+// Global reference to FlowsContext addFlow function
+let flowsContextAddFlow = null;
+
+// Function to set the FlowsContext addFlow function
+export const setFlowsContextAddFlow = (addFlowFunction) => {
+  flowsContextAddFlow = addFlowFunction;
+  console.log('PlanService: FlowsContext addFlow function registered:', !!addFlowFunction);
+};
 
 const PLANS_STORAGE_KEY = 'user_plans';
 const PUBLIC_PLANS_STORAGE_KEY = 'public_plans';
@@ -167,6 +178,11 @@ class PlanService {
       const updatedPlans = [...plans, newPlan];
       await this.savePlansToStorage(updatedPlans);
       
+      // If this is a group plan with flows, convert them to personal flows for the owner
+      if (newPlan.flows && newPlan.flows.length > 0 && newPlan.ownerId) {
+        await this.convertGroupFlowsToPersonalFlows(newPlan.flows, newPlan.ownerId, newPlan.id);
+      }
+      
       return newPlan;
     } catch (error) {
       console.error('Error creating plan:', error);
@@ -247,6 +263,11 @@ class PlanService {
         plan.updatedAt = new Date().toISOString();
         plans[planIndex] = plan;
         await this.savePlansToStorage(plans);
+        
+        // Convert group flows to personal flows for the user
+        if (plan.flows && plan.flows.length > 0) {
+          await this.convertGroupFlowsToPersonalFlows(plan.flows, userId, plan.id);
+        }
       }
       
       return plan;
@@ -287,6 +308,9 @@ class PlanService {
       
       plans[planIndex] = plan;
       await this.savePlansToStorage(plans);
+      
+      // Remove personal flows from this group
+      await this.removeGroupFlowsFromPersonalFlows(planId, userId);
       
       return plan;
     } catch (error) {
@@ -487,6 +511,181 @@ class PlanService {
       isValid: errors.length === 0,
       errors,
     };
+  }
+
+  // Convert group flows to personal flows for a user
+  async convertGroupFlowsToPersonalFlows(groupFlows, userId, groupId) {
+    try {
+      console.log('PlanService: Converting group flows to personal flows:', groupFlows.length, 'flows for user:', userId);
+      console.log('PlanService: Group flows data:', groupFlows.map(f => ({ id: f.id, title: f.title, trackingType: f.trackingType })));
+      
+      for (const groupFlow of groupFlows) {
+        // Skip flows without titles
+        if (!groupFlow.title || !groupFlow.title.trim()) {
+          continue;
+        }
+
+        // Create personal flow from group flow with proper structure
+        const now = new Date().toISOString();
+        
+        // Convert tracking type to proper case for stats service compatibility
+        const trackingTypeMap = {
+          'binary': 'Binary',
+          'quantitative': 'Quantitative', 
+          'time-based': 'Time-based'
+        };
+        const properTrackingType = trackingTypeMap[groupFlow.trackingType] || groupFlow.trackingType;
+        
+        const personalFlow = {
+          // Required fields
+          id: `${groupId}_${groupFlow.id}_${userId}`, // Unique ID combining group, flow, and user
+          title: groupFlow.title,
+          trackingType: properTrackingType,
+          frequency: groupFlow.frequency || 'Daily',
+          ownerId: userId,
+          schemaVersion: 2,
+          createdAt: now,
+          updatedAt: now,
+          
+          // Optional fields with defaults
+          description: groupFlow.description || '',
+          everyDay: true, // Default to daily for group flows
+          daysOfWeek: [],
+          reminderTime: groupFlow.reminderTime || null,
+          reminderLevel: '1',
+          cheatMode: false,
+          
+          // New v2 fields
+          planId: groupId, // Reference to the group
+          goal: groupFlow.goal || null,
+          progressMode: 'sum',
+          tags: ['Group Flow'],
+          archived: false,
+          visibility: 'private',
+          deletedAt: null,
+          
+          // Legacy fields for backward compatibility
+          goalLegacy: groupFlow.trackingType === 'quantitative' ? groupFlow.goal || 0 : undefined,
+          hours: groupFlow.trackingType === 'time-based' ? 0 : undefined,
+          minutes: groupFlow.trackingType === 'time-based' ? 0 : undefined,
+          seconds: groupFlow.trackingType === 'time-based' ? 0 : undefined,
+          unitText: groupFlow.trackingType === 'quantitative' ? groupFlow.unit || '' : undefined,
+          
+          // Group flow references
+          groupId: groupId,
+          groupFlowId: groupFlow.id,
+          
+          // Status tracking - use the same structure as FlowsContext
+          status: this.generateStatusDates(
+            groupFlow.trackingType,
+            groupFlow.trackingType === 'quantitative' ? groupFlow.unit : undefined,
+            groupFlow.trackingType === 'time-based' ? 0 : undefined,
+            groupFlow.trackingType === 'time-based' ? 0 : undefined,
+            groupFlow.trackingType === 'time-based' ? 0 : undefined,
+            groupFlow.trackingType === 'quantitative' ? groupFlow.goal : undefined
+          ),
+        };
+
+        // Add to personal flows - use FlowsContext if available, otherwise use flowService
+        if (flowsContextAddFlow) {
+          console.log('PlanService: Using FlowsContext.addFlow for:', personalFlow.title);
+          console.log('PlanService: FlowsContext.addFlow function available:', !!flowsContextAddFlow);
+          
+          // Convert to format expected by FlowsContext.addFlow
+          const flowForContext = {
+            id: personalFlow.id,
+            title: personalFlow.title,
+            trackingType: personalFlow.trackingType,
+            frequency: personalFlow.frequency,
+            ownerId: personalFlow.ownerId,
+            description: personalFlow.description,
+            everyDay: personalFlow.everyDay,
+            daysOfWeek: personalFlow.daysOfWeek,
+            time: personalFlow.reminderTime, // FlowsContext expects 'time' not 'reminderTime'
+            reminderLevel: personalFlow.reminderLevel,
+            cheatMode: personalFlow.cheatMode,
+            planId: personalFlow.planId,
+            goal: personalFlow.goal,
+            progressMode: personalFlow.progressMode,
+            tags: personalFlow.tags,
+            archived: personalFlow.archived,
+            visibility: personalFlow.visibility,
+            // Legacy fields
+            goalLegacy: personalFlow.goalLegacy,
+            hours: personalFlow.hours,
+            minutes: personalFlow.minutes,
+            seconds: personalFlow.seconds,
+            unitText: personalFlow.unitText,
+            // Group flow references
+            groupId: personalFlow.groupId,
+            groupFlowId: personalFlow.groupFlowId,
+          };
+          
+          await flowsContextAddFlow(flowForContext);
+          console.log('Added to FlowsContext:', personalFlow.title);
+        } else {
+          console.log('FlowsContext not available, using flowService for:', personalFlow.title);
+          const createdFlow = await flowService.createFlow(personalFlow);
+          console.log('Created personal flow:', createdFlow.title, 'with ID:', createdFlow.id);
+        }
+        
+        // Verify the flow was saved
+        const allFlows = await flowService.getFlows();
+        console.log('Total flows after creation:', allFlows.length);
+        console.log('Latest flows:', allFlows.slice(-3).map(f => ({ id: f.id, title: f.title, groupId: f.groupId })));
+      }
+    } catch (error) {
+      console.error('Error converting group flows to personal flows:', error);
+      throw error;
+    }
+  }
+
+  // Generate initial status data for a flow (matching FlowsContext structure)
+  generateStatusDates(trackingType, unitText, hours, minutes, seconds, goal) {
+    const status = {};
+    for (let i = 0; i < 7; i++) {
+      const dateKey = format(addDays(new Date(), i), 'yyyy-MM-dd');
+      status[dateKey] = {
+        symbol: '➖',
+        emotion: null,
+        note: null,
+        timestamp: null,
+        quantitative: trackingType === 'quantitative' ? { unitText, goal, count: 0 } : null,
+        timebased: trackingType === 'time-based' ? {
+          hours,
+          minutes,
+          seconds,
+          start0: null,
+          startTime: null,
+          pauses: [],
+          stop: null,
+          endTime: null,
+          totalDuration: 0,
+          pausesCount: 0
+        } : null
+      };
+    }
+    return status;
+  }
+
+  // Remove personal flows that belong to a specific group
+  async removeGroupFlowsFromPersonalFlows(groupId, userId) {
+    try {
+      console.log('Removing group flows from personal flows for group:', groupId, 'user:', userId);
+      
+      const flows = await flowService.getFlows();
+      const flowsToRemove = flows.filter(flow => 
+        flow.groupId === groupId && flow.ownerId === userId
+      );
+      
+      for (const flow of flowsToRemove) {
+        await flowService.deleteFlow(flow.id);
+        console.log('Removed personal flow:', flow.title);
+      }
+    } catch (error) {
+      console.error('Error removing group flows from personal flows:', error);
+      throw error;
+    }
   }
 }
 

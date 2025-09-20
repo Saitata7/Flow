@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, addDays } from 'date-fns';
+import { setFlowsContextAddFlow } from '../services/planService';
 
 const FLOWS_STORAGE_KEY = 'flows';
 
@@ -9,6 +10,8 @@ export const FlowsContext = createContext();
 export const FlowsProvider = ({ children }) => {
   const [flows, setFlows] = useState([]);
   const [updateQueue, setUpdateQueue] = useState([]);
+
+  console.log('FlowsProvider: Initializing with', flows.length, 'flows');
 
   const generateStatusDates = useCallback((trackingType, unitText, hours, minutes, seconds, goal) => {
     const status = {};
@@ -39,20 +42,38 @@ export const FlowsProvider = ({ children }) => {
 
   const loadData = useCallback(async () => {
     try {
+      console.log('FlowsContext: loadData called - current flows count:', flows.length);
       const flowsData = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
       if (flowsData) {
         const loadedFlows = JSON.parse(flowsData);
+        console.log('FlowsContext: Loading flows from storage:', loadedFlows.length, 'flows');
+        console.log('FlowsContext: Loaded flow details:', loadedFlows.map(f => ({ 
+          id: f.id, 
+          title: f.title, 
+          groupId: f.groupId,
+          trackingType: f.trackingType 
+        })));
         setFlows(loadedFlows);
-        console.log('Loaded flows:', loadedFlows);
+        console.log('FlowsContext: Flows state updated to:', loadedFlows.length, 'flows');
+      } else {
+        console.log('FlowsContext: No flows data found in storage');
+        setFlows([]);
       }
     } catch (e) {
-      console.error('Failed to load flows:', e);
+      console.error('FlowsContext: Failed to load flows:', e);
     }
   }, []);
 
   useEffect(() => {
+    console.log('FlowsContext: Initial load on mount');
     loadData();
-  }, [loadData]);
+  }, []); // Only run once on mount
+
+  // Register addFlow function with planService
+  useEffect(() => {
+    setFlowsContextAddFlow(addFlow);
+    console.log('FlowsContext: Registered addFlow function with planService');
+  }, [addFlow]);
 
   useEffect(() => {
     if (updateQueue.length > 0) {
@@ -74,6 +95,8 @@ export const FlowsProvider = ({ children }) => {
   const addFlow = useCallback(
     async (flow) => {
       try {
+        console.log('FlowsContext: addFlow called with:', flow);
+        console.log('FlowsContext: Current flows count before adding:', flows.length);
         const now = new Date().toISOString();
         const newFlow = {
           // Required fields
@@ -104,7 +127,7 @@ export const FlowsProvider = ({ children }) => {
           deletedAt: null,
           
           // Legacy fields for backward compatibility
-          goal: flow.trackingType === 'Quantitative' ? flow.goal || 0 : undefined,
+          goalLegacy: flow.trackingType === 'Quantitative' ? flow.goal || 0 : undefined,
           hours: flow.trackingType === 'Time-based' ? flow.hours || 0 : undefined,
           minutes: flow.trackingType === 'Time-based' ? flow.minutes || 0 : undefined,
           seconds: flow.trackingType === 'Time-based' ? flow.seconds || 0 : undefined,
@@ -121,11 +144,24 @@ export const FlowsProvider = ({ children }) => {
           )
         };
         const newFlows = [...flows, newFlow];
+        console.log('FlowsContext: Saving flows to storage:', newFlows.length, 'flows');
+        console.log('FlowsContext: Current flows before adding:', flows.map(f => ({ id: f.id, title: f.title })));
+        console.log('FlowsContext: New flow being added:', { id: newFlow.id, title: newFlow.title });
+        
         await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(newFlows));
         setFlows(newFlows);
-        console.log('Added flow:', newFlow);
+        
+        // Verify the save worked
+        const savedFlows = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
+        const parsedSavedFlows = savedFlows ? JSON.parse(savedFlows) : [];
+        console.log('FlowsContext: Verified saved flows count:', parsedSavedFlows.length);
+        console.log('FlowsContext: Verified saved flows:', parsedSavedFlows.map(f => ({ id: f.id, title: f.title })));
+        
+        console.log('FlowsContext: Flow added successfully:', newFlow.title);
+        console.log('FlowsContext: New flows count after adding:', newFlows.length);
+        console.log('FlowsContext: Latest flows:', newFlows.slice(-3).map(f => ({ id: f.id, title: f.title, groupId: f.groupId })));
       } catch (e) {
-        console.error('Failed to add flow:', e);
+        console.error('FlowsContext: Failed to add flow:', e);
       }
     },
     [flows, generateStatusDates]
@@ -217,6 +253,7 @@ export const FlowsProvider = ({ children }) => {
   const updateFlow = useCallback(
     async (id, updates, fromQueue = false) => {
       try {
+        console.log('FlowContext: updateFlow called with:', { id, updates, fromQueue });
         const now = new Date().toISOString();
         const updatedFlows = flows.map((flow) =>
           flow.id === id ? { 
@@ -226,11 +263,12 @@ export const FlowsProvider = ({ children }) => {
             schemaVersion: 2 // Ensure schema version is updated
           } : flow
         );
+        console.log('FlowContext: Updated flows array:', updatedFlows.find(f => f.id === id));
         await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
         setFlows(updatedFlows);
-        console.log('Updated flow:', { id, updates });
+        console.log('FlowContext: Flow updated successfully:', { id, updates });
       } catch (e) {
-        console.error('Failed to update flow:', e);
+        console.error('FlowContext: Failed to update flow:', e);
         if (!fromQueue) {
           setUpdateQueue((prev) => [...prev, { id, updates, type: 'flow' }]);
         }
@@ -326,33 +364,40 @@ export const FlowsProvider = ({ children }) => {
     return flows.filter(flow => !flow.deletedAt && flow.tags?.includes(tag));
   }, [flows]);
 
+  const contextValue = {
+    // Data
+    flows,
+    activeFlows: getActiveFlows(),
+    archivedFlows: getArchivedFlows(),
+    deletedFlows: getDeletedFlows(),
+    
+    // Actions
+    addFlow,
+    updateFlow,
+    updateFlowStatus,
+    deleteFlow,
+    restoreFlow,
+    updateCount,
+    updateTimeBased,
+    setFlows,
+    loadData,
+    
+    // Filters
+    getFlowsByPlan,
+    getFlowsByTag,
+    getActiveFlows,
+    getArchivedFlows,
+    getDeletedFlows
+  };
+
+  console.log('FlowsProvider: Providing context value:', {
+    flowsCount: flows.length,
+    hasAddFlow: !!addFlow,
+    hasUpdateFlow: !!updateFlow
+  });
+
   return (
-    <FlowsContext.Provider
-      value={{
-        // Data
-        flows,
-        activeFlows: getActiveFlows(),
-        archivedFlows: getArchivedFlows(),
-        deletedFlows: getDeletedFlows(),
-        
-        // Actions
-        addFlow,
-        updateFlow,
-        updateFlowStatus,
-        deleteFlow,
-        restoreFlow,
-        updateCount,
-        updateTimeBased,
-        setFlows,
-        
-        // Filters
-        getFlowsByPlan,
-        getFlowsByTag,
-        getActiveFlows,
-        getArchivedFlows,
-        getDeletedFlows
-      }}
-    >
+    <FlowsContext.Provider value={contextValue}>
       {children}
     </FlowsContext.Provider>
   );

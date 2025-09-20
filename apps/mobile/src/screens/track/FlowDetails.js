@@ -1,4 +1,4 @@
-import React, { useState, useContext, useMemo, useCallback } from 'react';
+import React, { useState, useContext, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,7 +15,19 @@ const FlowDetail = ({ route, navigation }) => {
   const { theme = 'light', accentColor = '#007AFF', textSize = 'medium', highContrast = false } = useContext(ThemeContext) || {};
   const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
 
-  const flow = useMemo(() => flows.find((f) => f.id === flowId) || {}, [flows, flowId]);
+  console.log('FlowDetails: Received flowId:', flowId);
+  console.log('FlowDetails: Available flows:', flows.map(f => ({ id: f.id, title: f.title })));
+
+  const flow = useMemo(() => {
+    const foundFlow = flows.find((f) => f.id === flowId) || {};
+    console.log('FlowDetails: Found flow:', { id: foundFlow.id, title: foundFlow.title });
+    return foundFlow;
+  }, [flows, flowId]);
+
+  // Force re-render when flowId changes
+  useEffect(() => {
+    console.log('FlowDetails: flowId changed, forcing re-render:', flowId);
+  }, [flowId]);
 
   const handleUpdateStatus = useCallback((flowId, dateKey, statusSymbol, emotion, note, currentStatus) => {
     if (!['✅', '❌', '➖'].includes(statusSymbol)) {

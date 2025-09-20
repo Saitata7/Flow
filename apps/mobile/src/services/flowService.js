@@ -18,9 +18,9 @@ export const flowService = {
     try {
       const flows = await this.getFlows();
       const newFlow = {
-        id: Date.now().toString(),
+        id: flowData.id || Date.now().toString(), // Use provided ID or generate new one
         ...flowData,
-        createdAt: new Date().toISOString(),
+        createdAt: flowData.createdAt || new Date().toISOString(),
       };
       flows.push(newFlow);
       await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(flows));

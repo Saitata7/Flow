@@ -1,4 +1,5 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -7,12 +8,18 @@ import {
   SafeAreaView,
   StatusBar,
   ScrollView,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../../context/ThemeContext';
 import { FlowsContext } from '../../context/FlowContext';
+import { useProfile } from '../../hooks/useProfile';
 import moment from 'moment';
 import TodaysFlows from '../../components/flow/todayResponse/TodaysFlows';
+import NotificationScreen from './NotificationScreen';
+import FTUEOverlay from '../../components/home/FTUEOverlay';
+import { useFTUE } from '../../hooks/useFTUE';
 
 // Import centralized styles and components
 import {
@@ -22,14 +29,18 @@ import {
   commonStyles,
   useAppTheme,
 } from '../../../styles';
-import { Button, Card, Icon } from '../../components';
+import { Button, Card, Icon, Badge, FlowGrid } from '../../components';
 
 const SIDE_PADDING = 16;
 
 export default function HomePage({ navigation }) {
   const [dayOffset, setDayOffset] = useState(0); // Controls which set of 3 days to show
+  const [notificationCount, setNotificationCount] = useState(3); // Mock notification count
+  
+  // FTUE (First-Time User Experience)
+  const { showFTUE, completeFTUE, startFTUE } = useFTUE();
 
-  const { flows } = useContext(FlowsContext) || { flows: [] };
+  const { flows, loadData } = useContext(FlowsContext) || { flows: [], loadData: () => {} };
   const { theme, textSize, highContrast, cheatMode } = useContext(ThemeContext) || {
     theme: 'light',
     textSize: 'medium',
@@ -39,6 +50,22 @@ export default function HomePage({ navigation }) {
 
   // Use centralized theme hook
   const { colors: themeColors, isDark } = useAppTheme();
+  
+  // Get user profile for greeting
+  const { profile } = useProfile();
+
+  // Refresh flows when home page comes into focus (only if flows are empty)
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('HomePage: Checking flows on focus - current count:', flows.length);
+      if (flows.length === 0) {
+        console.log('HomePage: No flows found, loading data');
+        loadData();
+      } else {
+        console.log('HomePage: Flows already loaded, skipping refresh');
+      }
+    }, [loadData, flows.length])
+  );
 
   const now = moment();
   const today = moment().format('ddd'); // e.g., 'Mon'
@@ -61,214 +88,141 @@ export default function HomePage({ navigation }) {
 
   const nextDays = getNextNDays();
 
-  const canSlidePrevious = () => {
-    return dayOffset > -10; // Allow up to 30 days previous (10 sets of 3)
+  // Helper functions for greeting and streak
+  const getGreeting = () => {
+    const hour = moment().hour();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   };
 
-  const canSlideNext = () => {
-    return dayOffset < 10; // Allow up to 30 days future (10 sets of 3)
+  const getUserName = () => {
+    return profile?.displayName || profile?.name || 'there';
   };
 
-  const slideToPrevious = () => {
-    if (canSlidePrevious()) {
-      setDayOffset(dayOffset - 1);
+  const calculateStreak = () => {
+    // Calculate current streak based on completed flows
+    let streak = 0;
+    const today = moment().format('YYYY-MM-DD');
+    
+    for (let i = 0; i < 30; i++) { // Check last 30 days
+      const checkDate = moment().subtract(i, 'days').format('YYYY-MM-DD');
+      const hasCompletedFlow = flows.some(flow => {
+        const status = flow.status?.[checkDate];
+        return status?.symbol === '✅';
+      });
+      
+      if (hasCompletedFlow) {
+        streak++;
+      } else if (i > 0) { // Don't break streak on first day if no flows
+        break;
+      }
     }
+    
+    return streak;
   };
 
-  const slideToNext = () => {
-    if (canSlideNext()) {
-      setDayOffset(dayOffset + 1);
-    }
-  };
+  const currentStreak = calculateStreak();
 
   const visibleFlows = flows.filter((flow) => {
     // Normalize frequency/repeatType
     const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
-    const isTodayScheduled =
-      frequency === 'Daily'
+    
+    // For group flows, be more lenient with scheduling
+    const isGroupFlow = flow.groupId || flow.planId;
+    const isTodayScheduled = isGroupFlow 
+      ? true // Group flows are always visible (they're daily by default)
+      : frequency === 'Daily'
         ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(today))
         : flow.selectedMonthDays && flow.selectedMonthDays.includes(todayDate);
 
-    if (!isTodayScheduled) return false;
+    console.log(`HomePage: Flow "${flow.title}" - frequency: ${frequency}, everyDay: ${flow.everyDay}, daysOfWeek: ${JSON.stringify(flow.daysOfWeek)}, isTodayScheduled: ${isTodayScheduled}, groupId: ${flow.groupId}, isGroupFlow: ${isGroupFlow}`);
+
+    if (!isTodayScheduled) {
+      console.log(`HomePage: Flow "${flow.title}" - EXCLUDED: not scheduled for today`);
+      return false;
+    }
 
     // Include flows regardless of time/reminderTime unless time-based filtering is explicitly required
     // Optionally, check startDate if present
     const startDate = flow.startDate ? moment(flow.startDate) : null;
     const isStarted = !startDate || now.isSameOrAfter(startDate, 'day');
 
-    return isStarted;
+    console.log(`HomePage: Flow "${flow.title}" - isStarted: ${isStarted}, will be visible: ${isStarted}`);
+
+    if (!isStarted) {
+      console.log(`HomePage: Flow "${flow.title}" - EXCLUDED: not started yet`);
+      return false;
+    }
+
+    console.log(`HomePage: Flow "${flow.title}" - INCLUDED: visible on home page`);
+    return true;
   });
 
-  const isFlowScheduledForDay = (flow, date) => {
-    const dayOfWeek = moment(date).format('ddd');
-    const dayOfMonth = moment(date).format('D');
-    const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
-    if (frequency === 'Daily') {
-      return flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(dayOfWeek));
-    }
-    return flow.selectedMonthDays && flow.selectedMonthDays.includes(dayOfMonth);
-  };
-
-  const getStatusIcon = (flow, date) => {
-    if (!isFlowScheduledForDay(flow, date)) return null; // No icon for unscheduled days
-    const status = flow.status?.[date]?.symbol;
-    if (status === '✅') return '✓';
-    if (status === '❌') return '×';
-    return null; // Inactive (white circle, no icon)
-  };
-
-  const getStatusStyle = (flow, date) => {
-    if (!isFlowScheduledForDay(flow, date)) {
-      return {
-        backgroundColor: 'transparent', // No color for unscheduled days
-        iconColor: 'transparent',
-        borderColor: 'transparent',
-        borderWidth: 0,
-      };
-    }
-    const status = flow.status?.[date]?.symbol;
-    if (status === '✅') {
-      return {
-        backgroundColor: themeColors.flowCompleted, // Use theme colors
-        iconColor: themeColors.cardBackground, // White tick
-        borderColor: 'transparent',
-        borderWidth: 0,
-      };
-    }
-    if (status === '❌') {
-      return {
-        backgroundColor: themeColors.flowMissed, // Use theme colors
-        iconColor: themeColors.cardBackground, // White cross
-        borderColor: 'transparent',
-        borderWidth: 0,
-      };
-    }
-    return {
-      backgroundColor: themeColors.cardBackground, // White circle for inactive
-      iconColor: themeColors.tertiaryText, // Gray (not used since no icon)
-      borderColor: themeColors.tertiaryText, // Dark border for inactive
-      borderWidth: 1,
-    };
-  };
-
-  console.log('All flows:', flows);
-  console.log('Todays flows:', visibleFlows);
+  console.log('HomePage: All flows:', flows.map(f => ({ id: f.id, title: f.title })));
+  console.log('HomePage: Todays flows:', visibleFlows.map(f => ({ id: f.id, title: f.title })));
 
   return (
-    <SafeAreaView style={[commonStyles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+    <SafeAreaView style={[commonStyles.container, { backgroundColor: '#FEDFCD' }]} edges={['top']}>
       <StatusBar
         translucent
         backgroundColor="transparent"
         barStyle={isDark ? "light-content" : "dark-content"}
       />
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <View style={[commonStyles.container, { backgroundColor: themeColors.background }]}>
-          <View style={[styles.headerContainer, { backgroundColor: themeColors.cardBackground }]}>
-            <Text style={[typography.styles.title1, { color: themeColors.primaryText }]}>Home</Text>
-            <Text style={[typography.styles.body, { color: themeColors.secondaryText, marginTop: layout.spacing.xs }]}>
-              Track your daily flows and build better habits
-            </Text>
-          </View>
-          <View style={[styles.cardsContainer, { backgroundColor: themeColors.cardBackground }]}>
-            <View style={styles.habitCardContainer}>
-              <View style={styles.habitCard}>
-                <View style={styles.navigationPlaceholder} />
-                <View style={styles.flowsMainContainer}>
-                  {flows.length === 0 ? (
-                    <Text style={[typography.styles.body, { color: themeColors.secondaryText, textAlign: 'center' }]}>No flows yet</Text>
-                  ) : (
-                    flows.map((flow) => (
-                      <View key={flow.id} style={styles.flowRow}>
-                        <TouchableOpacity
-                          style={styles.flowItemLeft}
-                          onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
-                        >
-                          <Text style={[typography.styles.body, { color: themeColors.primaryText }]}>{flow.title}</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))
+        <View style={[commonStyles.container, { backgroundColor: '#FEDFCD' }]}>
+          {/* Enhanced Header */}
+          <View style={[styles.headerContainer, { backgroundColor: '#FEDFCD' }]}>
+            {/* Top Row - Logo and Icons */}
+            <View style={styles.headerTopRow}>
+              <View style={styles.logoContainer}>
+                <Text style={[styles.logoText, { color: themeColors.primaryOrange }]}>Flow</Text>
+              </View>
+              <View style={styles.headerIcons}>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={() => navigation.navigate('NotificationScreen')}
+                  testID="notification-icon-button"
+                >
+                  <Ionicons name="notifications-outline" size={24} color={themeColors.primaryText} />
+                  {notificationCount > 0 && (
+                    <Badge count={notificationCount} size="small" />
                   )}
-                </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={() => startFTUE()}
+                  testID="info-icon-button"
+                >
+                  <Ionicons name="information-circle-outline" size={24} color={themeColors.primaryText} />
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={[styles.statusCardContainer, { backgroundColor: themeColors.progressBackground }]}>
-              <View style={styles.statusCard}>
-                <View style={styles.navigationHeader}>
-                  <View style={[styles.navigationContainer, { backgroundColor: themeColors.cardBackground }]}>
-                    {canSlidePrevious() && (
-                      <TouchableOpacity style={styles.swipeIndicatorLeft} onPress={slideToPrevious}>
-                        <View style={[styles.swipeDot, { backgroundColor: themeColors.secondaryText }]} />
-                        <View style={[styles.swipeDot, { backgroundColor: themeColors.secondaryText }]} />
-                      </TouchableOpacity>
-                    )}
-                    <View style={styles.daysContainerSquircle}>
-                      <View style={styles.daysContainer}>
-                        {nextDays.map((day, index) => (
-                          <View key={index} style={styles.dayColumn}>
-                            <Text style={[
-                              typography.styles.caption1,
-                              { color: themeColors.secondaryText },
-                              day.isToday && { color: themeColors.primaryOrange, fontWeight: typography.weights.bold }
-                            ]}>
-                              {day.day}
-                            </Text>
-                            <Text style={[
-                              typography.styles.body,
-                              { color: themeColors.primaryText, fontWeight: typography.weights.bold },
-                              day.isToday && { color: themeColors.primaryOrange }
-                            ]}>
-                              {day.date}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                    {canSlideNext() && (
-                      <TouchableOpacity style={styles.swipeIndicatorRight} onPress={slideToNext}>
-                        <View style={[styles.swipeDot, { backgroundColor: themeColors.secondaryText }]} />
-                        <View style={[styles.swipeDot, { backgroundColor: themeColors.secondaryText }]} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-                <View style={styles.statusGridContainer}>
-                  {flows.length > 0 ? (
-                    flows.map((flow, flowIndex) => (
-                      <View key={flow.id} style={styles.statusRow}>
-                        {nextDays.map((day, dayIndex) => {
-                          const statusIcon = getStatusIcon(flow, day.fullDate);
-                          const statusStyle = getStatusStyle(flow, day.fullDate);
-                          return (
-                            <View key={dayIndex} style={styles.statusCell}>
-                              {statusStyle.backgroundColor !== 'transparent' ? (
-                                <View style={[styles.statusCircle, {
-                                  backgroundColor: statusStyle.backgroundColor,
-                                  borderColor: statusStyle.borderColor,
-                                  borderWidth: statusStyle.borderWidth,
-                                }]}>
-                                  {statusIcon && (
-                                    <Text style={[styles.statusIcon, { color: statusStyle.iconColor }]}>
-                                      {statusIcon}
-                                    </Text>
-                                  )}
-                                </View>
-                              ) : (
-                                <View style={styles.emptyStatusCell} />
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    ))
-                  ) : (
-                    <View style={styles.noFlowsStatusContainer}>
-                      <Text style={[typography.styles.caption1, { color: themeColors.tertiaryText, textAlign: 'center' }]}>No flows to track</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
+            
+            {/* Greeting Section */}
+            <View style={styles.greetingSection}>
+              <Text style={[styles.greetingText, { color: themeColors.primaryText }]}>
+                {getGreeting()}, {getUserName()}! 👋
+              </Text>
+              <Text style={[styles.subtitleText, { color: themeColors.secondaryText }]}>
+                Track your daily flows and build better habits
+              </Text>
             </View>
+            
           </View>
+          
+          {/* Flow Grid */}
+          <FlowGrid 
+            onFlowPress={(flow) => {
+              console.log('HomePage: FlowGrid onFlowPress called with:', {
+                id: flow.id,
+                title: flow.title,
+                trackingType: flow.trackingType
+              });
+              navigation.navigate('FlowDetails', { flowId: flow.id });
+            }}
+            cheatMode={cheatMode}
+          />
           <View style={styles.quoteCardContainer}>
             <LinearGradient
               colors={[themeColors.primaryOrange, themeColors.primaryOrangeVariants.light]}
@@ -283,7 +237,7 @@ export default function HomePage({ navigation }) {
             </LinearGradient>
           </View>
         </View>
-        <View style={[styles.todayContainer, { backgroundColor: themeColors.background }]}>
+        <View style={[styles.todayContainer, { backgroundColor: '#FFFFFF' }]}>
           <View style={styles.todaySection}>
             <Text style={[typography.styles.title2, { color: themeColors.primaryText, marginBottom: layout.spacing.md }]}>Today Flows</Text>
             <TodaysFlows navigation={navigation} visibleFlows={visibleFlows} />
@@ -292,13 +246,26 @@ export default function HomePage({ navigation }) {
         </View>
       </ScrollView>
       <View style={styles.fixedButtonContainer}>
-        <Button
-          variant="fab"
-          title="+ Add Flow"
-          onPress={() => navigation.navigate('AddFlow')}
-          style={styles.addButton}
-        />
+        <LinearGradient
+          colors={['#FFB366', '#FF8C00']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.addButtonGradient}
+        >
+          <Button
+            variant="fab"
+            title="+ Add Flow"
+            onPress={() => navigation.navigate('AddFlow')}
+            style={styles.addButton}
+          />
+        </LinearGradient>
       </View>
+      
+      {/* FTUE Overlay */}
+      <FTUEOverlay
+        visible={showFTUE}
+        onComplete={completeFTUE}
+      />
     </SafeAreaView>
   );
 }
@@ -309,157 +276,52 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
     paddingTop: layout.spacing.xl,
     paddingBottom: layout.spacing.lg,
+    paddingHorizontal: layout.spacing.md,
   },
-  cardsContainer: {
-    flexDirection: 'row',
-    marginBottom: layout.spacing.lg,
-    gap: layout.spacing.sm,
-    alignItems: 'stretch',
-    ...layout.shadows.elevatedShadow,
-    borderRadius: layout.borderRadius.xl,
-    padding: 3,
-    minHeight: 200,
-  },
-  habitCardContainer: {
-    flex: 1,
-    minWidth: 0,
-  },
-  habitCard: {
-    flex: 1,
-    padding: layout.spacing.lg,
-    justifyContent: 'space-between',
-  },
-  statusCardContainer: {
-    flex: 1.2,
-    borderTopRightRadius: layout.borderRadius.xl,
-    borderBottomRightRadius: layout.borderRadius.xl,
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
-    minWidth: 0,
-  },
-  statusCard: {
-    flex: 1,
-    padding: layout.spacing.lg,
-  },
-  navigationHeader: {
-    marginBottom: layout.spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navigationContainer: {
-    flexDirection: 'row',
-    borderRadius: layout.borderRadius.md,
-    paddingHorizontal: layout.spacing.sm,
-    paddingVertical: layout.spacing.xs,
-  },
-  swipeIndicatorLeft: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 20,
-    height: 28,
-    marginRight: layout.spacing.sm,
-  },
-  swipeIndicatorRight: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 20,
-    height: 28,
-    marginLeft: layout.spacing.sm,
-  },
-  swipeDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginVertical: 2,
-  },
-  daysContainerSquircle: {
-    backgroundColor: 'transparent',
-  },
-  daysContainer: {
-    flexDirection: 'row',
-    gap: layout.spacing.lg,
-    paddingHorizontal: layout.spacing.sm,
-    paddingVertical: layout.spacing.xs,
-  },
-  dayColumn: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 36,
-  },
-  navigationPlaceholder: {
-    height: 48,
-    marginBottom: layout.spacing.md,
-  },
-  flowsMainContainer: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  flowRow: {
-    paddingVertical: layout.spacing.sm,
-    marginBottom: layout.spacing.xs,
-    minHeight: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  flowItemLeft: {
-    paddingRight: layout.spacing.sm,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flex: 1,
-  },
-  statusGridContainer: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusRow: {
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: layout.spacing.sm,
-    marginBottom: layout.spacing.xs,
-    minHeight: 52,
+    marginBottom: layout.spacing.md, // Reduced gap
   },
-  statusCell: {
+  logoContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    width: 28,
-    height: 28,
   },
-  statusCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...layout.shadows.buttonShadow,
-  },
-  emptyStatusCell: {
-    width: 28,
-    height: 28,
-    backgroundColor: 'transparent',
-  },
-  statusIcon: {
-    fontSize: typography.sizes.title3,
+  logoText: {
+    fontSize: typography.sizes.title1,
     fontWeight: typography.weights.bold,
   },
-  noFlowsStatusContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  headerIcons: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: layout.spacing.lg,
+  },
+  headerIconButton: {
+    padding: layout.spacing.sm,
+    marginLeft: layout.spacing.sm,
+    position: 'relative',
+  },
+  greetingSection: {
+    alignItems: 'center',
+    marginBottom: layout.spacing.sm, // Further reduced gap
+  },
+  greetingText: {
+    fontSize: typography.sizes.title3, // Reduced size to match FlowGrid
+    fontWeight: typography.weights.semibold,
+    textAlign: 'center',
+    marginBottom: layout.spacing.xs,
+  },
+  subtitleText: {
+    fontSize: typography.sizes.caption1, // Reduced size to match FlowGrid
+    textAlign: 'center',
+    opacity: 0.8,
   },
   quoteCardContainer: {
-    marginBottom: layout.spacing.lg,
-    ...layout.shadows.elevatedShadow,
-    borderRadius: layout.borderRadius.xl,
+    marginTop: layout.spacing.md, // Reduced gap from FlowGrid
+    marginBottom: 0, // No gap to next section
+    paddingHorizontal: layout.spacing.lg, // Match FlowGrid width
   },
   quoteCard: {
     padding: layout.spacing.xl,
@@ -469,7 +331,7 @@ const styles = StyleSheet.create({
   },
   todayContainer: {
     flex: 1,
-    marginTop: layout.spacing.lg,
+    marginTop: layout.spacing.md, // Reduced gap
     paddingHorizontal: layout.spacing.md,
   },
   todaySection: {
@@ -491,5 +353,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 56,
     borderRadius: layout.button.pillRadius,
+  },
+  addButtonGradient: {
+    borderRadius: layout.button.pillRadius,
+    overflow: 'hidden',
   },
 });

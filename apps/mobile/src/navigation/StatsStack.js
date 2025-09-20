@@ -3,6 +3,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import StatsScreen from '../screens/stats/Stats';
 import ViewFlow from '../components/flow/ViewFlow';
+import FlowStatsDetail from '../components/FlowStats/FlowStatsDetail';
 
 const Stack = createNativeStackNavigator();
 
@@ -22,7 +23,7 @@ const StatsStack = () => {
       />
       <Stack.Screen 
         name="FlowStatsDetail" 
-        component={ViewFlow}
+        component={FlowStatsDetail}
         options={{
           headerShown: false,
         }}

@@ -16,7 +16,7 @@ import {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/common/Icon';
 import Button from '../../components/common/Button';
 import { colors, typography, layout } from '../../../styles';
@@ -31,6 +31,7 @@ const AddPlanFlow = () => {
   const { user } = useAuth();
   const navigation = useNavigation();
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { planType = 'personal' } = route.params || {}; // 'personal' or 'public'
 
   // State
@@ -103,6 +104,33 @@ const AddPlanFlow = () => {
     }
 
     try {
+      // Create default steps based on tracking type
+      const defaultSteps = [];
+      
+      if (trackingType === 'Binary') {
+        defaultSteps.push({
+          id: '1',
+          title: 'Complete daily goal',
+          duration: 1,
+          description: 'Mark as completed for the day'
+        });
+      } else if (trackingType === 'Quantitative') {
+        defaultSteps.push({
+          id: '1',
+          title: `Track ${unitText || 'units'}`,
+          duration: 5,
+          description: `Record your daily ${unitText || 'units'}`
+        });
+      } else if (trackingType === 'Time-based') {
+        const totalMinutes = hours * 60 + minutes;
+        defaultSteps.push({
+          id: '1',
+          title: `Spend ${totalMinutes} minutes`,
+          duration: totalMinutes,
+          description: `Dedicate ${totalMinutes} minutes to this activity`
+        });
+      }
+
       const planData = {
         title: title.trim(),
         description: description.trim(),
@@ -118,6 +146,7 @@ const AddPlanFlow = () => {
         reminderLevel,
         unitText: unitText.trim(),
         goal,
+        steps: defaultSteps,
         participants: [{ userId: user.id, role: 'owner', joinedAt: new Date().toISOString() }],
         analytics: {
           strictScore: 0,
@@ -144,7 +173,7 @@ const AddPlanFlow = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -165,6 +194,7 @@ const AddPlanFlow = () => {
       >
         <ScrollView 
           style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -451,7 +481,7 @@ const AddPlanFlow = () => {
           </View>
         </ScrollView>
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + layout.spacing.md }]}>
           <Button
             variant="primary"
             title={`Create ${planType === 'personal' ? 'Personal' : 'Public'} Plan`}

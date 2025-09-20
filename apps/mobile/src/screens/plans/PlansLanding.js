@@ -10,11 +10,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { colors, typography } from '../../../styles';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, typography, layout } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 
 const PlansLanding = () => {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const { theme } = React.useContext(ThemeContext) || { theme: 'light' };
 
   const dynamicStyles = StyleSheet.create({
@@ -80,9 +82,9 @@ const PlansLanding = () => {
   };
 
   return (
-    <SafeAreaView style={dynamicStyles.container}>
+    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
       <ScrollView 
-        contentContainerStyle={dynamicStyles.content}
+        contentContainerStyle={[dynamicStyles.content, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <Ionicons 
