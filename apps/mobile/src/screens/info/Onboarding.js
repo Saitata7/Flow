@@ -38,7 +38,10 @@ const Onboarding = ({ navigation }) => {
 
   const handleFinish = () => {
     markFirstLaunchComplete();
-    navigation.replace('Auth'); // Navigate to Auth stack
+    // Add a small delay to ensure navigation stack is ready
+    setTimeout(() => {
+      navigation.replace('Auth'); // Navigate to Auth stack
+    }, 100);
   };
 
   const handleSkip = () => {

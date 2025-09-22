@@ -1,4 +1,4 @@
-import React, { useState, useContext, useCallback } from 'react';
+import React, { useState, useContext, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,17 @@ import {
   StatusBar,
   KeyboardAvoidingView,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { FlowsContext } from '../../context/FlowContext';
 import { ThemeContext } from '../../context/ThemeContext';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { validateNumericInput } from '../../utils/validation';
+import Card from '../../components/common/card';
+import Button from '../../components/common/Button';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
+import { colors, typography, layout } from '../../../styles';
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const daysInMonth = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
@@ -28,6 +34,7 @@ const EditFlowScreen = ({ route, navigation }) => {
   const { flows = [], updateFlow = () => {} } = flowsContext || {};
   const { textSize = 'medium', highContrast = false } = useContext(ThemeContext) || {};
   const flow = flows.find((f) => f.id === flowId);
+  const insets = useSafeAreaInsets();
 
   if (!flow) {
     return (
@@ -65,6 +72,10 @@ const EditFlowScreen = ({ route, navigation }) => {
   const [minutesInput, setMinutesInput] = useState((flow.minutes || 0).toString().padStart(2, '0'));
   const [secondsInput, setSecondsInput] = useState((flow.seconds || 0).toString().padStart(2, '0'));
   const [goalInput, setGoalInput] = useState((flow.goal || 0).toString());
+  
+  // Title validation state
+  const [titleError, setTitleError] = useState('');
+  const [isCheckingTitle, setIsCheckingTitle] = useState(false);
 
   // v2 schema fields
   const [planId, setPlanId] = useState(flow.planId || null);
@@ -82,10 +93,87 @@ const EditFlowScreen = ({ route, navigation }) => {
     }
   };
 
+  // Function to check for duplicate titles
+  const checkTitleAvailability = useCallback(async (titleToCheck) => {
+    if (!titleToCheck || titleToCheck.trim().length < 3) {
+      setTitleError('');
+      return;
+    }
+
+    // Check 10 character limit
+    if (titleToCheck.trim().length > 10) {
+      setTitleError('Title must be 10 characters or less');
+      return;
+    }
+
+    // Skip check if editing the same flow
+    if (flow && flow.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim()) {
+      setTitleError('');
+      return;
+    }
+
+    // Check if flows context is available
+    if (!flows || !Array.isArray(flows)) {
+      console.log('EditFlow: Flows context not available or not an array:', flows);
+      setTitleError('');
+      return;
+    }
+
+    setIsCheckingTitle(true);
+    setTitleError('');
+
+    try {
+      // Check against existing flows
+      const existingFlow = flows.find(existingFlow => 
+        existingFlow.id !== flow.id && // Exclude current flow being edited
+        !existingFlow.deletedAt && 
+        !existingFlow.archived &&
+        existingFlow.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim()
+      );
+
+      if (existingFlow) {
+        setTitleError('This title is already taken. Please choose a different one.');
+      } else {
+        setTitleError('');
+      }
+    } catch (error) {
+      console.error('Error checking title availability:', error);
+      setTitleError('');
+    } finally {
+      setIsCheckingTitle(false);
+    }
+  }, [flows, flow]);
+
+  // Debounced title checking
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      checkTitleAvailability(title);
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [title, checkTitleAvailability]);
+
   const handleSave = useCallback(async () => {
     // Basic validation
     if (!title || title.trim().length < 3) {
       Alert.alert('Validation Error', 'Title must be at least 3 characters');
+      return;
+    }
+
+    if (title.trim().length > 10) {
+      Alert.alert('Validation Error', 'Title must be 10 characters or less');
+      return;
+    }
+
+    // Check for title error
+    if (titleError) {
+      Alert.alert('Title Error', titleError);
+      return;
+    }
+
+    // Check if still checking title
+    if (isCheckingTitle) {
+      Alert.alert('Please Wait', 'Checking title availability...');
       return;
     }
     
@@ -177,55 +265,87 @@ const EditFlowScreen = ({ route, navigation }) => {
   ]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FEDFCD" />
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar 
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content" 
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            accessibilityLabel="Go back"
+            accessibilityHint="Returns to the previous screen"
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Flow</Text>
-          <View style={styles.placeholder} />
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => navigation.goBack()}
+            accessibilityLabel="Cancel editing"
+            accessibilityHint="Cancels editing and returns to previous screen"
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
 
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+        <SafeAreaWrapper style={styles.contentWrapper}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {/* Title Card */}
-          <View style={styles.card}>
+          <Card variant="elevated" padding="md" margin="sm">
             <Text style={styles.cardTitle}>Flow Title</Text>
-            <TextInput
-              style={styles.modernInput}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g., Read for 30 minutes"
-              placeholderTextColor="#999"
-            />
-          </View>
+            <View style={styles.titleInputContainer}>
+              <TextInput
+                style={[
+                  styles.modernInput,
+                  titleError && styles.inputError,
+                  isCheckingTitle && styles.inputChecking
+                ]}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="e.g., Read for 30 minutes"
+                placeholderTextColor={colors.light.tertiaryText}
+                maxLength={10}
+                accessibilityLabel="Flow title input"
+                accessibilityHint="Enter a unique name for your flow (max 10 characters)"
+              />
+              {isCheckingTitle && (
+                <Text style={styles.checkingText}>Checking availability...</Text>
+              )}
+              {titleError && (
+                <Text style={styles.errorText}>{titleError}</Text>
+              )}
+            </View>
+          </Card>
 
           {/* Description Card */}
-          <View style={styles.card}>
+          <Card variant="elevated" padding="md" margin="sm">
             <Text style={styles.cardTitle}>Description</Text>
             <TextInput
               style={[styles.modernInput, styles.textArea]}
               value={description}
               onChangeText={setDescription}
               placeholder="Optional description about your flow..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.light.tertiaryText}
               multiline
               numberOfLines={3}
+              accessibilityLabel="Flow description input"
+              accessibilityHint="Enter an optional description for your flow"
             />
-          </View>
+          </Card>
 
           {/* Tracking Type Card */}
           <View style={styles.card}>
@@ -314,7 +434,7 @@ const EditFlowScreen = ({ route, navigation }) => {
           {/* Time-based Settings */}
           {trackingType === 'Time-based' && (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Time Duration</Text>
+              <Text style={styles.cardTitle}>Time Duration (Goal)</Text>
               <View style={styles.timeInputRow}>
                 <View style={styles.timeInputGroup}>
                   <Text style={styles.inputLabel}>Hours</Text>
@@ -602,24 +722,27 @@ const EditFlowScreen = ({ route, navigation }) => {
               }}
             />
           )}
-        </ScrollView>
+          </ScrollView>
 
-        {/* Modern Save Button */}
-        <View style={styles.saveButtonContainer}>
-          <LinearGradient
-            colors={['#FFB366', '#FF8C00']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.saveButtonGradient}
-          >
-            <TouchableOpacity 
-              style={styles.saveButton} 
+          {/* Update Button - Inside SafeAreaWrapper to be above tab bar */}
+          <View style={styles.saveButtonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.updateButton,
+                (!!titleError || isCheckingTitle) && styles.updateButtonDisabled
+              ]}
               onPress={handleSave}
+              disabled={!!titleError || isCheckingTitle}
+              testID="update-flow-button"
+              accessibilityLabel="Update flow"
+              accessibilityHint="Updates the current flow with new settings"
             >
-              <Text style={styles.saveButtonText}>Update Flow</Text>
+              <Text style={styles.updateButtonText}>
+                {isCheckingTitle ? 'Checking...' : 'Update Flow'}
+              </Text>
             </TouchableOpacity>
-          </LinearGradient>
-        </View>
+          </View>
+        </SafeAreaWrapper>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -628,7 +751,7 @@ const EditFlowScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FEDFCD',
+    backgroundColor: colors.light.background,
   },
   errorContainer: {
     flex: 1,
@@ -647,43 +770,80 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FEDFCD',
+    paddingHorizontal: layout.spacing.md,
+    paddingTop: layout.spacing.md,
+    paddingBottom: layout.spacing.md,
+    backgroundColor: colors.light.background,
+    minHeight: 60, // Ensure consistent header height
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    width: layout.button.iconSize,
+    height: layout.button.iconSize,
+    borderRadius: layout.squircle.borderRadius,
+    backgroundColor: colors.light.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...layout.shadows.buttonShadow,
   },
   backButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.light.primaryText,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    ...typography.styles.title2,
+    color: colors.light.primaryText,
   },
-  placeholder: {
-    width: 40,
+  cancelButton: {
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
+    borderRadius: layout.squircle.borderRadius,
+    backgroundColor: colors.light.cardBackground,
+    ...layout.shadows.buttonShadow,
+  },
+  cancelButtonText: {
+    ...typography.styles.body,
+    color: colors.light.secondaryText,
+    fontWeight: '600',
+  },
+  contentWrapper: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingHorizontal: layout.spacing.md,
+    paddingBottom: layout.spacing.lg, // Extra padding at bottom of scroll
+  },
+  cardTitle: {
+    ...typography.styles.title3,
+    color: colors.light.primaryText,
+    marginBottom: layout.spacing.md,
+  },
+  titleInputContainer: {
+    position: 'relative',
+  },
+  inputError: {
+    borderColor: colors.light.error,
+    backgroundColor: colors.light.errorBackground,
+  },
+  inputChecking: {
+    borderColor: colors.light.warning,
+    backgroundColor: colors.light.warningBackground,
+  },
+  errorText: {
+    color: colors.light.error,
+    fontSize: typography.styles.caption1.fontSize,
+    marginTop: layout.spacing.xs,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  checkingText: {
+    color: colors.light.warning,
+    fontSize: typography.styles.caption1.fontSize,
+    marginTop: layout.spacing.xs,
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -705,13 +865,13 @@ const styles = StyleSheet.create({
   },
   modernInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#333',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.light.border,
+    borderRadius: layout.squircle.borderRadius,
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
+    fontSize: typography.styles.body.fontSize,
+    color: colors.light.primaryText,
+    backgroundColor: colors.light.cardBackground,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   textArea: {
@@ -874,13 +1034,32 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   saveButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#FEDFCD',
+    paddingHorizontal: layout.spacing.md,
+    paddingTop: layout.spacing.md,
+    paddingBottom: layout.spacing.md,
+    backgroundColor: colors.light.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.light.border,
+    // SafeAreaWrapper handles the bottom spacing
+  },
+  updateButton: {
+    backgroundColor: colors.light.primary,
+    borderRadius: layout.squircle.borderRadius,
+    paddingVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: layout.button.standardHeight,
+    ...layout.shadows.buttonShadow,
+  },
+  updateButtonDisabled: {
+    backgroundColor: colors.light.disabled,
+    opacity: 0.6,
+  },
+  updateButtonText: {
+    ...typography.styles.button,
+    color: colors.light.onPrimary,
+    fontWeight: '600',
   },
   saveButtonGradient: {
     borderRadius: 18,

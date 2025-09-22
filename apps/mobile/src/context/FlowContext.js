@@ -1,7 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, addDays } from 'date-fns';
-import { setFlowsContextAddFlow } from '../services/planService';
 
 const FLOWS_STORAGE_KEY = 'flows';
 
@@ -51,7 +50,9 @@ export const FlowsProvider = ({ children }) => {
           id: f.id, 
           title: f.title, 
           groupId: f.groupId,
-          trackingType: f.trackingType 
+          trackingType: f.trackingType,
+          deletedAt: f.deletedAt,
+          archived: f.archived
         })));
         setFlows(loadedFlows);
         console.log('FlowsContext: Flows state updated to:', loadedFlows.length, 'flows');
@@ -69,11 +70,6 @@ export const FlowsProvider = ({ children }) => {
     loadData();
   }, []); // Only run once on mount
 
-  // Register addFlow function with planService
-  useEffect(() => {
-    setFlowsContextAddFlow(addFlow);
-    console.log('FlowsContext: Registered addFlow function with planService');
-  }, [addFlow]);
 
   useEffect(() => {
     if (updateQueue.length > 0) {
@@ -97,6 +93,35 @@ export const FlowsProvider = ({ children }) => {
       try {
         console.log('FlowsContext: addFlow called with:', flow);
         console.log('FlowsContext: Current flows count before adding:', flows.length);
+        
+        // Validate title length
+        if (!flow.title || flow.title.trim().length < 3) {
+          throw new Error('Title must be at least 3 characters long');
+        }
+        
+        if (flow.title.trim().length > 10) {
+          throw new Error('Title must be 10 characters or less');
+        }
+        
+        // Check for duplicate title (exclude deleted and archived flows)
+        console.log('FlowsContext: Checking for duplicates. Current flows:', flows.map(f => ({ 
+          id: f.id, 
+          title: f.title, 
+          deletedAt: f.deletedAt, 
+          archived: f.archived 
+        })));
+        
+        const existingFlow = flows.find(existingFlow => 
+          !existingFlow.deletedAt && 
+          !existingFlow.archived &&
+          existingFlow.title.toLowerCase().trim() === flow.title.toLowerCase().trim()
+        );
+        
+        if (existingFlow) {
+          console.log('FlowsContext: Duplicate title found:', flow.title, 'Existing flow:', existingFlow);
+          throw new Error(`A flow with the title "${flow.title}" already exists. Please choose a different title.`);
+        }
+        
         const now = new Date().toISOString();
         const newFlow = {
           // Required fields
@@ -113,7 +138,7 @@ export const FlowsProvider = ({ children }) => {
           description: flow.description || '',
           everyDay: flow.everyDay || false,
           daysOfWeek: flow.daysOfWeek || [],
-          reminderTime: flow.time || null,
+          reminderTime: flow.reminderTime || null,
           reminderLevel: flow.reminderLevel || '1',
           cheatMode: flow.cheatMode || false,
           
@@ -162,6 +187,7 @@ export const FlowsProvider = ({ children }) => {
         console.log('FlowsContext: Latest flows:', newFlows.slice(-3).map(f => ({ id: f.id, title: f.title, groupId: f.groupId })));
       } catch (e) {
         console.error('FlowsContext: Failed to add flow:', e);
+        throw e; // Re-throw the error so it can be caught by AddFlow
       }
     },
     [flows, generateStatusDates]
@@ -254,6 +280,33 @@ export const FlowsProvider = ({ children }) => {
     async (id, updates, fromQueue = false) => {
       try {
         console.log('FlowContext: updateFlow called with:', { id, updates, fromQueue });
+        
+        // Validate title length if title is being updated
+        if (updates.title) {
+          if (updates.title.trim().length < 3) {
+            throw new Error('Title must be at least 3 characters long');
+          }
+          
+          if (updates.title.trim().length > 10) {
+            throw new Error('Title must be 10 characters or less');
+          }
+        }
+        
+        // Check for duplicate title if title is being updated (exclude deleted and archived flows)
+        if (updates.title) {
+          const existingFlow = flows.find(existingFlow => 
+            existingFlow.id !== id && 
+            !existingFlow.deletedAt && 
+            !existingFlow.archived &&
+            existingFlow.title.toLowerCase().trim() === updates.title.toLowerCase().trim()
+          );
+          
+          if (existingFlow) {
+            console.log('FlowContext: Duplicate title found during update:', updates.title);
+            throw new Error(`A flow with the title "${updates.title}" already exists. Please choose a different title.`);
+          }
+        }
+        
         const now = new Date().toISOString();
         const updatedFlows = flows.map((flow) =>
           flow.id === id ? { 
@@ -280,6 +333,13 @@ export const FlowsProvider = ({ children }) => {
   const deleteFlow = useCallback(
     async (id, softDelete = true) => {
       try {
+        console.log('FlowsContext: deleteFlow called with id:', id, 'softDelete:', softDelete);
+        console.log('FlowsContext: Current flows before deletion:', flows.map(f => ({ 
+          id: f.id, 
+          title: f.title, 
+          deletedAt: f.deletedAt 
+        })));
+        
         if (softDelete) {
           // Soft delete - set deletedAt timestamp
           const now = new Date().toISOString();
@@ -290,9 +350,18 @@ export const FlowsProvider = ({ children }) => {
               updatedAt: now
             } : flow
           );
+          console.log('FlowsContext: Updated flows after soft delete:', updatedFlows.map(f => ({ 
+            id: f.id, 
+            title: f.title, 
+            deletedAt: f.deletedAt 
+          })));
           await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
           setFlows(updatedFlows);
           console.log('Soft deleted flow:', id);
+          
+          // Verify the state was updated
+          console.log('FlowsContext: State after delete - flows count:', updatedFlows.length);
+          console.log('FlowsContext: Deleted flow should have deletedAt:', updatedFlows.find(f => f.id === id)?.deletedAt);
         } else {
           // Hard delete - remove from array
           const updatedFlows = flows.filter((flow) => flow.id !== id);

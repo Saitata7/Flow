@@ -10,6 +10,7 @@ import {
   ScrollView,
   FlatList,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../../context/ThemeContext';
@@ -17,7 +18,6 @@ import { FlowsContext } from '../../context/FlowContext';
 import { useProfile } from '../../hooks/useProfile';
 import moment from 'moment';
 import TodaysFlows from '../../components/flow/todayResponse/TodaysFlows';
-import NotificationScreen from './NotificationScreen';
 import FTUEOverlay from '../../components/home/FTUEOverlay';
 import { useFTUE } from '../../hooks/useFTUE';
 
@@ -29,13 +29,13 @@ import {
   commonStyles,
   useAppTheme,
 } from '../../../styles';
-import { Button, Card, Icon, Badge, FlowGrid } from '../../components';
+import { Button, Card, Icon, FlowGrid } from '../../components';
 
 const SIDE_PADDING = 16;
 
 export default function HomePage({ navigation }) {
   const [dayOffset, setDayOffset] = useState(0); // Controls which set of 3 days to show
-  const [notificationCount, setNotificationCount] = useState(3); // Mock notification count
+  const insets = useSafeAreaInsets(); // Get safe area insets for proper positioning
   
   // FTUE (First-Time User Experience)
   const { showFTUE, completeFTUE, startFTUE } = useFTUE();
@@ -125,6 +125,10 @@ export default function HomePage({ navigation }) {
   const currentStreak = calculateStreak();
 
   const visibleFlows = flows.filter((flow) => {
+    // First filter out deleted and archived flows
+    if (flow.deletedAt || flow.archived) {
+      return false;
+    }
     // Normalize frequency/repeatType
     const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
     
@@ -134,7 +138,9 @@ export default function HomePage({ navigation }) {
       ? true // Group flows are always visible (they're daily by default)
       : frequency === 'Daily'
         ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(today))
-        : flow.selectedMonthDays && flow.selectedMonthDays.includes(todayDate);
+        : frequency === 'Monthly'
+          ? flow.daysOfWeek && flow.daysOfWeek.includes(todayDate.toString())
+          : false;
 
     console.log(`HomePage: Flow "${flow.title}" - frequency: ${frequency}, everyDay: ${flow.everyDay}, daysOfWeek: ${JSON.stringify(flow.daysOfWeek)}, isTodayScheduled: ${isTodayScheduled}, groupId: ${flow.groupId}, isGroupFlow: ${isGroupFlow}`);
 
@@ -181,16 +187,6 @@ export default function HomePage({ navigation }) {
               <View style={styles.headerIcons}>
                 <TouchableOpacity
                   style={styles.headerIconButton}
-                  onPress={() => navigation.navigate('NotificationScreen')}
-                  testID="notification-icon-button"
-                >
-                  <Ionicons name="notifications-outline" size={24} color={themeColors.primaryText} />
-                  {notificationCount > 0 && (
-                    <Badge count={notificationCount} size="small" />
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.headerIconButton}
                   onPress={() => startFTUE()}
                   testID="info-icon-button"
                 >
@@ -223,43 +219,40 @@ export default function HomePage({ navigation }) {
             }}
             cheatMode={cheatMode}
           />
-          <View style={styles.quoteCardContainer}>
-            <LinearGradient
-              colors={[themeColors.primaryOrange, themeColors.primaryOrangeVariants.light]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.quoteCard}
-            >
-              <Text style={[typography.styles.title3, { color: themeColors.cardBackground, marginBottom: layout.spacing.sm }]}>Quote of the day</Text>
-              <Text style={[typography.styles.body, { color: themeColors.cardBackground, opacity: 0.95 }]}>
-                It takes at least 21 days to make a flow, and one to break it.
-              </Text>
-            </LinearGradient>
+          
+          {/* Today Flows - Moved inside ScrollView */}
+          <View style={[styles.todayContainer, { backgroundColor: '#FFFFFF' }]}>
+            <View style={styles.todaySection}>
+              <Text style={[typography.styles.title2, { color: themeColors.primaryText, marginBottom: layout.spacing.md }]}>Today Flows</Text>
+              <TodaysFlows navigation={navigation} visibleFlows={visibleFlows} />
+            </View>
+            <View style={styles.bottomSpacing} />
           </View>
+          
+          {/* White background extension to cover remaining area */}
+          <View style={styles.whiteBackgroundExtension} />
         </View>
-        <View style={[styles.todayContainer, { backgroundColor: '#FFFFFF' }]}>
-          <View style={styles.todaySection}>
-            <Text style={[typography.styles.title2, { color: themeColors.primaryText, marginBottom: layout.spacing.md }]}>Today Flows</Text>
-            <TodaysFlows navigation={navigation} visibleFlows={visibleFlows} />
-          </View>
-          <View style={styles.bottomSpacing} />
-        </View>
-      </ScrollView>
-      <View style={styles.fixedButtonContainer}>
+        </ScrollView>
+      
+      {/* Floating Action Button - Add Flow */}
+      <TouchableOpacity
+        style={[styles.fabContainer, { bottom: 60 + insets.bottom + 20 }]} // Tab bar height (60) + safe area + padding
+        onPress={() => navigation.navigate('AddFlow')}
+        activeOpacity={0.8}
+      >
         <LinearGradient
-          colors={['#FFB366', '#FF8C00']}
+          colors={[themeColors.primaryOrange, themeColors.primaryOrangeVariants.light]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={styles.addButtonGradient}
+          style={styles.fabGradient}
         >
-          <Button
-            variant="fab"
-            title="+ Add Flow"
-            onPress={() => navigation.navigate('AddFlow')}
-            style={styles.addButton}
+          <Ionicons 
+            name="add" 
+            size={28} 
+            color={themeColors.cardBackground} 
           />
         </LinearGradient>
-      </View>
+      </TouchableOpacity>
       
       {/* FTUE Overlay */}
       <FTUEOverlay
@@ -305,7 +298,7 @@ const styles = StyleSheet.create({
   },
   greetingSection: {
     alignItems: 'center',
-    marginBottom: layout.spacing.sm, // Further reduced gap
+    marginBottom: 0, // Remove gap after greetings
   },
   greetingText: {
     fontSize: typography.sizes.title3, // Reduced size to match FlowGrid
@@ -318,44 +311,46 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     opacity: 0.8,
   },
-  quoteCardContainer: {
-    marginTop: layout.spacing.md, // Reduced gap from FlowGrid
-    marginBottom: 0, // No gap to next section
-    paddingHorizontal: layout.spacing.lg, // Match FlowGrid width
-  },
-  quoteCard: {
-    padding: layout.spacing.xl,
-    borderRadius: layout.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.light.cardBackground,
-  },
   todayContainer: {
     flex: 1,
-    marginTop: layout.spacing.md, // Reduced gap
+    marginTop: 40, // Add 30px top space
     paddingHorizontal: layout.spacing.md,
   },
   todaySection: {
     marginBottom: layout.spacing.lg,
   },
   bottomSpacing: {
-    height: 120,
+    height: 120, // Space for FAB button (56px + padding)
   },
-  fixedButtonContainer: {
+  whiteBackgroundExtension: {
+    backgroundColor: '#FFFFFF',
+    minHeight: 200, // Ensure enough white background coverage
+    flex: 1,
+  },
+  // Floating Action Button (FAB) - Right Corner
+  fabContainer: {
     position: 'absolute',
-    bottom: 100, // Move above the bottom tab bar (80 + 20 padding)
-    left: layout.spacing.md,
-    right: layout.spacing.md,
+    // bottom: calculated dynamically with safe area
+    right: 20, // Right corner positioning
+    width: 56, // Standard FAB size
+    height: 56,
+    borderRadius: 28, // Perfect circle
+    zIndex: 999, // Above content, below tab bar
+    // Shadow for floating effect
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8, // Android shadow
+  },
+  fabGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 999, // Below tab bar but above content
-  },
-  addButton: {
-    width: '100%',
-    height: 56,
-    borderRadius: layout.button.pillRadius,
-  },
-  addButtonGradient: {
-    borderRadius: layout.button.pillRadius,
-    overflow: 'hidden',
   },
 });

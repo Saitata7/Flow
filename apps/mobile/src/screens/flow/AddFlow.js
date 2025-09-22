@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,37 +13,64 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import TimePicker from '../../components/TimePicker';
 import { FlowsContext } from '../../context/FlowContext';
-import { usePlanContext } from '../../context/PlanContext';
 import { useRoute } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { LinearGradient } from 'expo-linear-gradient';
 import { validateNumericInput } from '../../utils/validation';
+import Card from '../../components/common/card';
+import Button from '../../components/common/Button';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
+import { colors, typography, layout } from '../../../styles';
 
 const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const daysInMonth = Array.from({ length: 31 }, (_, i) => (i + 1).toString());
 
+const predefinedUnits = [
+  'glasses',
+  'steps',
+  'pages',
+  'minutes',
+  'hours',
+  'cups',
+  'servings',
+  'reps',
+  'sets',
+  'miles',
+  'km',
+  'lbs',
+  'kg',
+  'calories',
+  'times',
+  'other'
+];
+
 export default function AddFlow({ navigation }) {
   const flowsContext = useContext(FlowsContext);
-  const { addFlow } = flowsContext || {};
-  const { createPlan } = usePlanContext();
+  const { addFlow, flows } = flowsContext || {};
   const { user } = useAuth();
   const route = useRoute();
-  const { flowToEdit, createAsPlan = false } = route.params || {};
+  const { flowToEdit } = route.params || {};
+  const insets = useSafeAreaInsets();
 
   // State
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [trackingType, setTrackingType] = useState('Binary');
   const [frequency, setFrequency] = useState('Daily');
-  const [everyDay, setEveryDay] = useState(false);
+  const [everyDay, setEveryDay] = useState(true); // Default to Every Day for Daily flows
   const [selectedDays, setSelectedDays] = useState([]);
   const [reminderTimeEnabled, setReminderTimeEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [reminderLevel, setReminderLevel] = useState('1');
   const [unitText, setUnitText] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState('');
+  const [showUnitDropdown, setShowUnitDropdown] = useState(false);
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
   const [seconds, setSeconds] = useState(0);
@@ -52,17 +79,18 @@ export default function AddFlow({ navigation }) {
   const [minutesInput, setMinutesInput] = useState('00');
   const [secondsInput, setSecondsInput] = useState('00');
   const [goalInput, setGoalInput] = useState('0');
+  
+  // New state for title validation
+  const [titleError, setTitleError] = useState('');
+  const [isCheckingTitle, setIsCheckingTitle] = useState(false);
 
   // v2 schema fields
   const [planId, setPlanId] = useState(null);
-  const [progressMode, setProgressMode] = useState('sum');
-  const [tags, setTags] = useState([]);
-  const [archived, setArchived] = useState(false);
-  const [visibility, setVisibility] = useState('private');
-  const [cheatMode, setCheatMode] = useState(false);
 
   useEffect(() => {
     if (flowToEdit) {
+      // Editing existing flow - populate with existing data
+      console.log('AddFlow: Editing existing flow:', flowToEdit.title);
       setTitle(flowToEdit.title || '');
       setDescription(flowToEdit.description || '');
       setTrackingType(flowToEdit.trackingType || 'Binary');
@@ -73,6 +101,7 @@ export default function AddFlow({ navigation }) {
       setReminderTime(flowToEdit.reminderTime ? new Date(flowToEdit.reminderTime) : null);
       setReminderLevel(flowToEdit.reminderLevel?.toString() || '1');
       setUnitText(flowToEdit.unitText || '');
+      setSelectedUnit(flowToEdit.unitText || '');
       if (flowToEdit.hours !== undefined) {
         setHours(flowToEdit.hours);
         setHoursInput(flowToEdit.hours.toString().padStart(2, '0'));
@@ -92,13 +121,26 @@ export default function AddFlow({ navigation }) {
       
       // Populate v2 schema fields
       setPlanId(flowToEdit.planId || null);
-      setProgressMode(flowToEdit.progressMode || 'sum');
-      setTags(flowToEdit.tags || []);
-      setArchived(flowToEdit.archived || false);
-      setVisibility(flowToEdit.visibility || 'private');
-      setCheatMode(flowToEdit.cheatMode || false);
+      
+      // Clear validation state when editing
+      setTitleError('');
+      setIsCheckingTitle(false);
+    } else {
+      // Creating new flow - use resetForm function
+      console.log('AddFlow: Creating new flow, resetting form');
+      resetForm();
     }
-  }, [flowToEdit]);
+  }, [flowToEdit, resetForm]);
+
+  // Reset form when screen is focused (only for new flows, not editing)
+  useFocusEffect(
+    useCallback(() => {
+      if (!flowToEdit) {
+        console.log('AddFlow: Screen focused, resetting form for new flow');
+        resetForm();
+      }
+    }, [flowToEdit, resetForm])
+  );
 
   const toggleDay = (day) => {
     if (selectedDays.includes(day)) {
@@ -108,119 +150,306 @@ export default function AddFlow({ navigation }) {
     }
   };
 
+  // Function to check for duplicate titles
+  const checkTitleAvailability = useCallback(async (titleToCheck) => {
+    if (!titleToCheck || titleToCheck.trim().length < 3) {
+      setTitleError('');
+      return;
+    }
+
+    // Check 10 character limit
+    if (titleToCheck.trim().length > 10) {
+      setTitleError('Title must be 10 characters or less');
+      return;
+    }
+
+    // Skip check if editing the same flow
+    if (flowToEdit && flowToEdit.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim()) {
+      setTitleError('');
+      return;
+    }
+
+    // Check if flows context is available
+    if (!flows || !Array.isArray(flows)) {
+      console.log('AddFlow: Flows context not available or not an array:', flows);
+      setTitleError('');
+      return;
+    }
+
+    setIsCheckingTitle(true);
+    setTitleError('');
+
+    try {
+      // Debug: Log all flows to see what we're checking against
+      console.log('AddFlow: Checking title availability for:', titleToCheck);
+      console.log('AddFlow: All flows in context:', flows.map(f => ({ 
+        id: f.id, 
+        title: f.title, 
+        deletedAt: f.deletedAt, 
+        archived: f.archived 
+      })));
+      
+      // Check against existing flows
+      const existingFlow = flows.find(existingFlow => 
+        !existingFlow.deletedAt && 
+        !existingFlow.archived &&
+        existingFlow.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim()
+      );
+
+      console.log('AddFlow: Found existing flow:', existingFlow);
+
+      if (existingFlow) {
+        setTitleError('This title is already taken. Please choose a different one.');
+      } else {
+        setTitleError('');
+      }
+    } catch (error) {
+      console.error('Error checking title availability:', error);
+      setTitleError('');
+    } finally {
+      setIsCheckingTitle(false);
+    }
+  }, [flows, flowToEdit]);
+
+  // Debounced title checking
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      checkTitleAvailability(title);
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [title, checkTitleAvailability]);
+
+  // Function to suggest alternative titles
+  const suggestAlternativeTitles = (originalTitle) => {
+    const suggestions = [
+      `${originalTitle} (2)`,
+      `${originalTitle} - New`,
+      `${originalTitle} - 2024`,
+      `My ${originalTitle}`,
+      `${originalTitle} Daily`,
+      `${originalTitle} Habit`
+    ];
+
+    Alert.alert(
+      'Suggested Titles',
+      'Here are some alternative titles you could use:\n\n' + suggestions.join('\n'),
+      [
+        { text: 'Cancel', style: 'cancel' },
+        ...suggestions.map((suggestion, index) => ({
+          text: suggestion,
+          onPress: () => setTitle(suggestion)
+        }))
+      ]
+    );
+  };
+
+  // Function to reset form to default values
+  const resetForm = useCallback(() => {
+    console.log('AddFlow: Resetting form to default values');
+    setTitle('');
+    setDescription('');
+    setTrackingType('Binary');
+    setFrequency('Daily');
+    setEveryDay(true);
+    setSelectedDays([]);
+    setReminderTimeEnabled(false);
+    setReminderTime(null);
+    setShowTimePicker(false);
+    setReminderLevel('1');
+    setUnitText('');
+    setSelectedUnit('');
+    setShowUnitDropdown(false);
+    setHours(0);
+    setMinutes(0);
+    setSeconds(0);
+    setGoal(0);
+    setHoursInput('00');
+    setMinutesInput('00');
+    setSecondsInput('00');
+    setGoalInput('0');
+    setPlanId(null);
+    
+    // Reset validation state
+    setTitleError('');
+    setIsCheckingTitle(false);
+  }, []);
+
+  const handleUnitSelection = (unit) => {
+    if (unit === 'other') {
+      setSelectedUnit('other');
+      setUnitText('');
+      setShowUnitDropdown(false);
+    } else {
+      setSelectedUnit(unit);
+      setUnitText(unit);
+      setShowUnitDropdown(false);
+    }
+  };
+
+  const handleDurationChange = (selectedHours, selectedMinutes) => {
+    setHours(selectedHours);
+    setMinutes(selectedMinutes);
+    setHoursInput(selectedHours.toString().padStart(2, '0'));
+    setMinutesInput(selectedMinutes.toString().padStart(2, '0'));
+  };
+
   const handleSave = async () => {
+    console.log('AddFlow: handleSave called with:', {
+      title,
+      frequency,
+      everyDay,
+      selectedDays,
+      trackingType,
+      unitText
+    });
+    
     // Basic validation
     if (!title || title.trim().length < 3) {
+      console.log('AddFlow: Title validation failed');
       Alert.alert('Validation Error', 'Title must be at least 3 characters');
+      return;
+    }
+
+    if (title.trim().length > 10) {
+      console.log('AddFlow: Title too long');
+      Alert.alert('Validation Error', 'Title must be 10 characters or less');
+      return;
+    }
+
+    // Check for title error
+    if (titleError) {
+      console.log('AddFlow: Title error exists, preventing save');
+      Alert.alert('Title Error', titleError);
+      return;
+    }
+
+    // Check if still checking title
+    if (isCheckingTitle) {
+      console.log('AddFlow: Still checking title, please wait');
+      Alert.alert('Please Wait', 'Checking title availability...');
+      return;
+    }
+    
+    // Frequency validation
+    if (!frequency) {
+      console.log('AddFlow: Frequency validation failed');
+      Alert.alert('Validation Error', 'Please select a frequency (Daily, Weekly, or Monthly)');
+      return;
+    }
+    
+    // Days selection validation based on frequency
+    if (frequency === 'Daily' && !everyDay && selectedDays.length === 0) {
+      console.log('AddFlow: Daily days validation failed - everyDay:', everyDay, 'selectedDays:', selectedDays);
+      Alert.alert('Validation Error', 'Please select at least one day of the week or enable "Every Day"');
+      return;
+    }
+    
+    if (frequency === 'Weekly' && selectedDays.length === 0) {
+      console.log('AddFlow: Weekly days validation failed');
+      Alert.alert('Validation Error', 'Please select at least one day of the week');
+      return;
+    }
+    
+    if (frequency === 'Monthly' && selectedDays.length === 0) {
+      console.log('AddFlow: Monthly days validation failed');
+      Alert.alert('Validation Error', 'Please select at least one day of the month');
       return;
     }
     
     if (trackingType === 'Quantitative' && (!unitText || unitText.trim().length === 0)) {
+      console.log('AddFlow: Unit text validation failed');
       Alert.alert('Validation Error', 'Unit text is required for quantitative flows');
       return;
     }
+    
+    console.log('AddFlow: All validations passed, proceeding to create flow');
 
-    if (createAsPlan) {
-      // Create as a personal plan
-      if (!user?.id) {
-        Alert.alert('Error', 'User not authenticated. Please log in again.');
+    // Create as a flow
+    const newFlow = {
+      id: flowToEdit?.id || Date.now().toString(),
+      title: title.trim(), // Trim whitespace from title
+      description,
+      trackingType,
+      frequency,
+      everyDay,
+      daysOfWeek: frequency === 'Daily' || frequency === 'Monthly' ? selectedDays : [],
+      reminderTime: reminderTimeEnabled && reminderTime ? reminderTime.toISOString() : null,
+      reminderLevel,
+      unitText: trackingType === 'Quantitative' ? unitText : undefined,
+      hours: trackingType === 'Time-based' ? hours : undefined,
+      minutes: trackingType === 'Time-based' ? minutes : undefined,
+      seconds: trackingType === 'Time-based' ? seconds : undefined,
+      goal: trackingType === 'Quantitative' ? goal : null,
+      planId,
+      ownerId: user?.id || 'user123',
+      schemaVersion: 2,
+    };
+
+    try {
+      if (!addFlow) {
+        Alert.alert('Error', 'Flow context not available. Please restart the app.');
         return;
       }
-
-      const planData = {
-        title,
-        description,
-        category: 'mindfulness',
-        visibility: 'private',
-        ownerId: user.id,
-        trackingType,
-        frequency,
-        everyDay,
-        daysOfWeek: frequency === 'Daily' || frequency === 'Monthly' ? selectedDays : [],
-        reminderTimeEnabled,
-        reminderTime: reminderTimeEnabled && reminderTime ? reminderTime.toISOString() : null,
-        reminderLevel,
-        unitText: trackingType === 'Quantitative' ? unitText : undefined,
-        hours: trackingType === 'Time-based' ? hours : undefined,
-        minutes: trackingType === 'Time-based' ? minutes : undefined,
-        seconds: trackingType === 'Time-based' ? seconds : undefined,
-        goal: trackingType === 'Quantitative' ? goal : undefined,
-        participants: [{ userId: user.id, role: 'owner', joinedAt: new Date().toISOString() }],
-        analytics: {
-          totalParticipants: 1,
-          completionRate: 0,
-          averageScore: 0,
-        },
-        status: 'active',
-        startDate: new Date().toISOString(),
-        endDate: null,
-      };
-
-      try {
-        await createPlan(planData);
-        Alert.alert('Success!', 'Plan created successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
-      } catch (error) {
-        console.error('Error creating plan:', error);
-        Alert.alert('Error', 'Failed to create plan. Please try again.');
-      }
-    } else {
-      // Create as a flow
-      const newFlow = {
-        id: flowToEdit?.id || Date.now().toString(),
-        title,
-        description,
-        trackingType,
-        frequency,
-        everyDay,
-        daysOfWeek: frequency === 'Daily' || frequency === 'Monthly' ? selectedDays : [],
-        reminderTime: reminderTimeEnabled && reminderTime ? reminderTime.toISOString() : null,
-        reminderLevel,
-        unitText: trackingType === 'Quantitative' ? unitText : undefined,
-        hours: trackingType === 'Time-based' ? hours : undefined,
-        minutes: trackingType === 'Time-based' ? minutes : undefined,
-        seconds: trackingType === 'Time-based' ? seconds : undefined,
-        goal: trackingType === 'Quantitative' ? goal : null,
-        planId,
-        progressMode,
-        tags,
-        archived,
-        visibility,
-        cheatMode,
-        ownerId: user?.id || 'user123',
-        schemaVersion: 2,
-      };
-
-      try {
-        if (!addFlow) {
-          Alert.alert('Error', 'Flow context not available. Please restart the app.');
-          return;
-        }
-        
-        await addFlow(newFlow);
-        Alert.alert('Success!', 'Flow created successfully!', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
-      } catch (e) {
-        console.error('Error saving flow:', e);
+      
+      console.log('AddFlow: About to call addFlow with:', newFlow);
+      await addFlow(newFlow);
+      console.log('AddFlow: addFlow completed successfully');
+      
+      // Reset form after successful creation
+      resetForm();
+      
+      Alert.alert('Success!', 'Flow created successfully!', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
+    } catch (e) {
+      console.error('AddFlow: Error caught in try-catch:', e);
+      console.log('AddFlow: Error message:', e.message);
+      console.log('AddFlow: Error type:', typeof e);
+      console.log('AddFlow: Error stack:', e.stack);
+      
+      // Check if it's a duplicate title error
+      if (e.message && e.message.includes('already exists')) {
+        console.log('AddFlow: Showing duplicate title alert');
+        Alert.alert(
+          'Title Already Exists', 
+          `A flow with the title "${title}" already exists. Please choose a different title.`,
+          [
+            { text: 'OK', style: 'default' },
+            { 
+              text: 'Suggest Alternatives', 
+              onPress: () => suggestAlternativeTitles(title)
+            }
+          ]
+        );
+        return; // Important: return here to prevent further execution
+      } else {
+        console.log('AddFlow: Showing generic error alert');
         Alert.alert('Error', 'Failed to save flow. Please try again.');
+        return; // Important: return here to prevent further execution
       }
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FEDFCD" />
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <StatusBar 
+        translucent
+        backgroundColor="transparent"
+        barStyle="dark-content" 
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            accessibilityLabel="Go back"
+            accessibilityHint="Returns to the previous screen"
           >
             <Text style={styles.backButtonText}>←</Text>
           </TouchableOpacity>
@@ -228,45 +457,66 @@ export default function AddFlow({ navigation }) {
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
+        <SafeAreaWrapper style={styles.contentWrapper}>
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           {/* Title Card */}
-          <View style={styles.card}>
+          <Card variant="elevated" padding="md" margin="sm">
             <Text style={styles.cardTitle}>Flow Title</Text>
-            <TextInput
-              style={styles.modernInput}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g., Read for 30 minutes"
-              placeholderTextColor="#999"
-            />
-          </View>
+            <View style={styles.titleInputContainer}>
+              <TextInput
+                style={[
+                  styles.modernInput,
+                  titleError && styles.inputError,
+                  isCheckingTitle && styles.inputChecking
+                ]}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="e.g., Read for 30 minutes"
+                placeholderTextColor={colors.light.tertiaryText}
+                maxLength={10}
+                accessibilityLabel="Flow title input"
+                accessibilityHint="Enter a unique name for your flow (max 10 characters)"
+              />
+              {isCheckingTitle && (
+                <Text style={styles.checkingText}>Checking availability...</Text>
+              )}
+              {titleError && (
+                <Text style={styles.errorText}>{titleError}</Text>
+              )}
+            </View>
+          </Card>
 
           {/* Description Card */}
-          <View style={styles.card}>
+          <Card variant="elevated" padding="md" margin="sm">
             <Text style={styles.cardTitle}>Description</Text>
             <TextInput
               style={[styles.modernInput, styles.textArea]}
               value={description}
               onChangeText={setDescription}
               placeholder="Optional description about your flow..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.light.tertiaryText}
               multiline
               numberOfLines={3}
+              accessibilityLabel="Flow description input"
+              accessibilityHint="Enter an optional description for your flow"
             />
-          </View>
+          </Card>
 
           {/* Tracking Type Card */}
-          <View style={styles.card}>
+          <Card variant="elevated" padding="md" margin="sm">
             <Text style={styles.cardTitle}>Tracking Type</Text>
             <View style={styles.trackingTypeContainer}>
               <TouchableOpacity
                 style={[styles.trackingTypeButton, trackingType === 'Binary' && styles.trackingTypeButtonSelected]}
                 onPress={() => setTrackingType('Binary')}
+                accessibilityLabel="Binary tracking type"
+                accessibilityHint="Select binary yes/no tracking for your flow"
+                accessibilityRole="button"
               >
                 <Text style={styles.trackingTypeIcon}>✓</Text>
                 <Text style={[styles.trackingTypeText, trackingType === 'Binary' && styles.trackingTypeTextSelected]}>
@@ -278,6 +528,9 @@ export default function AddFlow({ navigation }) {
               <TouchableOpacity
                 style={[styles.trackingTypeButton, trackingType === 'Quantitative' && styles.trackingTypeButtonSelected]}
                 onPress={() => setTrackingType('Quantitative')}
+                accessibilityLabel="Quantitative tracking type"
+                accessibilityHint="Select quantitative number tracking for your flow"
+                accessibilityRole="button"
               >
                 <Text style={styles.trackingTypeIcon}>📊</Text>
                 <Text style={[styles.trackingTypeText, trackingType === 'Quantitative' && styles.trackingTypeTextSelected]}>
@@ -289,6 +542,9 @@ export default function AddFlow({ navigation }) {
               <TouchableOpacity
                 style={[styles.trackingTypeButton, trackingType === 'Time-based' && styles.trackingTypeButtonSelected]}
                 onPress={() => setTrackingType('Time-based')}
+                accessibilityLabel="Time-based tracking type"
+                accessibilityHint="Select time-based duration tracking for your flow"
+                accessibilityRole="button"
               >
                 <Text style={styles.trackingTypeIcon}>⏱️</Text>
                 <Text style={[styles.trackingTypeText, trackingType === 'Time-based' && styles.trackingTypeTextSelected]}>
@@ -297,22 +553,50 @@ export default function AddFlow({ navigation }) {
                 <Text style={styles.trackingTypeSubtext}>Duration tracking</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Card>
 
           {/* Quantitative Settings */}
           {trackingType === 'Quantitative' && (
-            <View style={styles.card}>
+            <Card variant="elevated" padding="md" margin="sm">
               <Text style={styles.cardTitle}>Quantitative Settings</Text>
               <View style={styles.inputRow}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Unit</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    value={unitText}
-                    onChangeText={setUnitText}
-                    placeholder="e.g., glasses, steps"
-                    placeholderTextColor="#999"
-                  />
+                  <TouchableOpacity
+                    style={styles.dropdownButton}
+                    onPress={() => setShowUnitDropdown(!showUnitDropdown)}
+                  >
+                    <Text style={[styles.dropdownButtonText, !selectedUnit && styles.placeholderText]}>
+                      {selectedUnit === 'other' ? 'Other (Custom)' : selectedUnit || 'Select unit'}
+                    </Text>
+                    <Text style={styles.dropdownArrow}>{showUnitDropdown ? '▲' : '▼'}</Text>
+                  </TouchableOpacity>
+                  
+                  {showUnitDropdown && (
+                    <View style={styles.dropdownList}>
+                      {predefinedUnits.map((unit) => (
+                        <TouchableOpacity
+                          key={unit}
+                          style={styles.dropdownItem}
+                          onPress={() => handleUnitSelection(unit)}
+                        >
+                          <Text style={styles.dropdownItemText}>
+                            {unit === 'other' ? 'Other (Custom)' : unit}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {selectedUnit === 'other' && (
+                    <TextInput
+                      style={[styles.modernInput, { marginTop: 8 }]}
+                      value={unitText}
+                      onChangeText={setUnitText}
+                      placeholder="Enter custom unit"
+                      placeholderTextColor="#999"
+                    />
+                  )}
                 </View>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Goal (Optional)</Text>
@@ -341,103 +625,32 @@ export default function AddFlow({ navigation }) {
                   />
                 </View>
               </View>
-            </View>
+            </Card>
           )}
 
           {/* Time-based Settings */}
           {trackingType === 'Time-based' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Time Duration</Text>
-              <View style={styles.timeInputRow}>
-                <View style={styles.timeInputGroup}>
-                  <Text style={styles.inputLabel}>Hours</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    value={hoursInput}
-                    onChangeText={(text) => {
-                      const cleanText = text.replace(/[^0-9]/g, '');
-                      setHoursInput(cleanText);
-                    }}
-                    onBlur={() => {
-                      const validation = validateNumericInput(hoursInput, 0, 23, 'Hours');
-                      if (validation.valid) {
-                        const num = parseInt(hoursInput) || 0;
-                        setHours(num);
-                        setHoursInput(num.toString().padStart(2, '0'));
-                      } else {
-                        Alert.alert('Invalid Input', validation.error);
-                        setHoursInput('00');
-                        setHours(0);
-                      }
-                    }}
-                    keyboardType="numeric"
-                    placeholder="00"
-                    placeholderTextColor="#999"
-                  />
-                </View>
-                <View style={styles.timeInputGroup}>
-                  <Text style={styles.inputLabel}>Minutes</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    value={minutesInput}
-                    onChangeText={(text) => {
-                      const cleanText = text.replace(/[^0-9]/g, '');
-                      setMinutesInput(cleanText);
-                    }}
-                    onBlur={() => {
-                      const validation = validateNumericInput(minutesInput, 0, 59, 'Minutes');
-                      if (validation.valid) {
-                        const num = parseInt(minutesInput) || 0;
-                        setMinutes(num);
-                        setMinutesInput(num.toString().padStart(2, '0'));
-                      } else {
-                        Alert.alert('Invalid Input', validation.error);
-                        setMinutesInput('00');
-                        setMinutes(0);
-                      }
-                    }}
-                    keyboardType="numeric"
-                    placeholder="00"
-                    placeholderTextColor="#999"
-                  />
-                </View>
-                <View style={styles.timeInputGroup}>
-                  <Text style={styles.inputLabel}>Seconds</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    value={secondsInput}
-                    onChangeText={(text) => {
-                      const cleanText = text.replace(/[^0-9]/g, '');
-                      setSecondsInput(cleanText);
-                    }}
-                    onBlur={() => {
-                      const validation = validateNumericInput(secondsInput, 0, 59, 'Seconds');
-                      if (validation.valid) {
-                        const num = parseInt(secondsInput) || 0;
-                        setSeconds(num);
-                        setSecondsInput(num.toString().padStart(2, '0'));
-                      } else {
-                        Alert.alert('Invalid Input', validation.error);
-                        setSecondsInput('00');
-                        setSeconds(0);
-                      }
-                    }}
-                    keyboardType="numeric"
-                    placeholder="00"
-                    placeholderTextColor="#999"
-                  />
-                </View>
-              </View>
-            </View>
+            <Card variant="elevated" padding="md" margin="sm">
+              <Text style={styles.cardTitle}>Time Duration (Goal)</Text>
+              <TimePicker
+                initialHours={hours}
+                initialMinutes={minutes}
+                onTimeChange={handleDurationChange}
+                style={styles.timePickerContainer}
+              />
+            </Card>
           )}
 
           {/* Frequency Card */}
-          <View style={styles.card}>
+          <Card variant="elevated" padding="md" margin="sm">
             <Text style={styles.cardTitle}>Frequency</Text>
             <View style={styles.frequencyContainer}>
               <TouchableOpacity
                 style={[styles.frequencyButton, frequency === 'Daily' && styles.frequencyButtonSelected]}
                 onPress={() => setFrequency('Daily')}
+                accessibilityLabel="Daily frequency"
+                accessibilityHint="Set flow to occur daily"
+                accessibilityRole="button"
               >
                 <Text style={[styles.frequencyText, frequency === 'Daily' && styles.frequencyTextSelected]}>
                   Daily
@@ -446,17 +659,20 @@ export default function AddFlow({ navigation }) {
               <TouchableOpacity
                 style={[styles.frequencyButton, frequency === 'Monthly' && styles.frequencyButtonSelected]}
                 onPress={() => setFrequency('Monthly')}
+                accessibilityLabel="Monthly frequency"
+                accessibilityHint="Set flow to occur monthly"
+                accessibilityRole="button"
               >
                 <Text style={[styles.frequencyText, frequency === 'Monthly' && styles.frequencyTextSelected]}>
                   Monthly
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Card>
 
           {/* Days Selection Card */}
           {frequency === 'Daily' && (
-            <View style={styles.card}>
+            <Card variant="elevated" padding="md" margin="sm">
               <Text style={styles.cardTitle}>Schedule</Text>
               <View style={styles.toggleRow}>
                 <Text style={styles.toggleLabel}>Every Day</Text>
@@ -464,8 +680,10 @@ export default function AddFlow({ navigation }) {
                   style={styles.toggleSwitch}
                   value={everyDay}
                   onValueChange={setEveryDay}
-                  trackColor={{ false: '#ccc', true: '#F5A623' }}
-                  thumbColor="#fff"
+                  trackColor={{ false: colors.light.border, true: colors.light.primaryOrange }}
+                  thumbColor={colors.light.cardBackground}
+                  accessibilityLabel="Every day toggle"
+                  accessibilityHint="Toggles whether the flow occurs every day"
                 />
               </View>
               {!everyDay && (
@@ -480,6 +698,9 @@ export default function AddFlow({ navigation }) {
                           styles.dayButton,
                           selectedDays.includes(day) && styles.dayButtonSelected,
                         ]}
+                        accessibilityLabel={`${day} day selection`}
+                        accessibilityHint={`Toggle ${day} for flow schedule`}
+                        accessibilityRole="button"
                       >
                         <Text
                           style={[
@@ -494,11 +715,11 @@ export default function AddFlow({ navigation }) {
                   </View>
                 </View>
               )}
-            </View>
+            </Card>
           )}
 
           {frequency === 'Monthly' && (
-            <View style={styles.card}>
+            <Card variant="elevated" padding="md" margin="sm">
               <Text style={styles.cardTitle}>Days of Month</Text>
               <View style={styles.monthDaysGrid}>
                 {daysInMonth.map((day) => (
@@ -509,6 +730,9 @@ export default function AddFlow({ navigation }) {
                       styles.dayButton,
                       selectedDays.includes(day) && styles.dayButtonSelected,
                     ]}
+                    accessibilityLabel={`Day ${day} selection`}
+                    accessibilityHint={`Toggle day ${day} for monthly flow schedule`}
+                    accessibilityRole="button"
                   >
                     <Text
                       style={[
@@ -521,11 +745,11 @@ export default function AddFlow({ navigation }) {
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
+            </Card>
           )}
 
           {/* Reminder Time Card */}
-          <View style={styles.card}>
+          <Card variant="elevated" padding="md" margin="sm">
             <Text style={styles.cardTitle}>Reminder</Text>
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Enable Reminder</Text>
@@ -533,94 +757,27 @@ export default function AddFlow({ navigation }) {
                 style={styles.toggleSwitch}
                 value={reminderTimeEnabled}
                 onValueChange={setReminderTimeEnabled}
-                trackColor={{ false: '#ccc', true: '#F5A623' }}
-                thumbColor="#fff"
+                trackColor={{ false: colors.light.border, true: colors.light.primaryOrange }}
+                thumbColor={colors.light.cardBackground}
+                accessibilityLabel="Enable reminder toggle"
+                accessibilityHint="Toggles reminder notifications for this flow"
               />
             </View>
             {reminderTimeEnabled && (
               <TouchableOpacity
                 style={styles.timePickerButton}
                 onPress={() => setShowTimePicker(true)}
+                accessibilityLabel="Set reminder time"
+                accessibilityHint="Opens time picker to set reminder time"
+                accessibilityRole="button"
               >
                 <Text style={styles.timePickerText}>
                   {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
                 </Text>
               </TouchableOpacity>
             )}
-          </View>
+          </Card>
 
-          {/* Advanced Settings Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Advanced Settings</Text>
-            
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Cheat Mode</Text>
-              <Switch
-                style={styles.toggleSwitch}
-                value={cheatMode}
-                onValueChange={setCheatMode}
-                trackColor={{ false: '#ccc', true: '#F5A623' }}
-                thumbColor="#fff"
-              />
-            </View>
-            
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Archived</Text>
-              <Switch
-                style={styles.toggleSwitch}
-                value={archived}
-                onValueChange={setArchived}
-                trackColor={{ false: '#ccc', true: '#F5A623' }}
-                thumbColor="#fff"
-              />
-            </View>
-
-            <View style={styles.inputRow}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Visibility</Text>
-                <View style={styles.visibilityContainer}>
-                  <TouchableOpacity
-                    style={[styles.visibilityButton, visibility === 'private' && styles.visibilityButtonSelected]}
-                    onPress={() => setVisibility('private')}
-                  >
-                    <Text style={[styles.visibilityText, visibility === 'private' && styles.visibilityTextSelected]}>
-                      Private
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.visibilityButton, visibility === 'public' && styles.visibilityButtonSelected]}
-                    onPress={() => setVisibility('public')}
-                  >
-                    <Text style={[styles.visibilityText, visibility === 'public' && styles.visibilityTextSelected]}>
-                      Public
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Progress Mode</Text>
-                <View style={styles.progressModeContainer}>
-                  <TouchableOpacity
-                    style={[styles.progressModeButton, progressMode === 'sum' && styles.progressModeButtonSelected]}
-                    onPress={() => setProgressMode('sum')}
-                  >
-                    <Text style={[styles.progressModeText, progressMode === 'sum' && styles.progressModeTextSelected]}>
-                      Sum
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.progressModeButton, progressMode === 'average' && styles.progressModeButtonSelected]}
-                    onPress={() => setProgressMode('average')}
-                  >
-                    <Text style={[styles.progressModeText, progressMode === 'average' && styles.progressModeTextSelected]}>
-                      Average
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
 
           {showTimePicker && (
             <DateTimePicker
@@ -635,28 +792,23 @@ export default function AddFlow({ navigation }) {
               }}
             />
           )}
-        </ScrollView>
 
-        {/* Modern Save Button */}
+          </ScrollView>
+        </SafeAreaWrapper>
+
+        {/* Save Button - Fixed at bottom above tab bar */}
         <View style={styles.saveButtonContainer}>
-          <LinearGradient
-            colors={['#FFB366', '#FF8C00']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.saveButtonGradient}
-          >
-            <TouchableOpacity 
-              style={styles.saveButton} 
-              onPress={handleSave}
-            >
-              <Text style={styles.saveButtonText}>
-                {createAsPlan 
-                  ? (flowToEdit ? 'Update Plan' : 'Save Plan')
-                  : (flowToEdit ? 'Update Flow' : 'Save Flow')
-                }
-              </Text>
-            </TouchableOpacity>
-          </LinearGradient>
+          <Button
+            variant="primary"
+            size="large"
+            title={isCheckingTitle ? 'Checking...' : (flowToEdit ? 'Update Flow' : 'Save Flow')}
+            onPress={handleSave}
+            disabled={!!titleError || isCheckingTitle}
+            fullWidth={true}
+            testID="save-flow-button"
+            accessibilityLabel={flowToEdit ? 'Update flow' : 'Save flow'}
+            accessibilityHint={flowToEdit ? 'Updates the current flow with new settings' : 'Creates a new flow with the current settings'}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -666,77 +818,63 @@ export default function AddFlow({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FEDFCD',
+    backgroundColor: colors.light.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: '#FEDFCD',
+    paddingHorizontal: layout.spacing.md,
+    paddingTop: layout.spacing.md,
+    paddingBottom: layout.spacing.md,
+    backgroundColor: colors.light.background,
+    minHeight: 60, // Ensure consistent header height
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    width: layout.button.iconSize,
+    height: layout.button.iconSize,
+    borderRadius: layout.squircle.borderRadius,
+    backgroundColor: colors.light.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...layout.shadows.buttonShadow,
   },
   backButtonText: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#333',
+    color: colors.light.primaryText,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    ...typography.styles.title2,
+    color: colors.light.primaryText,
   },
   placeholder: {
-    width: 40,
+    width: layout.button.iconSize,
+  },
+  contentWrapper: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    paddingHorizontal: layout.spacing.md,
+    paddingBottom: layout.spacing.lg, // Extra padding at bottom of scroll
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    ...typography.styles.title3,
+    color: colors.light.primaryText,
+    marginBottom: layout.spacing.md,
   },
   modernInput: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: '#333',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.light.border,
+    borderRadius: layout.squircle.borderRadius,
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
+    fontSize: typography.styles.body.fontSize,
+    color: colors.light.primaryText,
+    backgroundColor: colors.light.cardBackground,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   textArea: {
@@ -887,15 +1025,16 @@ const styles = StyleSheet.create({
   },
   timePickerButton: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.light.border,
+    borderRadius: layout.squircle.borderRadius,
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
+    backgroundColor: colors.light.cardBackground,
+    marginTop: layout.spacing.sm,
   },
   timePickerText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: typography.styles.body.fontSize,
+    color: colors.light.primaryText,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   saveButtonContainer: {
@@ -903,9 +1042,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#FEDFCD',
+    paddingHorizontal: layout.spacing.md,
+    paddingTop: layout.spacing.md,
+    paddingBottom: layout.spacing.md,
+    backgroundColor: colors.light.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.light.border,
+    // This will be above the tab bar due to SafeAreaWrapper handling the bottom space
   },
   saveButtonGradient: {
     borderRadius: 18,
@@ -922,60 +1065,89 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  visibilityContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  visibilityButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginHorizontal: 2,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+  dropdownButton: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    alignItems: 'center',
-  },
-  visibilityButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
-  visibilityText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  visibilityTextSelected: {
-    color: '#92400E',
-  },
-  progressModeContainer: {
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  progressModeButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginHorizontal: 2,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
     alignItems: 'center',
   },
-  progressModeButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
-  progressModeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
+  dropdownButtonText: {
+    fontSize: 16,
+    color: '#333',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  progressModeTextSelected: {
-    color: '#92400E',
+  placeholderText: {
+    color: '#999',
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#666',
+  },
+  dropdownList: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginTop: 4,
+    maxHeight: 200,
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  timePickerContainer: {
+    marginTop: 8,
+  },
+  titleInputContainer: {
+    position: 'relative',
+  },
+  inputError: {
+    borderColor: colors.light.error,
+    backgroundColor: colors.light.errorBackground,
+  },
+  inputChecking: {
+    borderColor: colors.light.warning,
+    backgroundColor: colors.light.warningBackground,
+  },
+  errorText: {
+    color: colors.light.error,
+    fontSize: typography.styles.caption1.fontSize,
+    marginTop: layout.spacing.xs,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  checkingText: {
+    color: colors.light.warning,
+    fontSize: typography.styles.caption1.fontSize,
+    marginTop: layout.spacing.xs,
+    fontStyle: 'italic',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonTextDisabled: {
+    color: '#9CA3AF',
   },
 });

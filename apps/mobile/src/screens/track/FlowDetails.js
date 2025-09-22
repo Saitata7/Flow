@@ -19,7 +19,7 @@ const FlowDetail = ({ route, navigation }) => {
   console.log('FlowDetails: Available flows:', flows.map(f => ({ id: f.id, title: f.title })));
 
   const flow = useMemo(() => {
-    const foundFlow = flows.find((f) => f.id === flowId) || {};
+    const foundFlow = flows.find((f) => f.id === flowId && !f.deletedAt && !f.archived) || {};
     console.log('FlowDetails: Found flow:', { id: foundFlow.id, title: foundFlow.title });
     return foundFlow;
   }, [flows, flowId]);

@@ -203,6 +203,45 @@ const UnifiedFlowCard = ({ flow }) => {
     updateCount(flow.id, todayKey, action);
   }, [flow.id, todayKey, count, flow.goalCount, updateCount, triggerHaptic]);
 
+  const handleDone = useCallback(async () => {
+    console.log('Done button pressed for flow:', flow.title, 'with count:', count);
+    triggerHaptic();
+    try {
+      const finalCount = count > 0 ? count : 0;
+      const goal = flow.goalCount || 0;
+      const unitText = flow.status?.[todayKey]?.quantitative?.unitText || flow.unitText || '';
+      
+      // Determine completion status based on goal
+      let symbol, statusText;
+      if (goal > 0) {
+        // Has goal - compare with goal
+        if (finalCount >= goal) {
+          symbol = '✅'; // Completed
+          statusText = unitText ? `${unitText}: ${finalCount}` : `Count: ${finalCount}`;
+        } else {
+          symbol = '❌'; // Missed
+          statusText = unitText ? `${unitText}: ${finalCount}` : `Count: ${finalCount}`;
+        }
+      } else {
+        // No goal - single count is completed
+        symbol = '✅'; // Completed
+        statusText = unitText ? `${unitText}: ${finalCount}` : `Count: ${finalCount}`;
+      }
+      
+      await updateFlowStatus(flow.id, todayKey, {
+        symbol: symbol,
+        emotion: tempEmotion,
+        note: tempNote,
+        quantitative: { count: finalCount, unitText: unitText },
+        statusText: statusText // Store the display text
+      });
+      
+      console.log(`Flow marked as ${symbol === '✅' ? 'completed' : 'missed'} successfully`);
+    } catch (error) {
+      console.error('Error marking flow as done:', error);
+    }
+  }, [updateFlowStatus, flow.id, todayKey, count, tempEmotion, tempNote, flow.goalCount, flow.unitText, triggerHaptic]);
+
   // Time-based flow handlers
   const handleStart = useCallback(() => {
     triggerHaptic();
@@ -334,6 +373,51 @@ const UnifiedFlowCard = ({ flow }) => {
     navigation.navigate('FlowDetails', { flowId: flow.id, initialTab: 'calendar' });
   };
 
+  const handleReset = useCallback(async () => {
+    triggerHaptic();
+    try {
+      // Reset based on tracking type
+      if (flow.trackingType === 'Binary') {
+        await updateFlowStatus(flow.id, todayKey, {
+          symbol: '-',
+          emotion: '',
+          note: '',
+          timestamp: null
+        });
+      } else if (flow.trackingType === 'Quantitative') {
+        await updateFlowStatus(flow.id, todayKey, {
+          symbol: '-',
+          emotion: '',
+          note: '',
+          quantitative: { count: 0, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' },
+          timestamp: null
+        });
+        setCount(0);
+      } else if (flow.trackingType === 'Time-based') {
+        const resetTimebased = {
+          startTime: null,
+          pauses: [],
+          endTime: null,
+          totalDuration: 0,
+          pausesCount: 0
+        };
+        await updateFlowStatus(flow.id, todayKey, {
+          symbol: '-',
+          emotion: '',
+          note: '',
+          timebased: resetTimebased,
+          timestamp: null
+        });
+      }
+      
+      setTempEmotion('');
+      setTempNote('');
+      console.log('Flow reset successfully');
+    } catch (error) {
+      console.error('Error resetting flow:', error);
+    }
+  }, [updateFlowStatus, flow.id, todayKey, flow.trackingType, triggerHaptic]);
+
   // Real-time timer effect for time-based flows
   useEffect(() => {
     if (isRunning && safeTimebased.startTime) {
@@ -353,6 +437,31 @@ const UnifiedFlowCard = ({ flow }) => {
       }
     };
   }, [isRunning, safeTimebased.startTime]);
+
+  // Auto-complete at 11:50 PM for quantitative flows
+  useEffect(() => {
+    if (flow.trackingType === 'Quantitative' && !isCompleted && !isMissed && count > 0) {
+      const checkAutoComplete = () => {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        
+        // Check if it's 11:50 PM (23:50)
+        if (currentHour === 23 && currentMinute >= 50) {
+          console.log('Auto-completing flow at 11:50 PM:', flow.title);
+          handleDone();
+        }
+      };
+      
+      // Check immediately
+      checkAutoComplete();
+      
+      // Set up interval to check every minute
+      const interval = setInterval(checkAutoComplete, 60000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [flow.trackingType, isCompleted, isMissed, count, handleDone]);
 
   // Update current time when timer state changes
   useEffect(() => {
@@ -407,8 +516,22 @@ const UnifiedFlowCard = ({ flow }) => {
         );
       }
     } else if (flow.trackingType === 'Quantitative') {
+      // Show status text when completed or missed
+      if (isCompleted || isMissed) {
+        const statusText = flow.status?.[todayKey]?.statusText || 
+          (flow.status?.[todayKey]?.quantitative?.unitText ? 
+            `${flow.status[todayKey].quantitative.unitText}: ${count}` : 
+            `Count: ${count}`);
+        return (
+          <View style={styles.actionButtonsContainer}>
+            <Text style={[styles.statusText, { color: isCompleted ? '#34A853' : '#EA4335' }]}>
+              {statusText}
+            </Text>
+          </View>
+        );
+      }
       // Special case: Show time input field for quantitative flows
-      if (count === 0 && !isCompleted && !isMissed) {
+      else if (count === 0) {
         return (
           <View style={styles.actionButtonsContainer}>
             {flowTime && (
@@ -427,6 +550,12 @@ const UnifiedFlowCard = ({ flow }) => {
       } else {
         return (
           <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity
+              style={[styles.doneButton]}
+              onPress={handleDone}
+            >
+              <Text style={styles.doneButtonText}>Done</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.circularButton, styles.missButton]}
               onPress={() => handleQuantitativeAction('-')}
@@ -605,6 +734,24 @@ const UnifiedFlowCard = ({ flow }) => {
               <Text style={styles.detailText}>{timeVariation}</Text>
             </View>
             
+            {/* Quantitative specific details */}
+            {flow.trackingType === 'Quantitative' && (
+              <>
+                {flow.unitText && (
+                  <View style={styles.detailRow}>
+                    <MaterialIcons name="straighten" size={14} color="#6B7280" style={styles.detailIcon} />
+                    <Text style={styles.detailText}>Unit: {flow.unitText}</Text>
+                  </View>
+                )}
+                {flow.goalCount && flow.goalCount > 0 && (
+                  <View style={styles.detailRow}>
+                    <MaterialIcons name="flag" size={14} color="#6B7280" style={styles.detailIcon} />
+                    <Text style={styles.detailText}>Goal: {flow.goalCount} {flow.unitText || ''}</Text>
+                  </View>
+                )}
+              </>
+            )}
+            
             {/* Time-based specific details */}
             {flow.trackingType === 'Time-based' && safeTimebased.startTime && (
               <View style={styles.detailRow}>
@@ -677,6 +824,9 @@ const UnifiedFlowCard = ({ flow }) => {
             <View style={styles.detailActionContainer}>
               <TouchableOpacity onPress={handleViewDetails}>
                 <Text style={styles.actionText}>View Details</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleReset}>
+                <Text style={styles.resetActionText}>Reset</Text>
               </TouchableOpacity>
               {isEditing ? (
                 <TouchableOpacity onPress={handleSaveEdits}>
@@ -1000,6 +1150,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
+  resetActionText: {
+    fontSize: 14,
+    color: '#DC2626',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
   streakCard: {
     marginHorizontal: 16,
     marginTop: 12,
@@ -1031,6 +1187,24 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  // Done button for quantitative flows
+  doneButton: {
+    width: 50,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F59E0B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: '#D97706',
+  },
+  doneButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
 });

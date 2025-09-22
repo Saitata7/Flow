@@ -8,7 +8,7 @@ const config = getDefaultConfig(projectRoot);
 
 // Allow TypeScript files for dependencies (like expo)
 config.resolver.sourceExts = ['js', 'jsx', 'ts', 'tsx', 'json'];
-config.resolver.platforms = ['ios', 'android', 'native', 'web'];
+config.resolver.platforms = ['ios', 'android'];
 
 // Add path mapping support
 config.resolver.alias = {

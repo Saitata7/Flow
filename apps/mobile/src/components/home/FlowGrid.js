@@ -19,6 +19,11 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
     const now = moment();
     
     const filteredFlows = flows.filter((flow) => {
+      // First filter out deleted and archived flows
+      if (flow.deletedAt || flow.archived) {
+        return false;
+      }
+      
       // Normalize frequency/repeatType
       const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
       const isTodayScheduled =
@@ -364,7 +369,7 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    paddingHorizontal: layout.spacing.md, // Increased gap with edges (16px)
+    paddingHorizontal: layout.spacing.md, // Keep horizontal padding
   },
   gridContainer: {
     width: '100%',
@@ -482,7 +487,8 @@ const styles = StyleSheet.create({
     color: '#FFB366', // Orange text for today's date number
   },
   flowsContainer: {
-    paddingTop: layout.spacing.md,
+    paddingTop: 0, // Remove top padding to eliminate space after flow grid
+    paddingBottom: 20, // Add 20px bottom space
   },
   flowTitle: {
     fontSize: typography.sizes.body,

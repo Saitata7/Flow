@@ -13,7 +13,6 @@ import Firsttime from '../screens/info/Firsttime';
 import useAuth from '../hooks/useAuth';
 import useFirstTime from '../hooks/useFirstTime';
 import { FlowsProvider } from '../context/FlowContext';
-import { PlanProvider } from '../context/PlanContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { ActivityProvider } from '../context/ActivityContext';
 import { colors } from '../../styles';
@@ -61,8 +60,7 @@ const AppNavigator = () => {
   return (
     <ThemeProvider>
       <FlowsProvider>
-        <PlanProvider>
-          <ActivityProvider>
+        <ActivityProvider>
             <SafeAreaProvider>
             <StatusBar
               translucent
@@ -70,7 +68,10 @@ const AppNavigator = () => {
               barStyle="dark-content"
             />
             <NavigationContainer>
-              <Stack.Navigator screenOptions={screenOptions}>
+              <Stack.Navigator 
+                screenOptions={screenOptions}
+                initialRouteName="Splash"
+              >
                 {/* Show splash screen first */}
                 <Stack.Screen name="Splash" component={Splash} />
                 
@@ -80,17 +81,15 @@ const AppNavigator = () => {
                 {/* Show first time welcome screen */}
                 <Stack.Screen name="Firsttime" component={Firsttime} />
                 
+                {/* Auth navigation */}
+                <Stack.Screen name="Auth" component={AuthNavigator} />
+                
                 {/* Main app navigation */}
-                {user ? (
-                  <Stack.Screen name="Main" component={TabNavigator} />
-                ) : (
-                  <Stack.Screen name="Auth" component={AuthNavigator} />
-                )}
+                <Stack.Screen name="Main" component={TabNavigator} />
               </Stack.Navigator>
             </NavigationContainer>
             </SafeAreaProvider>
           </ActivityProvider>
-        </PlanProvider>
       </FlowsProvider>
     </ThemeProvider>
   );

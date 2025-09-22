@@ -13,13 +13,18 @@ const Splash = () => {
 
   useEffect(() => {
     if (!isLoading) {
-      if (isFirstLaunch) {
-        navigation.replace('Onboarding');
-      } else if (user) {
-        navigation.replace('Main');
-      } else {
-        navigation.replace('Auth');
-      }
+      // Add a small delay to ensure navigation stack is ready
+      const timer = setTimeout(() => {
+        if (isFirstLaunch) {
+          navigation.replace('Onboarding');
+        } else if (user) {
+          navigation.replace('Main');
+        } else {
+          navigation.replace('Auth');
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
     }
   }, [isLoading, isFirstLaunch, user, navigation]);
 

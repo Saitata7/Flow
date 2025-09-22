@@ -18,15 +18,17 @@ rules:
 
   - name: "Responsiveness"
     text: |
-      • Layouts must scale from iPhone SE width to large tablets.
       • Use Flexbox with % or Dimensions API, not fixed px.
       • Support portrait & landscape, dynamic font scaling, safe areas.
+      • Based on the text it has to auto adjust.
+      • No extra spacing, use required space based on the element.
 
   - name: "Bottom Tab Safety"
     text: |
       • Screen content may never collide with the bottom tab bar.
       • Wrap in SafeAreaView and add paddingBottom = layout.tabSpacing.
       • Floating buttons need marginBottom > tab height.
+      • Follow the SafeAreaWrapper it is in the common.
 
   - name: "Headers"
     text: |

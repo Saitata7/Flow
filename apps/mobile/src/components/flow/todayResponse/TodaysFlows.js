@@ -174,8 +174,46 @@ const TodaysFlows = ({ visibleFlows }) => {
     const statusA = a.status?.[todayKey]?.symbol || '-';
     const statusB = b.status?.[todayKey]?.symbol || '-';
     
-    const order = { '-': 0, '✅': 1, '✓': 1, '+': 1, '❌': 2 };
-    return order[statusA] - order[statusB];
+    // Check if tasks are completed (any completion status)
+    const isCompletedA = ['✅', '✓', '+', '❌'].includes(statusA);
+    const isCompletedB = ['✅', '✓', '+', '❌'].includes(statusB);
+    
+    // Rule 1: Completed tasks go to bottom
+    if (isCompletedA && !isCompletedB) return 1; // A goes after B
+    if (!isCompletedA && isCompletedB) return -1; // A goes before B
+    
+    // Rule 2: For incomplete tasks, sort by time (nearest time first)
+    if (!isCompletedA && !isCompletedB) {
+      const getTimeForFlow = (flow) => {
+        // Check for reminder time first
+        if (flow.reminderTime) {
+          return moment(flow.reminderTime);
+        }
+        // Check for habit time (if it's a time-based flow)
+        if (flow.trackingType === 'Time-based' && flow.hours !== undefined) {
+          const today = moment().format('YYYY-MM-DD');
+          const timeString = `${String(flow.hours || 0).padStart(2, '0')}:${String(flow.minutes || 0).padStart(2, '0')}:${String(flow.seconds || 0).padStart(2, '0')}`;
+          return moment(`${today} ${timeString}`);
+        }
+        return null;
+      };
+      
+      const timeA = getTimeForFlow(a);
+      const timeB = getTimeForFlow(b);
+      
+      // If both have times, sort by nearest time
+      if (timeA && timeB) {
+        return timeA.diff(moment()) - timeB.diff(moment());
+      }
+      // If only A has time, A goes first
+      if (timeA && !timeB) return -1;
+      // If only B has time, B goes first
+      if (!timeA && timeB) return 1;
+      // If neither has time, maintain original order
+    }
+    
+    // Rule 3: For completed tasks, maintain original order (already at bottom)
+    return 0;
   });
   
   console.log('TodaysFlows: Sorted flows:', sortedFlows.map(f => ({ id: f.id, title: f.title })));

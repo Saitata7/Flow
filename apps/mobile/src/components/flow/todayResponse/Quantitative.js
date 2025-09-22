@@ -92,14 +92,21 @@ const Quantitative = ({ flow }) => {
     }
   }, []);
 
-  const handleAction = useCallback((action) => {
+  const handleAction = useCallback(async (action) => {
     triggerHaptic();
     let newCount = action === '+' ? count + 1 : Math.max(0, count - 1);
     if (newCount > maxCount) newCount = maxCount;
     
     setCount(newCount);
-    updateCount(flow.id, todayKey, action);
-  }, [flow.id, todayKey, count, maxCount, updateCount, triggerHaptic]);
+    
+    // Update context with the new count
+    await updateFlowStatus(flow.id, todayKey, {
+      symbol: newCount > 0 ? '+' : '-',
+      emotion: tempEmotion,
+      note: tempNote,
+      quantitative: { count: newCount, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' }
+    });
+  }, [flow.id, todayKey, count, maxCount, updateFlowStatus, tempEmotion, tempNote, triggerHaptic]);
 
   const handleSaveEdits = useCallback(() => {
     updateFlowStatus(flow.id, todayKey, {
@@ -120,6 +127,42 @@ const Quantitative = ({ flow }) => {
   const handleViewDetails = () => {
     navigation.navigate('FlowDetails', { flowId: flow.id, initialTab: 'calendar' });
   };
+
+  const handleReset = useCallback(async () => {
+    triggerHaptic();
+    try {
+      await updateFlowStatus(flow.id, todayKey, {
+        symbol: '-',
+        emotion: '',
+        note: '',
+        quantitative: { count: 0, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' },
+        timestamp: null
+      });
+      setCount(0);
+      setTempEmotion('');
+      setTempNote('');
+    } catch (error) {
+      console.error('Error resetting flow:', error);
+    }
+  }, [updateFlowStatus, flow.id, todayKey, triggerHaptic]);
+
+  const handleDone = useCallback(async () => {
+    console.log('Done button pressed for flow:', flow.title, 'with count:', count);
+    triggerHaptic();
+    try {
+      // If count is 0, mark as done with count 0, otherwise use current count
+      const finalCount = count > 0 ? count : 0;
+      await updateFlowStatus(flow.id, todayKey, {
+        symbol: '✅',
+        emotion: tempEmotion,
+        note: tempNote,
+        quantitative: { count: finalCount, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' }
+      });
+      console.log('Flow marked as done successfully');
+    } catch (error) {
+      console.error('Error marking flow as done:', error);
+    }
+  }, [updateFlowStatus, flow.id, todayKey, count, tempEmotion, tempNote, triggerHaptic]);
 
   return (
     <TouchableOpacity onPress={handleCardPress} activeOpacity={0.8}>
@@ -167,6 +210,12 @@ const Quantitative = ({ flow }) => {
               >
                 <Text style={styles.actionButtonText}>+</Text>
               </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.doneButtonTest]}
+              onPress={handleDone}
+            >
+              <Text style={styles.doneButtonTestText}>DONE</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -225,6 +274,9 @@ const Quantitative = ({ flow }) => {
             <View style={styles.detailActionContainer}>
               <TouchableOpacity onPress={handleViewDetails}>
                 <Text style={styles.actionText}>View Details</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleReset}>
+                <Text style={styles.resetActionText}>Reset</Text>
               </TouchableOpacity>
               {isEditing ? (
                 <TouchableOpacity onPress={handleSaveEdits}>
@@ -318,14 +370,16 @@ const styles = StyleSheet.create({
   actionButtonsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   actionButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: 2,
     overflow: 'hidden',
   },
   gradientButton: {
@@ -343,15 +397,15 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   countButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 4,
+    marginHorizontal: 2,
   },
   countText: {
     fontSize: 14,
@@ -411,6 +465,53 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#2563EB',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  resetActionText: {
+    fontSize: 14,
+    color: '#DC2626',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  doneButton: {
+    // No extra margin needed
+  },
+  doneButtonCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 2,
+    overflow: 'hidden',
+  },
+  gradientButtonCompact: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  doneButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333333',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  doneButtonTest: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FF0000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 2,
+    borderWidth: 2,
+    borderColor: '#000000',
+  },
+  doneButtonTestText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   streakCard: {

@@ -1,13 +1,14 @@
 {
   "expo": {
     "name": "Flow",
-    "slug": "Flow",
+    "slug": "Makemyhabit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "jsEngine": "hermes",
+    "platforms": ["ios", "android"],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -40,6 +41,7 @@
     "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/7cbf9568-a5eb-43f7-b115-6dd28a0548f4"
-    }
+    },
+    "owner": "saitata7"
   }
 }

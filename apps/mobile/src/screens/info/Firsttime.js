@@ -9,7 +9,10 @@ const Firsttime = ({ navigation }) => {
 
   const handleContinue = () => {
     markFirstLaunchComplete();
-    navigation.replace('Auth');
+    // Add a small delay to ensure navigation stack is ready
+    setTimeout(() => {
+      navigation.replace('Auth');
+    }, 100);
   };
 
   return (

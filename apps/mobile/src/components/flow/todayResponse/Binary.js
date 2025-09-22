@@ -159,6 +159,23 @@ const Binary = ({ flow }) => {
     navigation.navigate('FlowDetails', { flowId: flow.id, initialTab: 'calendar' });
   };
 
+  const handleReset = useCallback(async () => {
+    triggerHaptic();
+    try {
+      await updateFlowStatus(flow.id, todayKey, {
+        symbol: '-',
+        emotion: '',
+        note: '',
+        timestamp: null
+      });
+      setTempStatus('-');
+      setTempEmotion('');
+      setTempNote('');
+    } catch (error) {
+      console.error('Error resetting flow:', error);
+    }
+  }, [updateFlowStatus, flow.id, todayKey, triggerHaptic]);
+
   return (
     <ErrorBoundary>
       <TouchableOpacity onPress={handleCardPress} activeOpacity={0.8}>
@@ -330,6 +347,9 @@ const Binary = ({ flow }) => {
               <View style={styles.detailActionContainer}>
                 <TouchableOpacity onPress={handleViewDetails}>
                   <Text style={styles.actionText}>View Details</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleReset}>
+                  <Text style={styles.resetActionText}>Reset</Text>
                 </TouchableOpacity>
                 {isEditing ? (
                   <TouchableOpacity onPress={handleSaveEdits}>
@@ -505,6 +525,12 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 14,
     color: '#2563EB',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  resetActionText: {
+    fontSize: 14,
+    color: '#DC2626',
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
