@@ -46,10 +46,10 @@ const calculateStreak = (flow) => {
     const dateKey = date.format('YYYY-MM-DD');
     const status = flow.status[dateKey]?.symbol;
     
-    if (status === '✅' || status === '✓' || status === '+') {
+    if (status === '+' || status === '✓') {
       streakDays.unshift(date.date());
       streak++;
-    } else if (status === '❌' || status === '-' || (i === 0 && !status)) {
+    } else if (status === '-' || status === '/' || (i === 0 && !status)) {
       break;
     }
   }
@@ -101,7 +101,7 @@ const Timebased = ({ flow }) => {
   const isPaused = timebased.startTime && !timebased.endTime && timebased.pauses.length > 0 && !timebased.pauses[timebased.pauses.length - 1].end;
   const isRunning = timebased.startTime && !timebased.endTime && !isPaused;
   const isNotStarted = !timebased.startTime;
-  const isCompleted = status === '✅';
+  const isCompleted = status === '+';
   
   // Calculate current duration - simplified
   const getCurrentDuration = () => {
@@ -246,7 +246,7 @@ const Timebased = ({ flow }) => {
     }
     
     const finalDuration = currentTime;
-    const newSymbol = finalDuration > 1 ? '✅' : '❌';
+    const newSymbol = finalDuration > 1 ? '+' : '-';
 
     updateTimeBased(flow.id, todayKey, {
       ...timebased,
@@ -276,7 +276,7 @@ const Timebased = ({ flow }) => {
       totalDuration: 0,
       pausesCount: 0
     };
-    updateFlowStatus(flow.id, todayKey, { symbol: '❌', timebased: resetTimebased });
+    updateFlowStatus(flow.id, todayKey, { symbol: '-', timebased: resetTimebased });
   }, [flow.id, todayKey, updateFlowStatus, triggerHaptic]);
 
   const handleResetTime = useCallback(() => {
@@ -415,7 +415,7 @@ const Timebased = ({ flow }) => {
                         end={{ x: 1, y: 0 }}
                         style={styles.gradientButton}
                       >
-                        <Text style={styles.actionButtonText}>❌ Skip</Text>
+                        <Text style={styles.actionButtonText}>- Skip</Text>
                       </LinearGradient>
                     </TouchableOpacity>
                   </>

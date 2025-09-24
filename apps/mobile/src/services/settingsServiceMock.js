@@ -13,13 +13,6 @@ const defaultSettings = {
   cheatMode: false,
   highlightDayStreak: true,
   closeTime: '21:00',
-  profile: {
-    name: '',
-    email: '',
-    profilePicture: '',
-    timeZone: 'UTC',
-    language: 'en',
-  },
   habitDefaults: {
     type: 'binary',
     goalFrequency: 'daily',
@@ -70,7 +63,6 @@ const defaultSettings = {
     }
   },
   privacy: {
-    profileVisibility: 'private',
     shareStats: false,
     shareAchievements: false,
     allowFriendRequests: false,

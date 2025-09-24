@@ -16,7 +16,7 @@ class StatsService {
    */
   calculateOverallStats(flows, options = {}) {
     const {
-      timeframe = '7D', // 7D, 30D, 1Y
+      timeframe = 'weekly', // weekly, monthly, yearly
       includeArchived = false,
       includeDeleted = false
     } = options;
@@ -65,7 +65,7 @@ class StatsService {
    */
   calculateFlowStats(flow, options = {}) {
     const {
-      timeframe = '7D',
+      timeframe = 'weekly',
       selectedPeriod = 'weekly',
       selectedYear = moment().year()
     } = options;
@@ -100,16 +100,16 @@ class StatsService {
 
   /**
    * Get start date based on timeframe
-   * @param {string} timeframe - 7D, 30D, 1Y
+   * @param {string} timeframe - weekly, monthly, yearly
    * @returns {moment} Start date
    */
   getStartDateForTimeframe(timeframe) {
     switch (timeframe) {
-      case '7D':
+      case 'weekly':
         return moment().subtract(7, 'days');
-      case '30D':
+      case 'monthly':
         return moment().subtract(30, 'days');
-      case '1Y':
+      case 'yearly':
         return moment().subtract(1, 'year');
       default:
         return moment().subtract(7, 'days');
@@ -144,12 +144,24 @@ class StatsService {
         
         if (isScheduled) {
           dayScheduled++;
-          totalScheduled++;
           
           const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
+          if (status?.symbol === '+') {
             dayCompleted++;
-            totalCompleted++;
+          }
+        }
+      });
+      
+      // Add to totals after processing all flows for the day
+      totalScheduled += dayScheduled;
+      totalCompleted += dayCompleted;
+      
+      // Calculate points for completed flows
+      flows.forEach(flow => {
+        const isScheduled = this.isFlowScheduledForDate(flow, currentDate);
+        if (isScheduled) {
+          const status = flow.status?.[dayKey];
+          if (status?.symbol === '+') {
             totalPoints += this.calculatePointsForCompletion(flow, status);
           }
         }
@@ -172,7 +184,7 @@ class StatsService {
       while (currentDate.isSameOrBefore(endDate)) {
         const dayKey = currentDate.format('YYYY-MM-DD');
         const status = flow.status?.[dayKey];
-        if (status?.symbol === '✅') {
+        if (status?.symbol === '+') {
           return true;
         }
         currentDate.add(1, 'day');
@@ -221,7 +233,7 @@ class StatsService {
           scheduled++;
           const status = flow.status?.[dayKey];
           
-          if (status?.symbol === '✅') {
+          if (status?.symbol === '+') {
             completed++;
             tempStreak++;
             bestStreak = Math.max(bestStreak, tempStreak);
@@ -281,7 +293,7 @@ class StatsService {
           if (isScheduled) {
             weekScheduled++;
             const status = flow.status?.[dayKey];
-            if (status?.symbol === '✅') {
+            if (status?.symbol === '+') {
               weekCompleted++;
             }
           }
@@ -328,7 +340,7 @@ class StatsService {
         const dayKey = currentDate.format('YYYY-MM-DD');
         const status = flow.status?.[dayKey];
         
-        if (status?.symbol === '✅') {
+        if (status?.symbol === '+') {
           totalCompletions++;
           tempStreak++;
           bestStreak = Math.max(bestStreak, tempStreak);
@@ -371,7 +383,7 @@ class StatsService {
       title: 'Consistency King',
       description: 'Maintain 80% success rate',
       icon: '👑',
-      progress: successRate,
+      progress: parseFloat(successRate.toFixed(2)),
       target: 80,
       completed: successRate >= 80,
       color: '#2196F3'
@@ -503,7 +515,7 @@ class StatsService {
       const isScheduled = this.isFlowScheduledForDate(flow, checkDate);
       if (isScheduled) {
         const status = flow.status?.[dayKey];
-        if (status?.symbol === '✅') {
+        if (status?.symbol === '+') {
           streak++;
         } else {
           break; // Streak broken
@@ -536,7 +548,7 @@ class StatsService {
         scheduled++;
         const status = flow.status?.[dayKey];
         
-        if (status?.symbol === '✅') {
+        if (status?.symbol === '+') {
           completed++;
           
           // Add quantitative value
@@ -583,7 +595,7 @@ class StatsService {
       if (isScheduled) {
         const status = flow.status?.[dayKey];
         
-        if (status?.symbol === '✅') {
+        if (status?.symbol === '+') {
           tempStreak++;
           bestStreak = Math.max(bestStreak, tempStreak);
         } else {
@@ -734,7 +746,7 @@ class StatsService {
         return status.timebased?.totalDuration || 0;
       case 'Binary':
       default:
-        return status.symbol === '✅' ? 1 : 0;
+        return status.symbol === '+' ? 1 : 0;
     }
   }
 

@@ -8,14 +8,15 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
-import { useAuthSimple as useAuth } from '../../hooks/useAuthSimple';
+import useAuth from '../../hooks/useAuth';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -24,23 +25,24 @@ const SettingsMenu = ({ visible, onClose }) => {
   const navigation = useNavigation();
   const { theme } = useContext(ThemeContext) || { theme: 'light' };
   const themeColors = colors[theme] || colors.light;
-  const { signOut } = useAuth();
+  const { user, logout } = useAuth();
 
   const settingsCategories = [
     {
       id: 'account',
       title: 'Account',
       icon: 'person-outline',
-      description: 'Profile, security, and account settings',
+      description: 'Security and account settings',
       screen: 'AccountSettings'
     },
-    {
-      id: 'privacy',
-      title: 'Privacy',
-      icon: 'shield-outline',
-      description: 'Control what others can see',
-      screen: 'PrivacySettings'
-    },
+    // Privacy option removed from menu (keeping file for future use)
+    // {
+    //   id: 'privacy',
+    //   title: 'Privacy',
+    //   icon: 'shield-outline',
+    //   description: 'Control what others can see',
+    //   screen: 'PrivacySettings'
+    // },
     {
       id: 'notifications',
       title: 'Notifications',
@@ -48,13 +50,14 @@ const SettingsMenu = ({ visible, onClose }) => {
       description: 'Manage your notification preferences',
       screen: 'NotificationSettings'
     },
-    {
-      id: 'location',
-      title: 'Location',
-      icon: 'location-outline',
-      description: 'Location services and permissions',
-      screen: 'LocationSettings'
-    },
+    // Location option removed from menu (keeping file, location settings moved to Account section)
+    // {
+    //   id: 'location',
+    //   title: 'Location',
+    //   icon: 'location-outline',
+    //   description: 'Location services and permissions',
+    //   screen: 'LocationSettings'
+    // },
     {
       id: 'help',
       title: 'Help & About',
@@ -90,9 +93,15 @@ const SettingsMenu = ({ visible, onClose }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await signOut();
+              await logout();
+              // Navigate to auth screen after logout
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Auth' }],
+              });
             } catch (error) {
               console.error('Error signing out:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
           }
         }
@@ -195,6 +204,25 @@ const SettingsMenu = ({ visible, onClose }) => {
       color: '#fff',
       marginLeft: 8,
     },
+    signInSection: {
+      marginTop: 20,
+      paddingHorizontal: 16,
+    },
+    signInButton: {
+      backgroundColor: themeColors.primaryOrange,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      borderRadius: 8,
+    },
+    signInText: {
+      fontSize: typography.sizes.body,
+      fontWeight: typography.weights.semibold,
+      color: '#fff',
+      marginLeft: 8,
+    },
     versionInfo: {
       alignItems: 'center',
       marginTop: 20,
@@ -222,7 +250,7 @@ const SettingsMenu = ({ visible, onClose }) => {
           onPress={onClose}
         />
         <View style={dynamicStyles.modalContent}>
-          <SafeAreaView edges={['bottom']}>
+          <SafeAreaWrapper excludeTop={true}>
             {/* Header */}
             <View style={dynamicStyles.header}>
               <Text style={dynamicStyles.headerTitle}>Settings</Text>
@@ -277,22 +305,43 @@ const SettingsMenu = ({ visible, onClose }) => {
                 </TouchableOpacity>
               ))}
 
-              {/* Sign Out Section */}
-              <View style={dynamicStyles.signOutSection}>
-                <TouchableOpacity
-                  style={dynamicStyles.signOutButton}
-                  onPress={handleSignOut}
-                  accessibilityLabel="Sign out of account"
-                  accessibilityRole="button"
-                >
-                  <Ionicons 
-                    name="log-out-outline" 
-                    size={20} 
-                    color="#fff" 
-                  />
-                  <Text style={dynamicStyles.signOutText}>Sign Out</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Authentication Section */}
+              {user ? (
+                <View style={dynamicStyles.signOutSection}>
+                  <TouchableOpacity
+                    style={dynamicStyles.signOutButton}
+                    onPress={handleSignOut}
+                    accessibilityLabel="Sign out of account"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons 
+                      name="log-out-outline" 
+                      size={20} 
+                      color="#fff" 
+                    />
+                    <Text style={dynamicStyles.signOutText}>Sign Out</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={dynamicStyles.signInSection}>
+                  <TouchableOpacity
+                    style={dynamicStyles.signInButton}
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('Auth');
+                    }}
+                    accessibilityLabel="Sign in to account"
+                    accessibilityRole="button"
+                  >
+                    <Ionicons 
+                      name="log-in-outline" 
+                      size={20} 
+                      color="#fff" 
+                    />
+                    <Text style={dynamicStyles.signInText}>Sign In</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {/* Version Info */}
               <View style={dynamicStyles.versionInfo}>
@@ -301,7 +350,7 @@ const SettingsMenu = ({ visible, onClose }) => {
                 </Text>
               </View>
             </ScrollView>
-          </SafeAreaView>
+          </SafeAreaWrapper>
         </View>
       </View>
     </Modal>

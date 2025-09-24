@@ -52,10 +52,10 @@ const calculateStreak = (flow) => {
     const dateKey = date.format('YYYY-MM-DD');
     const status = flow.status[dateKey]?.symbol;
     
-    if (status === '✅' || status === '✓' || status === '+') {
+    if (status === '+' || status === '✓') {
       streakDays.unshift(date.date());
       streak++;
-    } else if (status === '❌' || status === '-' || (i === 0 && !status)) {
+    } else if (status === '-' || status === '/' || (i === 0 && !status)) {
       break;
     }
   }
@@ -166,9 +166,9 @@ const UnifiedFlowCard = ({ flow }) => {
   const maxBreaks = 5;
 
   // Status determination
-  const isPending = status === '-';
-  const isCompleted = status === '✅' || status === '✓' || status === '+';
-  const isMissed = status === '❌';
+  const isPending = status === '/';
+  const isCompleted = status === '+' || status === '✓';
+  const isMissed = status === '-';
 
   const triggerHaptic = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -216,15 +216,15 @@ const UnifiedFlowCard = ({ flow }) => {
       if (goal > 0) {
         // Has goal - compare with goal
         if (finalCount >= goal) {
-          symbol = '✅'; // Completed
+          symbol = '+'; // Completed
           statusText = unitText ? `${unitText}: ${finalCount}` : `Count: ${finalCount}`;
         } else {
-          symbol = '❌'; // Missed
+          symbol = '-'; // Missed
           statusText = unitText ? `${unitText}: ${finalCount}` : `Count: ${finalCount}`;
         }
       } else {
         // No goal - single count is completed
-        symbol = '✅'; // Completed
+        symbol = '+'; // Completed
         statusText = unitText ? `${unitText}: ${finalCount}` : `Count: ${finalCount}`;
       }
       
@@ -236,7 +236,7 @@ const UnifiedFlowCard = ({ flow }) => {
         statusText: statusText // Store the display text
       });
       
-      console.log(`Flow marked as ${symbol === '✅' ? 'completed' : 'missed'} successfully`);
+      console.log(`Flow marked as ${symbol === '+' ? 'completed' : 'missed'} successfully`);
     } catch (error) {
       console.error('Error marking flow as done:', error);
     }
@@ -304,7 +304,7 @@ const UnifiedFlowCard = ({ flow }) => {
     }
     
     const finalDuration = currentTime;
-    const newSymbol = finalDuration > 1 ? '✅' : '❌';
+    const newSymbol = finalDuration > 1 ? '+' : '-';
 
     updateTimeBased(flow.id, todayKey, {
       ...safeTimebased,
@@ -334,7 +334,7 @@ const UnifiedFlowCard = ({ flow }) => {
       totalDuration: 0,
       pausesCount: 0
     };
-    updateFlowStatus(flow.id, todayKey, { symbol: '❌', timebased: resetTimebased });
+    updateFlowStatus(flow.id, todayKey, { symbol: '-', timebased: resetTimebased });
   }, [flow.id, todayKey, updateFlowStatus, triggerHaptic]);
 
   // Common handlers
@@ -502,13 +502,13 @@ const UnifiedFlowCard = ({ flow }) => {
           <View style={styles.actionButtonsContainer}>
             <TouchableOpacity
               style={[styles.rectangularButton, styles.completeButton]}
-              onPress={() => handleBinaryStatusPress('✅')}
+              onPress={() => handleBinaryStatusPress('+')}
             >
               <Text style={styles.rectangularButtonText}>✓</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.rectangularButton, styles.missButton]}
-              onPress={() => handleBinaryStatusPress('❌')}
+              onPress={() => handleBinaryStatusPress('-')}
             >
               <Text style={styles.rectangularButtonText}>✗</Text>
             </TouchableOpacity>

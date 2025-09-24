@@ -36,4 +36,11 @@ config.resolver.nodeModulesPaths = [
 // Ensure proper resolution of expo and other packages
 config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
+// Add Firebase Web SDK compatibility
+config.resolver.alias = {
+  ...config.resolver.alias,
+  'stream': 'readable-stream',
+  'buffer': '@craftzdog/react-native-buffer',
+};
+
 module.exports = config;

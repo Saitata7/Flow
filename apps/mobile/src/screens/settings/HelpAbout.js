@@ -9,11 +9,11 @@ import {
   Linking,
   Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
 const HelpAbout = () => {
   const navigation = useNavigation();
@@ -132,12 +132,12 @@ const HelpAbout = () => {
   });
 
   return (
-    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
+    <SafeAreaWrapper style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
         <TouchableOpacity 
           style={dynamicStyles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Home')}
         >
           <Ionicons 
             name="arrow-back" 
@@ -272,7 +272,7 @@ const HelpAbout = () => {
           </Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 

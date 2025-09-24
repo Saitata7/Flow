@@ -26,7 +26,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const ModernStats = ({ navigation }) => {
   const { flows } = useContext(FlowsContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
-  const [selectedTimeframe, setSelectedTimeframe] = useState('7D');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [refreshing, setRefreshing] = useState(false);
   const [animatedValue] = useState(new Animated.Value(0));
 
@@ -51,7 +51,7 @@ const ModernStats = ({ navigation }) => {
   const stats = useMemo(() => {
     const now = moment();
     const startDate = moment().subtract(
-      selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : 365,
+      selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365,
       'days'
     );
 
@@ -64,7 +64,7 @@ const ModernStats = ({ navigation }) => {
     let flowPerformance = [];
 
     // Generate weekly data for charts
-    for (let i = 0; i < (selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : 52); i++) {
+    for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 52); i++) {
       const date = startDate.clone().add(i, 'days');
       const dayKey = date.format('YYYY-MM-DD');
       
@@ -103,7 +103,7 @@ const ModernStats = ({ navigation }) => {
       let flowStreak = 0;
       let maxStreak = 0;
 
-      for (let i = 0; i < (selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : 365); i++) {
+      for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365); i++) {
         const date = startDate.clone().add(i, 'days');
         const dayKey = date.format('YYYY-MM-DD');
         

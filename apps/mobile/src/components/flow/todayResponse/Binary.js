@@ -77,10 +77,10 @@ const calculateStreak = (flow) => {
     const dateKey = date.format('YYYY-MM-DD');
     const status = flow.status[dateKey]?.symbol;
     
-    if (status === '✅' || status === '✓' || status === '+') {
+    if (status === '+' || status === '✓') {
       streakDays.unshift(date.date());
       streak++;
-    } else if (status === '❌' || status === '-' || (i === 0 && !status)) {
+    } else if (status === '-' || status === '/' || (i === 0 && !status)) {
       break;
     }
   }
@@ -96,7 +96,7 @@ const Binary = ({ flow }) => {
   const { updateFlowStatus } = useContext(FlowsContext);
   const navigation = useNavigation();
   const todayKey = moment().format('YYYY-MM-DD');
-  const status = flow.status?.[todayKey]?.symbol || '-';
+  const status = flow.status?.[todayKey]?.symbol || '/';
   const emotion = flow.status?.[todayKey]?.emotion || '';
   const note = flow.status?.[todayKey]?.note || '';
   const flowTime = flow.time ? moment(flow.time).format('h:mm A') : null;
@@ -108,9 +108,9 @@ const Binary = ({ flow }) => {
   const [tempNote, setTempNote] = useState(note);
   const [tempStatus, setTempStatus] = useState(status);
 
-  const isPending = status === '-';
-  const isCompleted = status === '✅';
-  const isMissed = status === '❌';
+  const isPending = status === '/';
+  const isCompleted = status === '+';
+  const isMissed = status === '-';
 
   const triggerHaptic = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -220,7 +220,7 @@ const Binary = ({ flow }) => {
               <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.tickButton]}
-                  onPress={() => handleStatusPress('✅')}
+                  onPress={() => handleStatusPress('+')}
                 >
                   <LinearGradient
                     colors={['#E6F5E6', '#A3E635']}
@@ -228,12 +228,12 @@ const Binary = ({ flow }) => {
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
                   >
-                    <Text style={styles.actionButtonText}>✅</Text>
+                    <Text style={styles.actionButtonText}>+</Text>
                   </LinearGradient>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionButton, styles.crossButton]}
-                  onPress={() => handleStatusPress('❌')}
+                  onPress={() => handleStatusPress('-')}
                 >
                   <LinearGradient
                     colors={['#FEECEC', '#FCA5A5']}
@@ -241,7 +241,7 @@ const Binary = ({ flow }) => {
                     end={{ x: 1, y: 0 }}
                     style={styles.gradientButton}
                   >
-                    <Text style={styles.actionButtonText}>❌</Text>
+                    <Text style={styles.actionButtonText}>-</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
@@ -316,7 +316,7 @@ const Binary = ({ flow }) => {
                 <View style={styles.statusEditContainer}>
                   <TouchableOpacity
                     style={[styles.actionButton, styles.tickButton]}
-                    onPress={() => setTempStatus('✅')}
+                    onPress={() => setTempStatus('+')}
                   >
                     <LinearGradient
                       colors={['#E6F5E6', '#A3E635']}
@@ -324,12 +324,12 @@ const Binary = ({ flow }) => {
                       end={{ x: 1, y: 0 }}
                       style={styles.gradientButton}
                     >
-                      <Text style={styles.actionButtonText}>✅</Text>
+                      <Text style={styles.actionButtonText}>+</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.actionButton, styles.crossButton]}
-                    onPress={() => setTempStatus('❌')}
+                    onPress={() => setTempStatus('-')}
                   >
                     <LinearGradient
                       colors={['#FEECEC', '#FCA5A5']}
@@ -337,7 +337,7 @@ const Binary = ({ flow }) => {
                       end={{ x: 1, y: 0 }}
                       style={styles.gradientButton}
                     >
-                      <Text style={styles.actionButtonText}>❌</Text>
+                      <Text style={styles.actionButtonText}>-</Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>

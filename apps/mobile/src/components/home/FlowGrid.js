@@ -7,7 +7,7 @@ import { useAppTheme } from '../../../styles';
 import { colors, typography, layout } from '../../../styles';
 
 const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
-  const { flows, updateFlowStatus } = useContext(FlowsContext);
+  const { flows } = useContext(FlowsContext);
   const { colors: themeColors } = useAppTheme();
   const [dateOffset, setDateOffset] = useState(0);
   const [animating, setAnimating] = useState(false);
@@ -78,44 +78,15 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
     }
     
     // Check the symbol field which is used in the existing system
-    if (status.symbol === '✅') {
+    if (status.symbol === '+') {
       return 'done';
-    } else if (status.symbol === '❌') {
+    } else if (status.symbol === '-') {
       return 'missed';
     } else {
       return 'available'; // Scheduled but not completed
     }
   };
 
-  // Handle status toggle
-  const handleStatusToggle = async (flow, date) => {
-    const currentStatus = getFlowStatus(flow, date);
-    
-    if (currentStatus === 'none') return; // Can't toggle unscheduled tasks
-    
-    const dateStr = date.format('YYYY-MM-DD');
-    const currentSymbol = flow.status?.[dateStr]?.symbol || '-';
-    
-    // Toggle between done (✅) and missed (❌), or set to done if available
-    let newSymbol;
-    if (currentSymbol === '✅') {
-      newSymbol = '❌'; // Toggle to missed
-    } else {
-      newSymbol = '✅'; // Set to done
-    }
-    
-    try {
-      // Use the existing updateFlowStatus method from FlowsContext
-      await updateFlowStatus(flow.id, dateStr, {
-        symbol: newSymbol,
-        timestamp: new Date().toISOString(),
-        emotion: null,
-        note: null,
-      });
-    } catch (error) {
-      console.error('Failed to update flow status:', error);
-    }
-  };
 
   // Handle swipe gesture
   const onGestureEvent = (event) => {
@@ -139,7 +110,6 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
   const renderStatusCircle = (flow, date) => {
     const status = getFlowStatus(flow, date);
     const isToday = date.isSame(moment(), 'day');
-    const canToggle = status !== 'none' && (cheatMode || !date.isBefore(moment(), 'day'));
 
     const getCircleStyle = () => {
       const baseStyle = {
@@ -194,12 +164,7 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
     };
 
     return (
-      <TouchableOpacity
-        style={styles.statusContainer}
-        onPress={() => canToggle && handleStatusToggle(flow, date)}
-        disabled={!canToggle}
-        activeOpacity={canToggle ? 0.7 : 1}
-      >
+      <View style={styles.statusContainer}>
         <Animated.View
         style={[
           getCircleStyle(),
@@ -215,7 +180,7 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
           </Text>
         )}
         </Animated.View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -306,7 +271,16 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
                         }}
                         activeOpacity={0.7}
                       >
-                        <Text style={styles.flowTitle}>
+                        <Text 
+                          style={[
+                            styles.flowTitle,
+                            flow.title.length > 10 && styles.flowTitleSmall,
+                            flow.title.length > 15 && styles.flowTitleExtraSmall
+                          ]}
+                          numberOfLines={2}
+                          adjustsFontSizeToFit={true}
+                          minimumFontScale={0.7}
+                        >
                           {flow.title}
                         </Text>
                       </TouchableOpacity>
@@ -432,7 +406,7 @@ const styles = StyleSheet.create({
   },
   flowTitleRow: {
     paddingVertical: layout.spacing.sm, // Better spacing for readability
-    height: 50, // Fixed height to match status row exactly
+    minHeight: 50, // Minimum height, can expand for longer names
     justifyContent: 'center',
     alignItems: 'flex-start', // Left alignment for flow names
     paddingLeft: layout.spacing.sm, // Better left padding for readability
@@ -442,7 +416,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingVertical: layout.spacing.sm, // Better spacing for readability
-    height: 50, // Fixed height to match flow title row exactly
+    minHeight: 50, // Minimum height, can expand to match flow title row
     paddingHorizontal: layout.spacing.sm, // Better spacing for columns
   },
   headerText: {
@@ -493,8 +467,16 @@ const styles = StyleSheet.create({
   flowTitle: {
     fontSize: typography.sizes.body,
     fontWeight: typography.weights.medium, // Medium-weight text
-    lineHeight: 22,
+    lineHeight: 20,
     color: '#000000', // Black text
+  },
+  flowTitleSmall: {
+    fontSize: typography.sizes.caption1,
+    lineHeight: 18,
+  },
+  flowTitleExtraSmall: {
+    fontSize: typography.sizes.caption2,
+    lineHeight: 16,
   },
   statusColumn: {
     alignItems: 'center',

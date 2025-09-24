@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateIdempotencyKey } from '../utils/idempotency';
+import { clearDemoData } from '../utils/clearDemoData';
 
 const API_URL = 'https://your-api-endpoint.com'; // Replace with your API
 
@@ -13,51 +14,36 @@ const useAuth = () => {
   const { data: user, isLoading } = useQuery({
     queryKey: ['auth'],
     queryFn: async () => {
-      // For demo purposes, return a mock user with v2 schema
-      // In production, this would fetch from your API
-      return {
-        id: 'user123',
-        username: 'demo_user',
-        displayName: 'Demo User',
-        avatarUrl: null,
-        bio: 'Welcome to Flow! This is a demo profile.',
-        joinedAt: '2024-01-01T00:00:00Z',
-        stats: {
-          personalPlans: 0,
-          publicPlans: 0,
-          followers: 0,
-          following: 0,
-          badges: []
-        },
-        social: {
-          twitter: null,
-          linkedin: null,
-          github: null,
-          instagram: null
-        },
-        links: [],
-        achievements: [],
-        profileTheme: {
-          primaryColor: '#007AFF',
-          secondaryColor: '#5856D6',
-          bannerUrl: null,
-          accentColor: '#FF9500'
-        },
-        visibility: {
-          bio: true,
-          stats: true,
-          plans: true
-        },
-        schemaVersion: 2,
-        createdAt: '2024-01-01T00:00:00Z',
-        updatedAt: '2024-01-01T00:00:00Z',
-        deletedAt: null,
+      try {
+        // Check if user is already logged in (stored in AsyncStorage)
+        const storedUser = await AsyncStorage.getItem('user_data');
+        const storedToken = await AsyncStorage.getItem('authToken');
         
-        // Legacy fields for backward compatibility
-        email: 'demo@flow.app',
-        name: 'Demo User',
-        avatar: null,
-      };
+        if (storedUser && storedToken) {
+          const userData = JSON.parse(storedUser);
+          // Don't auto-login demo users - require explicit login
+          if (userData.email === 'demo@flow.app' && userData.displayName === 'Demo User') {
+            console.log('❌ Demo user detected, clearing and requiring login');
+            await clearDemoData();
+            return null;
+          }
+          // Also check for other demo user patterns
+          if (userData.id === 'user123' || userData.username === 'demo_user') {
+            console.log('❌ Demo user pattern detected, clearing and requiring login');
+            await clearDemoData();
+            return null;
+          }
+          console.log('✅ User already logged in, restoring session');
+          return userData;
+        }
+        
+        // If no stored user, return null (user needs to login)
+        console.log('❌ No stored user found, user needs to login');
+        return null;
+      } catch (error) {
+        console.error('Error checking stored user:', error);
+        return null;
+      }
     },
     staleTime: 5 * 60 * 1000,
     retry: 1,
@@ -65,15 +51,65 @@ const useAuth = () => {
 
   const loginMutation = useMutation({
     mutationFn: async ({ email, password, idempotencyKey }) => {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
-        body: JSON.stringify({ email, password }),
-      });
-      if (!response.ok) throw new Error('Login failed');
-      const data = await response.json();
-      await AsyncStorage.setItem('authToken', data.token);
-      return data.user;
+      try {
+        // For demo purposes, simulate a successful login
+        // In production, this would call your actual API
+        const userData = {
+          id: 'user123',
+          username: email.split('@')[0],
+          displayName: email.split('@')[0],
+          avatarUrl: null,
+          bio: 'Welcome to Flow! This is a demo profile.',
+          joinedAt: new Date().toISOString(),
+          stats: {
+            personalPlans: 0,
+            publicPlans: 0,
+            followers: 0,
+            following: 0,
+            badges: []
+          },
+          social: {
+            twitter: null,
+            linkedin: null,
+            github: null,
+            instagram: null
+          },
+          links: [],
+          achievements: [],
+          profileTheme: {
+            primaryColor: '#007AFF',
+            secondaryColor: '#5856D6',
+            bannerUrl: null,
+            accentColor: '#FF9500'
+          },
+          visibility: {
+            bio: true,
+            stats: true,
+            plans: true
+          },
+          schemaVersion: 2,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          
+          // Legacy fields for backward compatibility
+          email: email,
+          name: email.split('@')[0],
+          avatar: null,
+        };
+        
+        const token = 'demo_token_' + Date.now();
+        
+        // Store user data and token
+        await AsyncStorage.setItem('user_data', JSON.stringify(userData));
+        await AsyncStorage.setItem('authToken', token);
+        
+        console.log('✅ User logged in successfully and data stored');
+        return userData;
+      } catch (error) {
+        console.error('Login error:', error);
+        throw new Error('Login failed: ' + error.message);
+      }
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['auth'], user);
@@ -84,15 +120,65 @@ const useAuth = () => {
 
   const registerMutation = useMutation({
     mutationFn: async ({ name, email, password, idempotencyKey, acceptTerms, marketingOptIn }) => {
-      const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
-        body: JSON.stringify({ name, email, password, acceptTerms, marketingOptIn }),
-      });
-      if (!response.ok) throw new Error('Registration failed');
-      const data = await response.json();
-      await AsyncStorage.setItem('authToken', data.token);
-      return data.user;
+      try {
+        // For demo purposes, simulate a successful registration
+        // In production, this would call your actual API
+        const userData = {
+          id: 'user123',
+          username: email.split('@')[0],
+          displayName: name || email.split('@')[0],
+          avatarUrl: null,
+          bio: 'Welcome to Flow! This is a demo profile.',
+          joinedAt: new Date().toISOString(),
+          stats: {
+            personalPlans: 0,
+            publicPlans: 0,
+            followers: 0,
+            following: 0,
+            badges: []
+          },
+          social: {
+            twitter: null,
+            linkedin: null,
+            github: null,
+            instagram: null
+          },
+          links: [],
+          achievements: [],
+          profileTheme: {
+            primaryColor: '#007AFF',
+            secondaryColor: '#5856D6',
+            bannerUrl: null,
+            accentColor: '#FF9500'
+          },
+          visibility: {
+            bio: true,
+            stats: true,
+            plans: true
+          },
+          schemaVersion: 2,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          deletedAt: null,
+          
+          // Legacy fields for backward compatibility
+          email: email,
+          name: name || email.split('@')[0],
+          avatar: null,
+        };
+        
+        const token = 'demo_token_' + Date.now();
+        
+        // Store user data and token
+        await AsyncStorage.setItem('user_data', JSON.stringify(userData));
+        await AsyncStorage.setItem('authToken', token);
+        
+        console.log('✅ User registered successfully and data stored');
+        return userData;
+      } catch (error) {
+        console.error('Registration error:', error);
+        throw new Error('Registration failed: ' + error.message);
+      }
     },
     onSuccess: (user) => {
       queryClient.setQueryData(['auth'], user);
@@ -114,52 +200,36 @@ const useAuth = () => {
     onError: (err) => setError(err.message),
   });
 
-  const skipAuth = () => {
-    // Set the mock user for demo purposes with v2 schema
-    queryClient.setQueryData(['auth'], {
-      id: 'user123',
-      username: 'demo_user',
-      displayName: 'Demo User',
-      avatarUrl: null,
-      bio: 'Welcome to Flow! This is a demo profile.',
-      joinedAt: '2024-01-01T00:00:00Z',
-      stats: {
-        personalPlans: 0,
-        publicPlans: 0,
-        followers: 0,
-        following: 0,
-        badges: []
-      },
-      social: {
-        twitter: null,
-        linkedin: null,
-        github: null,
-        instagram: null
-      },
-      links: [],
-      achievements: [],
-      profileTheme: {
-        primaryColor: '#007AFF',
-        secondaryColor: '#5856D6',
-        bannerUrl: null,
-        accentColor: '#FF9500'
-      },
-      visibility: {
-        bio: true,
-        stats: true,
-        plans: true
-      },
-      schemaVersion: 2,
-      createdAt: '2024-01-01T00:00:00Z',
-      updatedAt: '2024-01-01T00:00:00Z',
-      deletedAt: null,
+  const skipAuth = async () => {
+    try {
+      // For guest mode, don't create any user data
+      // Just clear any existing auth data and set user to null
+      await clearDemoData();
       
-      // Legacy fields for backward compatibility
-      email: 'demo@flow.app',
-      name: 'Demo User',
-      avatar: null,
-    });
-    setError(null);
+      queryClient.setQueryData(['auth'], null);
+      setError(null);
+      console.log('✅ Guest mode activated - no user data stored');
+    } catch (error) {
+      console.error('Error setting guest mode:', error);
+      setError(error.message);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      // Clear stored user data and token
+      await AsyncStorage.removeItem('user_data');
+      await AsyncStorage.removeItem('authToken');
+      
+      // Clear query cache
+      queryClient.setQueryData(['auth'], null);
+      setError(null);
+      
+      console.log('✅ User logged out successfully');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      setError(error.message);
+    }
   };
 
   return {
@@ -170,6 +240,7 @@ const useAuth = () => {
     register: registerMutation.mutateAsync,
     resetPassword: resetPasswordMutation.mutateAsync,
     skipAuth,
+    logout,
   };
 };
 

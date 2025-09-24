@@ -24,7 +24,17 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Flow"
+      "package": "com.anonymous.Flow",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.WAKE_LOCK"
+      ],
+      "notification": {
+        "icon": "./assets/notification-icon.png",
+        "color": "#FF6B35",
+        "sound": "default"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

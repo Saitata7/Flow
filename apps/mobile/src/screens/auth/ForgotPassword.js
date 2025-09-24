@@ -4,7 +4,7 @@ import { View, Text, TextInput, StyleSheet, Animated, Platform, KeyboardAvoiding
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Button from '../../components/common/Button';
 import Toast from '../../components/common/Toast';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../context/AuthContext';
 import { validateEmail } from '../../utils/validation';
 import { colors, typography, layout, useAppTheme } from '../../../styles';
 
@@ -19,7 +19,7 @@ const fallbackColors = {
 };
 
 const ForgotPassword = ({ navigation }) => {
-  const { resetPassword, isLoading, error } = useAuth();
+  const { resetPassword, isLoading, error, clearError } = useAuth();
   const { colors: themeColors } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
@@ -46,12 +46,21 @@ const ForgotPassword = ({ navigation }) => {
     }
 
     try {
-      await resetPassword({ email });
-      setShowToast(true);
-      setEmail('');
-      // Optionally navigate back to Login after success
-      setTimeout(() => navigation.navigate('Login'), 2000);
+      // Clear previous errors
+      clearError();
+      
+      const result = await resetPassword(email);
+      
+      if (result.success) {
+        setShowToast(true);
+        setEmail('');
+        // Navigate back to Login after success
+        setTimeout(() => navigation.navigate('Login'), 2000);
+      } else {
+        setShowToast(true);
+      }
     } catch (err) {
+      console.error('Password reset error:', err);
       setShowToast(true);
     }
   };
@@ -107,7 +116,10 @@ const ForgotPassword = ({ navigation }) => {
         <Toast
           type={error ? 'error' : 'success'}
           message={error || 'Reset link sent! Check your email.'}
-          onDismiss={() => setShowToast(false)}
+          onDismiss={() => {
+            setShowToast(false);
+            clearError();
+          }}
           position="top"
         />
       )}

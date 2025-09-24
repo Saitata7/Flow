@@ -34,5 +34,16 @@
   "devDependencies": {
     "turbo": "^2.0.0",
     "yarn": "^1.22.0"
+  },
+  "resolutions": {
+    "react": "19.1.0",
+    "react-test-renderer": "19.1.0",
+    "react-dom": "19.1.0",
+    "expo/react": "19.1.0",
+    "**/react": "19.1.0",
+    "@expo/cli/static/canary-full/node_modules/react": "19.1.0"
+  },
+  "dependencies": {
+    "@react-native-firebase/messaging": "^23.3.1"
   }
 }

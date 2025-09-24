@@ -46,10 +46,10 @@ const calculateStreak = (flow) => {
     const dateKey = date.format('YYYY-MM-DD');
     const status = flow.status[dateKey]?.symbol;
     
-    if (status === '✅' || status === '✓' || status === '+') {
+    if (status === '+' || status === '✓') {
       streakDays.unshift(date.date());
       streak++;
-    } else if (status === '❌' || status === '-' || (i === 0 && !status)) {
+    } else if (status === '-' || status === '/' || (i === 0 && !status)) {
       break;
     }
   }
@@ -76,7 +76,7 @@ const Quantitative = ({ flow }) => {
   const [tempNote, setTempNote] = useState(note);
 
   const isCompleted = count > 0;
-  const isMissed = count === 0 && status === '❌';
+  const isMissed = count === 0 && status === '-';
 
   const emotions = [
     { label: 'Happy', emoji: '😊' },
@@ -110,7 +110,7 @@ const Quantitative = ({ flow }) => {
 
   const handleSaveEdits = useCallback(() => {
     updateFlowStatus(flow.id, todayKey, {
-      symbol: count > 0 ? '+' : count === 0 && status === '❌' ? '❌' : '-',
+      symbol: count > 0 ? '+' : count === 0 && status === '-' ? '-' : '/',
       emotion: tempEmotion,
       note: tempNote,
       quantitative: { count: count, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' }
@@ -153,7 +153,7 @@ const Quantitative = ({ flow }) => {
       // If count is 0, mark as done with count 0, otherwise use current count
       const finalCount = count > 0 ? count : 0;
       await updateFlowStatus(flow.id, todayKey, {
-        symbol: '✅',
+        symbol: '+',
         emotion: tempEmotion,
         note: tempNote,
         quantitative: { count: finalCount, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' }

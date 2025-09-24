@@ -10,15 +10,17 @@ import {
   Alert,
   Switch,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useSettings } from '../../hooks/useSettings';
+import useAuth from '../../hooks/useAuth';
 import Button from '../../components/common/Button';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
 const AccountSettings = () => {
   const navigation = useNavigation();
@@ -33,17 +35,17 @@ const AccountSettings = () => {
     updateSettings 
   } = useSettings();
 
+  const { user, logout } = useAuth();
+
   const [formData, setFormData] = useState({
-    profile: {
-      name: '',
-      email: '',
-      timeZone: 'UTC',
-      language: 'en'
-    },
     dataPrivacy: {
       cloudBackup: false,
       localBackup: false,
       clinicianConsent: false
+    },
+    location: {
+      enabled: false,
+      shareLocation: false
     }
   });
 
@@ -53,16 +55,14 @@ const AccountSettings = () => {
   useEffect(() => {
     if (settings) {
       setFormData({
-        profile: {
-          name: settings.profile?.name || '',
-          email: settings.profile?.email || '',
-          timeZone: settings.profile?.timeZone || 'UTC',
-          language: settings.profile?.language || 'en'
-        },
         dataPrivacy: {
           cloudBackup: settings.dataPrivacy?.cloudBackup || false,
           localBackup: settings.dataPrivacy?.localBackup || false,
           clinicianConsent: settings.dataPrivacy?.clinicianConsent || false
+        },
+        location: {
+          enabled: settings.location?.enabled || false,
+          shareLocation: settings.location?.shareLocation || false
         }
       });
     }
@@ -98,15 +98,6 @@ const AccountSettings = () => {
 
   const validateForm = () => {
     const newErrors = {};
-    
-    if (formData.profile.name.length > 50) {
-      newErrors.name = 'Name must be 50 characters or less';
-    }
-    
-    if (formData.profile.email && !isValidEmail(formData.profile.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -129,6 +120,33 @@ const AccountSettings = () => {
       console.error('Error saving account settings:', error);
       Alert.alert('Error', 'Failed to save settings. Please try again.');
     }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Sign Out', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await logout();
+              // Navigate to auth screen after logout
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Auth' }],
+              });
+            } catch (error) {
+              console.error('Error signing out:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleDeleteAccount = () => {
@@ -297,6 +315,153 @@ const AccountSettings = () => {
       fontWeight: typography.weights.semibold,
       color: '#fff',
     },
+    authSection: {
+      marginTop: 8,
+    },
+    userInfo: {
+      marginBottom: 16,
+      padding: 16,
+      backgroundColor: themeColors.progressBackground,
+      borderRadius: 8,
+    },
+    userName: {
+      fontSize: typography.sizes.body,
+      fontWeight: typography.weights.semibold,
+      color: themeColors.primaryText,
+      marginBottom: 4,
+    },
+    userEmail: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.secondaryText,
+    },
+    authPrompt: {
+      fontSize: typography.sizes.body,
+      color: themeColors.secondaryText,
+      marginBottom: 16,
+      lineHeight: 20,
+    },
+    signOutButton: {
+      marginTop: 8,
+    },
+    signInButton: {
+      marginTop: 8,
+    },
+    profileCard: {
+      backgroundColor: themeColors.cardBackground,
+      borderRadius: 12,
+      padding: 16,
+      marginTop: 8,
+      borderWidth: 1,
+      borderColor: themeColors.progressBackground,
+    },
+    profileHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    avatarContainer: {
+      marginRight: 16,
+    },
+    avatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+    },
+    avatarPlaceholder: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: themeColors.primaryOrange,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    profileInfo: {
+      flex: 1,
+    },
+    profileName: {
+      fontSize: typography.sizes.title3,
+      fontWeight: typography.weights.bold,
+      color: themeColors.primaryText,
+      marginBottom: 4,
+    },
+    profileEmail: {
+      fontSize: typography.sizes.body,
+      color: themeColors.secondaryText,
+      marginBottom: 2,
+    },
+    profileUsername: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.primaryOrange,
+      fontWeight: typography.weights.medium,
+    },
+    bioSection: {
+      marginBottom: 16,
+    },
+    bioLabel: {
+      fontSize: typography.sizes.caption1,
+      fontWeight: typography.weights.semibold,
+      color: themeColors.primaryText,
+      marginBottom: 8,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    bioText: {
+      fontSize: typography.sizes.body,
+      color: themeColors.secondaryText,
+      lineHeight: 20,
+    },
+    statsSection: {
+      marginBottom: 16,
+    },
+    statsLabel: {
+      fontSize: typography.sizes.caption1,
+      fontWeight: typography.weights.semibold,
+      color: themeColors.primaryText,
+      marginBottom: 12,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    statsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    statItem: {
+      width: '48%',
+      backgroundColor: themeColors.progressBackground,
+      padding: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    statNumber: {
+      fontSize: typography.sizes.title2,
+      fontWeight: typography.weights.bold,
+      color: themeColors.primaryOrange,
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.secondaryText,
+      textAlign: 'center',
+    },
+    joinDateSection: {
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: themeColors.progressBackground,
+    },
+    joinDateLabel: {
+      fontSize: typography.sizes.caption1,
+      fontWeight: typography.weights.semibold,
+      color: themeColors.primaryText,
+      marginBottom: 4,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+    joinDateText: {
+      fontSize: typography.sizes.body,
+      color: themeColors.secondaryText,
+    },
     loadingContainer: {
       flex: 1,
       justifyContent: 'center',
@@ -306,21 +471,21 @@ const AccountSettings = () => {
 
   if (loading && !settings) {
     return (
-      <SafeAreaView style={dynamicStyles.container}>
+      <SafeAreaWrapper style={dynamicStyles.container}>
         <View style={dynamicStyles.loadingContainer}>
           <Text style={dynamicStyles.headerTitle}>Loading...</Text>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
+    <SafeAreaWrapper style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
         <TouchableOpacity 
           style={dynamicStyles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Home')}
         >
           <Ionicons 
             name="arrow-back" 
@@ -341,84 +506,6 @@ const AccountSettings = () => {
           contentContainerStyle={dynamicStyles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Profile Information */}
-          <View style={dynamicStyles.section}>
-            <Text style={dynamicStyles.sectionTitle}>Profile Information</Text>
-            
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.label}>Name</Text>
-              <TextInput
-                style={[
-                  dynamicStyles.input,
-                  errors.name && { borderColor: themeColors.error }
-                ]}
-                value={formData.profile.name}
-                onChangeText={(text) => handleInputChange('profile', 'name', text)}
-                placeholder="Enter your name"
-                placeholderTextColor={themeColors.secondaryText}
-                maxLength={50}
-              />
-              {errors.name && (
-                <Text style={dynamicStyles.errorText}>{errors.name}</Text>
-              )}
-            </View>
-
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.label}>Email</Text>
-              <TextInput
-                style={[
-                  dynamicStyles.input,
-                  errors.email && { borderColor: themeColors.error }
-                ]}
-                value={formData.profile.email}
-                onChangeText={(text) => handleInputChange('profile', 'email', text)}
-                placeholder="Enter your email"
-                placeholderTextColor={themeColors.secondaryText}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              {errors.email && (
-                <Text style={dynamicStyles.errorText}>{errors.email}</Text>
-              )}
-            </View>
-
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.label}>Time Zone</Text>
-              <TextInput
-                style={dynamicStyles.input}
-                value={formData.profile.timeZone}
-                onChangeText={(text) => handleInputChange('profile', 'timeZone', text)}
-                placeholder="e.g., UTC, EST, PST"
-                placeholderTextColor={themeColors.secondaryText}
-              />
-            </View>
-
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.label}>Language</Text>
-              <View style={dynamicStyles.languageOptions}>
-                {['en', 'es', 'fr'].map((lang) => (
-                  <TouchableOpacity
-                    key={lang}
-                    onPress={() => handleInputChange('profile', 'language', lang)}
-                    style={[
-                      dynamicStyles.languageButton,
-                      formData.profile.language === lang && dynamicStyles.languageButtonActive
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        dynamicStyles.languageText,
-                        formData.profile.language === lang && dynamicStyles.languageTextActive
-                      ]}
-                    >
-                      {lang.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </View>
-
           {/* Data Privacy */}
           <View style={dynamicStyles.section}>
             <Text style={dynamicStyles.sectionTitle}>Data Privacy</Text>
@@ -469,6 +556,41 @@ const AccountSettings = () => {
             </View>
           </View>
 
+          {/* Location Settings */}
+          <View style={dynamicStyles.section}>
+            <Text style={dynamicStyles.sectionTitle}>Location</Text>
+            
+            <View style={dynamicStyles.toggleItem}>
+              <View style={{ flex: 1 }}>
+                <Text style={dynamicStyles.toggleLabel}>Enable Location</Text>
+                <Text style={dynamicStyles.toggleDescription}>
+                  Allow the app to access your location for enhanced features
+                </Text>
+              </View>
+              <Switch
+                value={formData.location?.enabled || false}
+                onValueChange={(value) => handleToggleChange('location', 'enabled', value)}
+                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
+                thumbColor={(formData.location?.enabled || false) ? '#fff' : '#f4f3f4'}
+              />
+            </View>
+
+            <View style={dynamicStyles.toggleItem}>
+              <View style={{ flex: 1 }}>
+                <Text style={dynamicStyles.toggleLabel}>Share Location</Text>
+                <Text style={dynamicStyles.toggleDescription}>
+                  Allow sharing your location with other users
+                </Text>
+              </View>
+              <Switch
+                value={formData.location?.shareLocation || false}
+                onValueChange={(value) => handleToggleChange('location', 'shareLocation', value)}
+                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
+                thumbColor={(formData.location?.shareLocation || false) ? '#fff' : '#f4f3f4'}
+              />
+            </View>
+          </View>
+
           {/* Save Button */}
           <Button
             title={updating ? 'Saving...' : 'Save Changes'}
@@ -477,6 +599,100 @@ const AccountSettings = () => {
             style={dynamicStyles.saveButton}
             disabled={updating}
           />
+
+          {/* Profile Information */}
+          {user && (
+            <View style={dynamicStyles.section}>
+              <Text style={dynamicStyles.sectionTitle}>Profile Information</Text>
+              
+              <View style={dynamicStyles.profileCard}>
+                <View style={dynamicStyles.profileHeader}>
+                  <View style={dynamicStyles.avatarContainer}>
+                    {user.avatarUrl ? (
+                      <Image source={{ uri: user.avatarUrl }} style={dynamicStyles.avatar} />
+                    ) : (
+                      <View style={dynamicStyles.avatarPlaceholder}>
+                        <Ionicons name="person" size={24} color="#fff" />
+                      </View>
+                    )}
+                  </View>
+                  <View style={dynamicStyles.profileInfo}>
+                    <Text style={dynamicStyles.profileName}>{user.displayName || user.name || 'User'}</Text>
+                    <Text style={dynamicStyles.profileEmail}>{user.email}</Text>
+                    <Text style={dynamicStyles.profileUsername}>@{user.username || 'user'}</Text>
+                  </View>
+                </View>
+                
+                {user.bio && (
+                  <View style={dynamicStyles.bioSection}>
+                    <Text style={dynamicStyles.bioLabel}>Bio</Text>
+                    <Text style={dynamicStyles.bioText}>{user.bio}</Text>
+                  </View>
+                )}
+                
+                <View style={dynamicStyles.statsSection}>
+                  <Text style={dynamicStyles.statsLabel}>Stats</Text>
+                  <View style={dynamicStyles.statsGrid}>
+                    <View style={dynamicStyles.statItem}>
+                      <Text style={dynamicStyles.statNumber}>{user.stats?.personalPlans || 0}</Text>
+                      <Text style={dynamicStyles.statLabel}>Personal Plans</Text>
+                    </View>
+                    <View style={dynamicStyles.statItem}>
+                      <Text style={dynamicStyles.statNumber}>{user.stats?.publicPlans || 0}</Text>
+                      <Text style={dynamicStyles.statLabel}>Public Plans</Text>
+                    </View>
+                    <View style={dynamicStyles.statItem}>
+                      <Text style={dynamicStyles.statNumber}>{user.stats?.followers || 0}</Text>
+                      <Text style={dynamicStyles.statLabel}>Followers</Text>
+                    </View>
+                    <View style={dynamicStyles.statItem}>
+                      <Text style={dynamicStyles.statNumber}>{user.stats?.following || 0}</Text>
+                      <Text style={dynamicStyles.statLabel}>Following</Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <View style={dynamicStyles.joinDateSection}>
+                  <Text style={dynamicStyles.joinDateLabel}>Member since</Text>
+                  <Text style={dynamicStyles.joinDateText}>
+                    {new Date(user.joinedAt || user.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Authentication Section */}
+          <View style={dynamicStyles.section}>
+            <Text style={dynamicStyles.sectionTitle}>Authentication</Text>
+            
+            {user ? (
+              <View style={dynamicStyles.authSection}>
+                <Button
+                  title="Sign Out"
+                  onPress={handleSignOut}
+                  variant="secondary"
+                  style={dynamicStyles.signOutButton}
+                />
+              </View>
+            ) : (
+              <View style={dynamicStyles.authSection}>
+                <Text style={dynamicStyles.authPrompt}>
+                  Sign in to sync your data across devices and access premium features.
+                </Text>
+                <Button
+                  title="Sign In"
+                  onPress={() => navigation.navigate('Auth')}
+                  variant="primary"
+                  style={dynamicStyles.signInButton}
+                />
+              </View>
+            )}
+          </View>
 
           {/* Danger Zone */}
           <View style={dynamicStyles.dangerSection}>
@@ -490,7 +706,7 @@ const AccountSettings = () => {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 

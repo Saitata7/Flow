@@ -86,6 +86,9 @@ export const layout = {
     paddingBottom: 20, // Bottom safe area
   },
 
+  // Tab Bar Spacing
+  tabSpacing: 16, // Extra spacing above tab bar as per cursor rules
+
   // Additional Flow Tracker Layouts
   calendar: {
     daySize: 40, // Calendar day cells

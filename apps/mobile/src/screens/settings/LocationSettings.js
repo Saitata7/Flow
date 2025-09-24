@@ -9,13 +9,13 @@ import {
   Switch,
   Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useSettings } from '../../hooks/useSettings';
 import Button from '../../components/common/Button';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
 const LocationSettings = () => {
   const navigation = useNavigation();
@@ -168,21 +168,21 @@ const LocationSettings = () => {
 
   if (loading && !settings) {
     return (
-      <SafeAreaView style={dynamicStyles.container}>
+      <SafeAreaWrapper style={dynamicStyles.container}>
         <View style={dynamicStyles.loadingContainer}>
           <Text style={dynamicStyles.headerTitle}>Loading...</Text>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
+    <SafeAreaWrapper style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
         <TouchableOpacity 
           style={dynamicStyles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Home')}
         >
           <Ionicons 
             name="arrow-back" 
@@ -279,7 +279,7 @@ const LocationSettings = () => {
           disabled={updating}
         />
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 

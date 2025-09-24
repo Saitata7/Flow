@@ -19,7 +19,7 @@ const TodaysFlows = ({ visibleFlows }) => {
 
 
   const updateFlowStatus = useCallback((flowId, dateKey, statusSymbol, emotion = null, note = null, reset = false) => {
-    if (!['✅', '❌', '-'].includes(statusSymbol)) {
+    if (!['+', '-', '/'].includes(statusSymbol)) {
       return;
     }
 
@@ -175,8 +175,8 @@ const TodaysFlows = ({ visibleFlows }) => {
     const statusB = b.status?.[todayKey]?.symbol || '-';
     
     // Check if tasks are completed (any completion status)
-    const isCompletedA = ['✅', '✓', '+', '❌'].includes(statusA);
-    const isCompletedB = ['✅', '✓', '+', '❌'].includes(statusB);
+    const isCompletedA = ['+', '✓'].includes(statusA);
+    const isCompletedB = ['+', '✓'].includes(statusB);
     
     // Rule 1: Completed tasks go to bottom
     if (isCompletedA && !isCompletedB) return 1; // A goes after B
@@ -242,7 +242,7 @@ const TodaysFlows = ({ visibleFlows }) => {
         onClose={resetState}
         onSubmit={handleResponseSubmit}
         onSkip={handleSkip}
-        title={pendingStatus === '✅' ? 'How was today\'s flow?' : 'Why did you miss this flow today?'}
+        title={pendingStatus === '+' ? 'How was today\'s flow?' : 'Why did you miss this flow today?'}
         note={note}
         setNote={setNote}
         selectedEmotion={selectedEmotion}

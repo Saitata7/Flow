@@ -17,7 +17,7 @@ export const FlowsProvider = ({ children }) => {
     for (let i = 0; i < 7; i++) {
       const dateKey = format(addDays(new Date(), i), 'yyyy-MM-dd');
       status[dateKey] = {
-        symbol: '➖',
+        symbol: '/',
         emotion: null,
         note: null,
         timestamp: null,
@@ -133,6 +133,7 @@ export const FlowsProvider = ({ children }) => {
           schemaVersion: 2,
           createdAt: now,
           updatedAt: now,
+          startDate: now, // Add startDate field
           
           // Optional fields with defaults
           description: flow.description || '',
@@ -200,7 +201,7 @@ export const FlowsProvider = ({ children }) => {
         const updatedFlows = flows.map((flow) => {
           if (flow.id !== id) return flow;
           const currentStatus = flow.status[date] || {
-            symbol: '➖',
+            symbol: '/',
             emotion: null,
             note: null,
             timestamp: null,
@@ -228,14 +229,14 @@ export const FlowsProvider = ({ children }) => {
             newStatus.quantitative = { ...currentStatus.quantitative, ...updates.quantitative };
             const count = newStatus.quantitative.count || 0;
             const goal = newStatus.quantitative.goal || flow.goal || 1;
-            newStatus.symbol = count >= goal ? '✅' : count >= goal * 0.5 ? '🌗' : count > 0 ? '❌' : '➖';
+            newStatus.symbol = count >= goal ? '+' : count >= goal * 0.5 ? '*' : count > 0 ? '-' : '/';
           } else if (flow.trackingType === 'Time-based' && updates.timebased) {
             newStatus.timebased = { ...currentStatus.timebased, ...updates.timebased };
             const duration = newStatus.timebased.totalDuration || 0;
             const goalSeconds = ((flow.hours || 0) * 3600) + ((flow.minutes || 0) * 60) + (flow.seconds || 0);
-            newStatus.symbol = duration >= goalSeconds ? '✅' : duration >= goalSeconds * 0.5 ? '🌗' : duration > 0 ? '❌' : '➖';
+            newStatus.symbol = duration >= goalSeconds ? '+' : duration >= goalSeconds * 0.5 ? '*' : duration > 0 ? '-' : '/';
           } else {
-            newStatus.symbol = updates.symbol || '➖';
+            newStatus.symbol = updates.symbol || '/';
           }
 
           // Update v2 fields

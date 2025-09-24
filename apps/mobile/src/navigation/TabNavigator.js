@@ -8,10 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../screens/home/HomePage';
 import HomeInfo from '../screens/info/HomeInfo';
 import StatsStack from './StatsStack';
-import ProfileStack from './ProfileStack';
 import SettingsStack from './SettingsStack';
 import AddFlowScreen from '../screens/flow/AddFlow';
-import ViewFlow from '../components/flow/ViewFlow';
+import FlowDetail from '../screens/track/FlowDetails';
 import EditFlowScreen from '../screens/flow/EditFlow';
 import { colors, layout, typography } from '../../styles';
 import { ThemeContext } from '../context/ThemeContext';
@@ -54,8 +53,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
   const getIconName = (routeName, focused) => {
     const iconMap = {
       Home: focused ? "home" : "home-outline",
-      Stats: focused ? "bar-chart" : "bar-chart-outline", 
-      Profile: focused ? "person" : "person-outline",
+      Stats: focused ? "bar-chart" : "bar-chart-outline",
     };
     return iconMap[routeName] || "home-outline";
   };
@@ -127,8 +125,8 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
       }}>
         {state.routes
           .filter(route => {
-            // Only show the 3 main tabs in the tab bar
-            const mainTabs = ['Home', 'Stats', 'Profile'];
+            // Only show the 2 main tabs in the tab bar
+            const mainTabs = ['Home', 'Stats'];
             return mainTabs.includes(route.name);
           })
           .map((route, index) => {
@@ -235,14 +233,6 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Profile"
-        component={ProfileStack}
-        options={{
-          tabBarLabel: 'Profile',
-          tabBarAccessibilityLabel: 'Profile tab, view and edit your profile',
-        }}
-      />
-      <Tab.Screen
         name="AddFlow"
         component={AddFlowScreen}
         options={{
@@ -251,7 +241,7 @@ const TabNavigator = () => {
       />
       <Tab.Screen
         name="FlowDetails"
-        component={ViewFlow}
+        component={FlowDetail}
         options={{
           tabBarButton: () => null,
         }}

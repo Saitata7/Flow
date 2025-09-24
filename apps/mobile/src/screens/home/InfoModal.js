@@ -75,9 +75,9 @@ const InfoModal = ({ visible, onClose }) => {
       description: 'Discover community challenges and personal development plans in the Plans tab.',
     },
     {
-      icon: 'person',
-      title: 'Manage Your Profile',
-      description: 'Customize your experience and manage your account in the Profile tab.',
+      icon: 'settings',
+      title: 'Manage Settings',
+      description: 'Customize your experience and manage your account settings.',
     },
   ];
 

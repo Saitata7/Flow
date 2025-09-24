@@ -1,104 +1,72 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Animated, Alert } from 'react-native';
+import SafeAreaWrapper from '../common/SafeAreaWrapper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import moment from 'moment';
 import { FlowsContext } from '../../context/FlowContext';
+import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { colors, layout, typography } from '../../../styles';
 import { LineChart } from 'react-native-chart-kit';
 import Card from '../common/card';
-import statsService from '../../services/statsService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const FlowStatsDetail = ({ route, navigation }) => {
   const { flowId } = route?.params || {};
-  const { flows } = useContext(FlowsContext);
+  const { flows, deleteFlow } = useContext(FlowsContext);
+  const { getScoreboard, getActivityStats, getEmotionalActivity } = useContext(ActivityContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
-  const [selectedTimeframe, setSelectedTimeframe] = useState('7D');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
 
-  if (!flowId || !flows) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
-          <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>Flow Data Unavailable</Text>
-          <Text style={[styles.emptySubtitle, { color: themeColors.secondaryText }]}>
-            Unable to load flow statistics. Please try again.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Find the flow - this needs to be done after all hooks are called
+  const flow = flows?.find((f) => f.id === flowId);
 
-  const flow = flows.find((f) => f.id === flowId);
+  // Check for error conditions after all hooks are called
+  const hasError = !flowId || !flows || !flow;
 
-  if (!flow) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>❌</Text>
-          <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>Flow Not Found</Text>
-          <Text style={[styles.emptySubtitle, { color: themeColors.secondaryText }]}>
-            The requested flow could not be found.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // No longer need flowStats since we're using ActivityContext
 
-  // Calculate flow statistics using the stats service
-  const flowStats = useMemo(() => {
-    if (!flow) return null;
-    
-    return statsService.calculateFlowStats(flow, {
-      timeframe: selectedTimeframe,
-      selectedPeriod: 'weekly',
-      selectedYear: moment().year()
-    });
-  }, [flow, selectedTimeframe]);
-
-  // Chart configuration (same as main stats page)
+  // Chart configuration with theme colors
   const chartConfig = {
-    backgroundColor: '#FFFFFF',
-    backgroundGradientFrom: '#FFFFFF',
-    backgroundGradientTo: '#FFFFFF',
+    backgroundColor: themeColors.background,
+    backgroundGradientFrom: themeColors.background,
+    backgroundGradientTo: themeColors.background,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
+    labelColor: (opacity = 1) => `${themeColors.primaryText}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
     style: {
-      borderRadius: 12,
+      borderRadius: layout.borderRadius.lg,
     },
     propsForDots: {
       r: '3',
       strokeWidth: '2',
-      stroke: '#FF9500',
+      stroke: themeColors.primaryOrange,
     },
     propsForBackgroundLines: {
       strokeDasharray: '',
-      stroke: '#E5E5E5',
+      stroke: themeColors.progressBackground,
       strokeWidth: 1,
     },
     propsForLabels: {
       fontSize: 10,
-      fill: '#000000',
+      fill: themeColors.primaryText,
     },
     propsForVerticalLabels: {
       fontSize: 10,
-      fill: '#000000',
+      fill: themeColors.primaryText,
     },
     propsForHorizontalLabels: {
       fontSize: 10,
-      fill: '#000000',
+      fill: themeColors.primaryText,
     },
   };
 
-  // Generate heat map data for the last 30 days
+  // Generate heat map data for the last 30 days using ActivityContext
   const generateHeatMapData = () => {
     const heatMapData = [];
     const today = moment();
@@ -108,18 +76,20 @@ const FlowStatsDetail = ({ route, navigation }) => {
       const dayKey = date.format('YYYY-MM-DD');
       
       let intensity = 0;
+      const status = flow.status?.[dayKey];
+      
       if (flow.trackingType === 'Binary') {
-        const status = flow.status?.[dayKey];
         intensity = status?.symbol === '✅' ? 1 : 0;
       } else if (flow.trackingType === 'Quantitative') {
-        const status = flow.status?.[dayKey];
-        const value = status?.value || 0;
+        const quantitative = status?.quantitative;
+        const value = quantitative?.count || 0;
         const goal = flow.goal || 1;
         intensity = Math.min(value / goal, 1);
       } else if (flow.trackingType === 'Time-based') {
-        const status = flow.status?.[dayKey];
-        const time = status?.time || 0;
-        const goal = flow.goal || 1;
+        const timebased = status?.timebased;
+        const time = timebased?.totalDuration || 0;
+        const goalSeconds = ((flow.hours || 0) * 3600) + ((flow.minutes || 0) * 60) + (flow.seconds || 0);
+        const goal = goalSeconds || 1;
         intensity = Math.min(time / goal, 1);
       }
       
@@ -176,12 +146,12 @@ const FlowStatsDetail = ({ route, navigation }) => {
     }, []);
 
     const getIntensityColor = (intensity) => {
-      if (intensity === 0) return colors.light.progressBackground + '15';
-      if (intensity <= 0.2) return '#FFE4B5';
-      if (intensity <= 0.4) return '#FFD700';
-      if (intensity <= 0.6) return '#FF8C00';
-      if (intensity <= 0.8) return '#FF6347';
-      return '#FF4500';
+      if (intensity === 0) return themeColors.progressBackground + '15';
+      if (intensity <= 0.2) return themeColors.success + '40';
+      if (intensity <= 0.4) return themeColors.success + '60';
+      if (intensity <= 0.6) return themeColors.success + '80';
+      if (intensity <= 0.8) return themeColors.success;
+      return themeColors.primaryOrange;
     };
 
     const getIntensityTextColor = (intensity) => {
@@ -213,7 +183,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
       <Card variant="default" padding="lg" margin="md">
         <View style={styles.heatMapHeader}>
           <View style={styles.heatMapTitleContainer}>
-            <Ionicons name="calendar" size={24} color={colors.light.primaryOrange} />
+            <Ionicons name="calendar" size={24} color={themeColors.primaryOrange} />
             <Text style={[styles.chartTitle, { color: themeColors.primaryText, marginLeft: layout.spacing.sm }]}>{title}</Text>
           </View>
           <Text style={[styles.chartSubtitle, { color: themeColors.secondaryText }]}>{subtitle}</Text>
@@ -222,15 +192,15 @@ const FlowStatsDetail = ({ route, navigation }) => {
         {/* Statistics Bar */}
         <View style={styles.heatMapStats}>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.light.success }]}>{activeDays}</Text>
+            <Text style={[styles.statValue, { color: themeColors.success }]}>{activeDays}</Text>
             <Text style={[styles.statLabel, { color: themeColors.secondaryText }]}>Active Days</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.light.primaryOrange }]}>{(averageIntensity * 100).toFixed(0)}%</Text>
+            <Text style={[styles.statValue, { color: themeColors.primaryOrange }]}>{(averageIntensity * 100).toFixed(0)}%</Text>
             <Text style={[styles.statLabel, { color: themeColors.secondaryText }]}>Avg Intensity</Text>
           </View>
           <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: colors.light.info }]}>{bestDay.day}</Text>
+            <Text style={[styles.statValue, { color: themeColors.info }]}>{bestDay.day}</Text>
             <Text style={[styles.statLabel, { color: themeColors.secondaryText }]}>Best Day</Text>
           </View>
         </View>
@@ -285,19 +255,19 @@ const FlowStatsDetail = ({ route, navigation }) => {
                       ]}
                     >
                       <TouchableOpacity
-                        style={[
-                          styles.heatMapDay,
-                          {
-                            backgroundColor: getIntensityColor(day.intensity),
-                            borderColor: day.isToday ? colors.light.primaryOrange : 'transparent',
-                            borderWidth: day.isToday ? 3 : 0,
-                            shadowColor: day.intensity > 0.5 ? colors.light.primaryOrange : 'transparent',
-                            shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: day.intensity > 0.5 ? 0.3 : 0,
-                            shadowRadius: 4,
-                            elevation: day.intensity > 0.5 ? 3 : 0,
-                          }
-                        ]}
+                          style={[
+                            styles.heatMapDay,
+                            {
+                              backgroundColor: getIntensityColor(day.intensity),
+                              borderColor: day.isToday ? themeColors.primaryOrange : 'transparent',
+                              borderWidth: day.isToday ? 3 : 0,
+                              shadowColor: day.intensity > 0.5 ? themeColors.primaryOrange : 'transparent',
+                              shadowOffset: { width: 0, height: 2 },
+                              shadowOpacity: day.intensity > 0.5 ? 0.3 : 0,
+                              shadowRadius: 4,
+                              elevation: day.intensity > 0.5 ? 3 : 0,
+                            }
+                          ]}
                         onPress={() => setSelectedDay(selectedDay === day.date ? null : day.date)}
                         activeOpacity={0.7}
                       >
@@ -329,7 +299,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 const day = data.find(d => d.date === selectedDay);
                 return (
                   <View style={styles.selectedDayContent}>
-                    <Ionicons name="information-circle" size={20} color={colors.light.primaryOrange} />
+                    <Ionicons name="information-circle" size={20} color={themeColors.primaryOrange} />
                     <View style={styles.selectedDayText}>
                       <Text style={[styles.selectedDayDate, { color: themeColors.primaryText }]}>
                         {moment(day.date).format('MMMM DD, YYYY')}
@@ -348,12 +318,12 @@ const FlowStatsDetail = ({ route, navigation }) => {
           <View style={styles.heatMapLegend}>
             <Text style={[styles.legendLabel, { color: themeColors.secondaryText }]}>Less</Text>
             <View style={styles.legendColors}>
-              <View style={[styles.legendColor, { backgroundColor: colors.light.progressBackground + '15' }]} />
-              <View style={[styles.legendColor, { backgroundColor: '#FFE4B5' }]} />
-              <View style={[styles.legendColor, { backgroundColor: '#FFD700' }]} />
-              <View style={[styles.legendColor, { backgroundColor: '#FF8C00' }]} />
-              <View style={[styles.legendColor, { backgroundColor: '#FF6347' }]} />
-              <View style={[styles.legendColor, { backgroundColor: '#FF4500' }]} />
+              <View style={[styles.legendColor, { backgroundColor: themeColors.progressBackground + '15' }]} />
+              <View style={[styles.legendColor, { backgroundColor: themeColors.success + '40' }]} />
+              <View style={[styles.legendColor, { backgroundColor: themeColors.success + '60' }]} />
+              <View style={[styles.legendColor, { backgroundColor: themeColors.success + '80' }]} />
+              <View style={[styles.legendColor, { backgroundColor: themeColors.success }]} />
+              <View style={[styles.legendColor, { backgroundColor: themeColors.primaryOrange }]} />
             </View>
             <Text style={[styles.legendLabel, { color: themeColors.secondaryText }]}>More</Text>
           </View>
@@ -362,93 +332,277 @@ const FlowStatsDetail = ({ route, navigation }) => {
     );
   };
 
-  // Get flow type specific analytics
+  // Get flow type specific analytics using ActivityContext with timeframe filtering
   const getFlowTypeAnalytics = () => {
-    if (!flowStats) return null;
+    if (!flowId) return null;
 
-    const { metrics, streaks, completionRates, trends } = flowStats;
+    // Get date range based on selected timeframe
+    const getDateRange = () => {
+      const now = moment();
+      switch (selectedTimeframe) {
+        case 'weekly':
+          return {
+            start: now.clone().subtract(7, 'days'),
+            end: now,
+            label: 'Last 7 days'
+          };
+        case 'monthly':
+          return {
+            start: now.clone().subtract(30, 'days'),
+            end: now,
+            label: 'Last 30 days'
+          };
+        case 'yearly':
+          return {
+            start: now.clone().subtract(365, 'days'),
+            end: now,
+            label: 'Last year'
+          };
+        default:
+          return {
+            start: now.clone().subtract(7, 'days'),
+            end: now,
+            label: 'Last 7 days'
+          };
+      }
+    };
+
+    const dateRange = getDateRange();
+    const scoreboard = getScoreboard(flowId);
+    const activityStats = getActivityStats(flowId);
+    const emotionalActivity = getEmotionalActivity(flowId);
+
+    // Generate daily data for the selected timeframe
+    const generateDailyData = () => {
+      const dailyData = [];
+      const daysDiff = dateRange.end.diff(dateRange.start, 'days');
+      
+      for (let i = 0; i <= daysDiff; i++) {
+        const date = dateRange.start.clone().add(i, 'days');
+        const dayKey = date.format('YYYY-MM-DD');
+        const status = flow.status?.[dayKey];
+        
+        let completed = 0;
+        let value = 0;
+        
+        if (status?.symbol === '✅') {
+          completed = 1;
+          if (flow.trackingType === 'Quantitative') {
+            value = status?.quantitative?.count || 0;
+          } else if (flow.trackingType === 'Time-based') {
+            value = status?.timebased?.totalDuration || 0;
+          }
+        }
+        
+        dailyData.push({
+          date: dayKey,
+          displayDate: date.format('MMM DD'),
+          completed,
+          value,
+        });
+      }
+      
+      return dailyData;
+    };
+
+    // Generate chart data based on selected timeframe
+    const generateChartData = () => {
+      const dailyData = generateDailyData();
+      
+      const getDataValue = (day) => {
+        switch (flow.trackingType) {
+          case 'Binary':
+            return day.completed ? 100 : 0;
+          case 'Quantitative':
+            return day.value || 0;
+          case 'Time-based':
+            return Math.floor((day.value || 0) / 60); // Convert seconds to minutes
+          default:
+            return day.completed ? 100 : 0;
+        }
+      };
+      
+      switch (selectedTimeframe) {
+        case 'weekly':
+          // For weekly, show daily data (already generated)
+          return {
+            labels: dailyData.map(d => d.displayDate),
+            datasets: [{
+              data: dailyData.map(getDataValue),
+              color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
+              strokeWidth: 3,
+            }],
+          };
+          
+        case 'monthly':
+          // For monthly, group by weeks with week numbers resetting per month
+          const weeklyData = [];
+          let currentMonth = null;
+          let weekNumber = 1;
+          
+          for (let i = 0; i < dailyData.length; i += 7) {
+            const weekData = dailyData.slice(i, i + 7);
+            const weekStart = weekData[0]?.date;
+            const weekMonth = moment(weekStart).format('MMM');
+            
+            // Reset week number when month changes
+            if (currentMonth !== weekMonth) {
+              currentMonth = weekMonth;
+              weekNumber = 1;
+            }
+            
+            // Use month name with week number for cleaner labels
+            const weekLabel = `${weekMonth}(W${weekNumber})`;
+            
+            let weekValue;
+            if (flow.trackingType === 'Binary') {
+              const weekCompleted = weekData.filter(d => d.completed).length;
+              const weekTotal = weekData.length;
+              weekValue = weekTotal > 0 ? (weekCompleted / weekTotal) * 100 : 0;
+            } else {
+              weekValue = weekData.reduce((sum, d) => sum + getDataValue(d), 0);
+            }
+            
+            weeklyData.push({
+              label: weekLabel,
+              value: weekValue
+            });
+            weekNumber++;
+          }
+          
+          return {
+            labels: weeklyData.map(w => w.label),
+            datasets: [{
+              data: weeklyData.map(w => w.value),
+              color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
+              strokeWidth: 3,
+            }],
+          };
+          
+        case 'yearly':
+          // For yearly, group by months
+          const monthlyData = [];
+          const monthGroups = {};
+          
+          dailyData.forEach(day => {
+            const monthKey = moment(day.date).format('YYYY-MM');
+            if (!monthGroups[monthKey]) {
+              monthGroups[monthKey] = [];
+            }
+            monthGroups[monthKey].push(day);
+          });
+          
+          Object.keys(monthGroups).sort().forEach(monthKey => {
+            const monthDays = monthGroups[monthKey];
+            const monthLabel = moment(monthKey).format('MMM');
+            
+            let monthValue;
+            if (flow.trackingType === 'Binary') {
+              const monthCompleted = monthDays.filter(d => d.completed).length;
+              const monthTotal = monthDays.length;
+              monthValue = monthTotal > 0 ? (monthCompleted / monthTotal) * 100 : 0;
+            } else {
+              monthValue = monthDays.reduce((sum, d) => sum + getDataValue(d), 0);
+            }
+            
+            monthlyData.push({
+              label: monthLabel,
+              value: monthValue
+            });
+          });
+          
+          return {
+            labels: monthlyData.map(m => m.label),
+            datasets: [{
+              data: monthlyData.map(m => m.value),
+              color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
+              strokeWidth: 3,
+            }],
+          };
+          
+        default:
+          return {
+            labels: dailyData.map(d => d.displayDate),
+            datasets: [{
+              data: dailyData.map(getDataValue),
+              color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
+              strokeWidth: 3,
+            }],
+          };
+      }
+    };
+
+    const dailyData = generateDailyData();
 
     switch (flow.trackingType) {
       case 'Binary':
         return {
-          primaryMetric: `${completionRates?.overall?.toFixed(1) || 0}%`,
+          primaryMetric: `${scoreboard.completionRate.toFixed(1)}%`,
           primaryLabel: 'Success Rate',
+          timeframeLabel: dateRange.label,
           secondaryMetrics: [
-            { title: 'Current Streak', value: `${streaks?.current || 0} days`, icon: 'flame', color: colors.light.warning },
-            { title: 'Best Streak', value: `${streaks?.best || 0} days`, icon: 'trophy', color: colors.light.success },
-            { title: 'Completed', value: `${metrics?.completed || 0}`, icon: 'checkmark-circle', color: colors.light.info },
-            { title: 'Total Days', value: `${metrics?.scheduled || 0}`, icon: 'calendar', color: colors.light.primaryOrange },
+            { title: 'Completed Days', value: `${scoreboard.completed}`, icon: 'checkmark-circle', color: themeColors.success },
+            { title: 'Total Days', value: `${scoreboard.completed + scoreboard.failed + scoreboard.skipped + scoreboard.inactive}`, icon: 'calendar', color: themeColors.primaryOrange },
+            { title: 'Success Rate', value: `${scoreboard.completionRate.toFixed(1)}%`, icon: 'trophy', color: themeColors.info },
+            { title: 'Final Score', value: `${scoreboard.finalScore}`, icon: 'star', color: themeColors.warning },
           ],
-          chartData: {
-            labels: trends?.dailyData?.map(d => d.displayDate).slice(-7) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{
-              data: trends?.dailyData?.map(d => d.percentage).slice(-7) || [0, 0, 0, 0, 0, 0, 0],
-              color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
-              strokeWidth: 3,
-            }],
-          },
-          chartTitle: 'Daily Completion Rate',
-          chartSubtitle: 'Your daily success rate over the last 7 days',
+          chartData: generateChartData(),
+          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Completion Rate' : 
+                     selectedTimeframe === 'monthly' ? 'Weekly Completion Rate' : 
+                     'Monthly Completion Rate',
+          chartSubtitle: `Your daily success rate over ${dateRange.label.toLowerCase()}`,
           heatMapData: generateHeatMapData(),
         };
       
       case 'Quantitative':
         return {
-          primaryMetric: `${metrics?.totalValue?.toLocaleString() || 0}`,
-          primaryLabel: 'Total Value',
+          primaryMetric: `${scoreboard.quantitativeStats.totalCount.toLocaleString()}`,
+          primaryLabel: 'Total Count',
+          timeframeLabel: dateRange.label,
           secondaryMetrics: [
-            { title: 'Daily Average', value: `${metrics?.avgDailyValue?.toFixed(1) || 0}`, icon: 'trending-up', color: colors.light.success },
-            { title: 'Success Rate', value: `${completionRates?.overall?.toFixed(1) || 0}%`, icon: 'checkmark-circle', color: colors.light.info },
-            { title: 'Completed Days', value: `${metrics?.completed || 0}`, icon: 'calendar', color: colors.light.primaryOrange },
-            { title: 'Best Streak', value: `${streaks?.best || 0} days`, icon: 'trophy', color: colors.light.warning },
+            { title: 'Daily Average', value: `${scoreboard.quantitativeStats.averageCount.toFixed(1)}`, icon: 'trending-up', color: themeColors.success },
+            { title: 'Success Rate', value: `${scoreboard.completionRate.toFixed(1)}%`, icon: 'checkmark-circle', color: themeColors.info },
+            { title: 'Completed Days', value: `${scoreboard.completed}`, icon: 'calendar', color: themeColors.primaryOrange },
+            { title: 'Final Score', value: `${scoreboard.finalScore}`, icon: 'star', color: themeColors.warning },
           ],
-          chartData: {
-            labels: trends?.dailyData?.map(d => d.displayDate).slice(-7) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{
-              data: trends?.dailyData?.map(d => d.value).slice(-7) || [0, 0, 0, 0, 0, 0, 0],
-              color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
-              strokeWidth: 3,
-            }],
-          },
-          chartTitle: 'Daily Values',
-          chartSubtitle: 'Your daily values over the last 7 days',
+          chartData: generateChartData(),
+          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Values' : 
+                     selectedTimeframe === 'monthly' ? 'Weekly Values' : 
+                     'Monthly Values',
+          chartSubtitle: `Your daily values over ${dateRange.label.toLowerCase()}`,
           heatMapData: generateHeatMapData(),
           // Quantitative specific stats
           quantitativeStats: [
-            { title: 'Highest Day', value: `${metrics?.maxDailyValue?.toFixed(1) || 0}`, icon: 'trending-up', color: colors.light.success },
-            { title: 'Lowest Day', value: `${metrics?.minDailyValue?.toFixed(1) || 0}`, icon: 'trending-down', color: colors.light.error },
-            { title: 'Goal Achievement', value: `${((metrics?.totalValue || 0) / (flow.goal || 1) * 100).toFixed(1)}%`, icon: 'flag', color: colors.light.info },
-            { title: 'Consistency Score', value: `${(metrics?.consistencyScore || 0).toFixed(1)}`, icon: 'bar-chart', color: colors.light.primaryOrange },
+            { title: 'Total Count', value: `${scoreboard.quantitativeStats.totalCount.toLocaleString()}`, icon: 'bar-chart', color: themeColors.success },
+            { title: 'Average Count', value: `${scoreboard.quantitativeStats.averageCount.toFixed(1)}`, icon: 'trending-up', color: themeColors.info },
+            { title: 'Unit Text', value: scoreboard.quantitativeStats.unitText || 'units', icon: 'text', color: themeColors.primaryOrange },
+            { title: 'Goal Achievement', value: `${((scoreboard.quantitativeStats.totalCount / (flow.goal || 1)) * 100).toFixed(1)}%`, icon: 'flag', color: themeColors.warning },
           ],
         };
       
       case 'Time-based':
         return {
-          primaryMetric: `${Math.floor((metrics?.totalTime || 0) / 60)}h ${Math.floor((metrics?.totalTime || 0) % 60)}m`,
+          primaryMetric: `${Math.floor(scoreboard.timeBasedStats.totalDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.totalDuration % 60)}m`,
           primaryLabel: 'Total Time',
+          timeframeLabel: dateRange.label,
           secondaryMetrics: [
-            { title: 'Daily Average', value: `${Math.floor((metrics?.avgDailyTime || 0) / 60)}h ${Math.floor((metrics?.avgDailyTime || 0) % 60)}m`, icon: 'time', color: colors.light.success },
-            { title: 'Success Rate', value: `${completionRates?.overall?.toFixed(1) || 0}%`, icon: 'checkmark-circle', color: colors.light.info },
-            { title: 'Completed Days', value: `${metrics?.completed || 0}`, icon: 'calendar', color: colors.light.primaryOrange },
-            { title: 'Best Streak', value: `${streaks?.best || 0} days`, icon: 'trophy', color: colors.light.warning },
+            { title: 'Daily Average', value: `${Math.floor(scoreboard.timeBasedStats.averageDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.averageDuration % 60)}m`, icon: 'time', color: themeColors.success },
+            { title: 'Success Rate', value: `${scoreboard.completionRate.toFixed(1)}%`, icon: 'checkmark-circle', color: themeColors.info },
+            { title: 'Completed Days', value: `${scoreboard.completed}`, icon: 'calendar', color: themeColors.primaryOrange },
+            { title: 'Total Pauses', value: `${scoreboard.timeBasedStats.totalPauses}`, icon: 'pause', color: themeColors.warning },
           ],
-          chartData: {
-            labels: trends?.dailyData?.map(d => d.displayDate).slice(-7) || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            datasets: [{
-              data: trends?.dailyData?.map(d => d.time).slice(-7) || [0, 0, 0, 0, 0, 0, 0],
-              color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
-              strokeWidth: 3,
-            }],
-          },
-          chartTitle: 'Daily Time Spent',
-          chartSubtitle: 'Your daily time investment over the last 7 days',
+          chartData: generateChartData(),
+          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Time Spent' : 
+                     selectedTimeframe === 'monthly' ? 'Weekly Time Spent' : 
+                     'Monthly Time Spent',
+          chartSubtitle: `Your daily time investment over ${dateRange.label.toLowerCase()}`,
           heatMapData: generateHeatMapData(),
           // Time-based specific stats
           timeBasedStats: [
-            { title: 'Longest Session', value: `${Math.floor((metrics?.maxDailyTime || 0) / 60)}h ${Math.floor((metrics?.maxDailyTime || 0) % 60)}m`, icon: 'time', color: colors.light.success },
-            { title: 'Shortest Session', value: `${Math.floor((metrics?.minDailyTime || 0) / 60)}h ${Math.floor((metrics?.minDailyTime || 0) % 60)}m`, icon: 'hourglass', color: colors.light.error },
-            { title: 'Goal Achievement', value: `${((metrics?.totalTime || 0) / (flow.goal || 1) * 100).toFixed(1)}%`, icon: 'flag', color: colors.light.info },
-            { title: 'Focus Score', value: `${(metrics?.focusScore || 0).toFixed(1)}`, icon: 'eye', color: colors.light.primaryOrange },
+            { title: 'Total Duration', value: `${Math.floor(scoreboard.timeBasedStats.totalDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.totalDuration % 60)}m`, icon: 'time', color: themeColors.success },
+            { title: 'Average Duration', value: `${Math.floor(scoreboard.timeBasedStats.averageDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.averageDuration % 60)}m`, icon: 'hourglass', color: themeColors.info },
+            { title: 'Total Pauses', value: `${scoreboard.timeBasedStats.totalPauses}`, icon: 'pause', color: themeColors.primaryOrange },
+            { title: 'Goal Achievement', value: `${((scoreboard.timeBasedStats.totalDuration / ((flow.hours || 0) * 3600 + (flow.minutes || 0) * 60 + (flow.seconds || 0) || 1)) * 100).toFixed(1)}%`, icon: 'flag', color: themeColors.warning },
           ],
         };
       
@@ -457,11 +611,11 @@ const FlowStatsDetail = ({ route, navigation }) => {
     }
   };
 
-  const analytics = getFlowTypeAnalytics();
+  const analytics = useMemo(() => getFlowTypeAnalytics(), [flowId, selectedTimeframe, flows]);
 
-  if (!analytics || !flowStats) {
+  if (!analytics) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+      <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
         <View style={styles.emptyState}>
           <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>⚠️</Text>
           <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>Unsupported Flow Type</Text>
@@ -469,12 +623,43 @@ const FlowStatsDetail = ({ route, navigation }) => {
             This flow type is not supported for detailed analytics.
           </Text>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
+  // Handle error states after all hooks are called
+  if (hasError) {
+    if (!flowId || !flows) {
+      return (
+        <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
+            <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>Flow Data Unavailable</Text>
+            <Text style={[styles.emptySubtitle, { color: themeColors.secondaryText }]}>
+              Unable to load flow statistics. Please try again.
+            </Text>
+          </View>
+        </SafeAreaWrapper>
+      );
+    }
+
+    if (!flow) {
+      return (
+        <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
+          <View style={styles.emptyState}>
+            <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>❌</Text>
+            <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>Flow Not Found</Text>
+            <Text style={[styles.emptySubtitle, { color: themeColors.secondaryText }]}>
+              The requested flow could not be found.
+            </Text>
+          </View>
+        </SafeAreaWrapper>
+      );
+    }
+  }
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+    <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -484,6 +669,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            accessibilityLabel="Go back to statistics"
+            accessibilityHint="Returns to the main statistics page"
           >
             <Ionicons name="arrow-back" size={24} color={themeColors.primaryText} />
           </TouchableOpacity>
@@ -493,27 +680,80 @@ const FlowStatsDetail = ({ route, navigation }) => {
               {flow.trackingType} Flow Analytics
             </Text>
           </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
+              accessibilityLabel="Open flow calendar"
+              accessibilityHint="View and manage flow entries in calendar view"
+            >
+              <Ionicons name="calendar-outline" size={24} color={themeColors.primaryText} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={() => navigation.navigate('EditFlow', { flowId: flow.id })}
+              accessibilityLabel="Edit flow"
+              accessibilityHint="Modify flow settings and configuration"
+            >
+              <Ionicons name="create-outline" size={24} color={themeColors.primaryText} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerActionButton}
+              onPress={() => {
+                Alert.alert(
+                  'Delete Flow',
+                  `Are you sure you want to delete "${flow.title}"? This action cannot be undone.`,
+                  [
+                    {
+                      text: 'Cancel',
+                      style: 'cancel',
+                    },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => {
+                        if (deleteFlow) {
+                          deleteFlow(flow.id);
+                          navigation.goBack();
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              accessibilityLabel="Delete flow"
+              accessibilityHint="Permanently delete this flow"
+            >
+              <Ionicons name="trash-outline" size={24} color={themeColors.error} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Timeframe Selector */}
         <View style={styles.timeframeSelector}>
-          {['7D', '30D', '1Y'].map((timeframe) => (
+          {[
+            { key: 'weekly', label: 'Weekly' },
+            { key: 'monthly', label: 'Monthly' },
+            { key: 'yearly', label: 'Yearly' }
+          ].map((timeframe) => (
             <TouchableOpacity
-              key={timeframe}
+              key={timeframe.key}
               style={[
                 styles.timeframeButton,
-                selectedTimeframe === timeframe && styles.activeTimeframeButton,
-                { backgroundColor: selectedTimeframe === timeframe ? colors.light.primaryOrange : themeColors.cardBackground }
+                selectedTimeframe === timeframe.key && styles.activeTimeframeButton,
+                { backgroundColor: selectedTimeframe === timeframe.key ? themeColors.primaryOrange : themeColors.cardBackground }
               ]}
-              onPress={() => setSelectedTimeframe(timeframe)}
+              onPress={() => setSelectedTimeframe(timeframe.key)}
+              accessibilityLabel={`Select ${timeframe.label.toLowerCase()} timeframe`}
+              accessibilityHint={`View statistics for the ${timeframe.label.toLowerCase()} period`}
             >
               <Text
                 style={[
                   styles.timeframeText,
-                  { color: selectedTimeframe === timeframe ? '#FFFFFF' : themeColors.primaryText }
+                  { color: selectedTimeframe === timeframe.key ? '#FFFFFF' : themeColors.primaryText }
                 ]}
               >
-                {timeframe}
+                {timeframe.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -561,7 +801,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
             style={styles.chart}
             withDots={true}
             withShadow={false}
-            withInnerLines={true}
+            withInnerLines={false}
             withOuterLines={false}
           />
         </Card>
@@ -608,54 +848,182 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </Card>
         )}
 
+        {/* Notes Tracking */}
+        <Card variant="default" padding="lg" margin="md">
+          <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Notes & Reflections</Text>
+          <View style={styles.notesTracking}>
+            {(() => {
+              const scoreboard = getScoreboard(flowId);
+              const notesCount = scoreboard.notesCount || 0;
+              
+              return (
+                <View style={styles.notesSummary}>
+                  <View style={styles.notesStat}>
+                    <Ionicons name="document-text" size={24} color={themeColors.info} />
+                    <View style={styles.notesStatInfo}>
+                      <Text style={[styles.notesStatValue, { color: themeColors.primaryText }]}>{notesCount}</Text>
+                      <Text style={[styles.notesStatLabel, { color: themeColors.secondaryText }]}>Total Notes</Text>
+                    </View>
+                  </View>
+                  <View style={styles.notesStat}>
+                    <Ionicons name="trending-up" size={24} color={themeColors.success} />
+                    <View style={styles.notesStatInfo}>
+                      <Text style={[styles.notesStatValue, { color: themeColors.primaryText }]}>
+                        {notesCount > 0 ? 'Active' : 'None'}
+                      </Text>
+                      <Text style={[styles.notesStatLabel, { color: themeColors.secondaryText }]}>Reflection Status</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        </Card>
+
+        {/* Emotional Tracking */}
+        <Card variant="default" padding="lg" margin="md">
+          <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Emotional Tracking</Text>
+          <View style={styles.emotionalTrackingSingleLine}>
+            {(() => {
+              const emotionalData = getEmotionalActivity(flowId);
+              const emotions = ['Happy', 'Sad', 'Angry', 'Excited', 'Calm'];
+              const emotionIcons = {
+                'Happy': '😊',
+                'Sad': '😢', 
+                'Angry': '😠',
+                'Excited': '🎉',
+                'Calm': '😌'
+              };
+              
+              return emotions.map((emotion) => {
+                const count = emotionalData.byEmotion?.[emotion] || 0;
+                const percentage = emotionalData.totalEmotions > 0 ? (count / emotionalData.totalEmotions * 100).toFixed(1) : 0;
+                
+                return (
+                  <View key={emotion} style={styles.emotionItemSingleLine}>
+                    <Text style={[styles.emotionEmoji, { fontSize: 16 }]}>{emotionIcons[emotion]}</Text>
+                    <Text style={[styles.emotionLabelSingleLine, { color: themeColors.primaryText }]}>{emotion}</Text>
+                    <Text style={[styles.emotionCountSingleLine, { color: themeColors.primaryOrange }]}>{count}</Text>
+                    <Text style={[styles.emotionPercentageSingleLine, { color: themeColors.secondaryText }]}>{percentage}%</Text>
+                  </View>
+                );
+              });
+            })()}
+          </View>
+        </Card>
+
+        {/* Activity Tracking */}
+        <Card variant="default" padding="lg" margin="md">
+          <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Activity Tracking</Text>
+          <View style={styles.activityTracking}>
+            {(() => {
+              const activityData = getActivityStats(flowId);
+              
+              return (
+                <View style={styles.activityGrid}>
+                  <View style={styles.activityStat}>
+                    <Ionicons name="play-circle" size={24} color={themeColors.primaryOrange} />
+                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
+                      {activityData.totalSessions || 0}
+                    </Text>
+                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Sessions</Text>
+                  </View>
+                  <View style={styles.activityStat}>
+                    <Ionicons name="time" size={24} color={themeColors.info} />
+                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
+                      {Math.floor((activityData.totalDuration || 0) / 60)}h
+                    </Text>
+                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Total Time</Text>
+                  </View>
+                  <View style={styles.activityStat}>
+                    <Ionicons name="speedometer" size={24} color={themeColors.success} />
+                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
+                      {Math.floor(activityData.averageDuration || 0)}m
+                    </Text>
+                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Avg Duration</Text>
+                  </View>
+                  <View style={styles.activityStat}>
+                    <Ionicons name="pulse" size={24} color={themeColors.warning} />
+                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
+                      {activityData.totalPauses || 0}
+                    </Text>
+                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Pauses</Text>
+                  </View>
+                </View>
+              );
+            })()}
+          </View>
+        </Card>
+
         {/* Insights */}
         <Card variant="default" padding="lg" margin="md">
           <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Insights</Text>
           <View style={styles.insightsList}>
-            {flowStats.completionRates?.overall >= 80 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="trophy" size={20} color={colors.light.success} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  Excellent consistency! You're maintaining a {flowStats.completionRates.overall.toFixed(1)}% success rate.
-                </Text>
-              </View>
-            )}
-            {flowStats.streaks?.current >= 7 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="flame" size={20} color={colors.light.warning} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  Great streak! You've been consistent for {flowStats.streaks.current} days.
-                </Text>
-              </View>
-            )}
-            {flowStats.completionRates?.overall < 50 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="trending-up" size={20} color={colors.light.error} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  Consider focusing on consistency. Your success rate is {flowStats.completionRates.overall.toFixed(1)}%.
-                </Text>
-              </View>
-            )}
-            {flow.trackingType === 'Quantitative' && flowStats.metrics?.avgDailyValue > 0 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="bar-chart" size={20} color={colors.light.info} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  Your daily average is {flowStats.metrics.avgDailyValue.toFixed(1)} units.
-                </Text>
-              </View>
-            )}
-            {flow.trackingType === 'Time-based' && flowStats.metrics?.avgDailyTime > 0 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="time" size={20} color={colors.light.info} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  You spend an average of {Math.floor(flowStats.metrics.avgDailyTime / 60)}h {Math.floor(flowStats.metrics.avgDailyTime % 60)}m daily.
-                </Text>
-              </View>
-            )}
+            {(() => {
+              const scoreboard = getScoreboard(flowId);
+              const insights = [];
+              
+              if (scoreboard.completionRate >= 80) {
+                insights.push(
+                  <View key="excellent" style={styles.insightItem}>
+                    <Ionicons name="trophy" size={20} color={themeColors.success} />
+                    <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                      Excellent consistency! You're maintaining a {scoreboard.completionRate.toFixed(1)}% success rate.
+                    </Text>
+                  </View>
+                );
+              }
+              
+              if (scoreboard.completionRate < 50) {
+                insights.push(
+                  <View key="improve" style={styles.insightItem}>
+                    <Ionicons name="trending-up" size={20} color={themeColors.error} />
+                    <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                      Consider focusing on consistency. Your success rate is {scoreboard.completionRate.toFixed(1)}%.
+                    </Text>
+                  </View>
+                );
+              }
+              
+              if (flow.trackingType === 'Quantitative' && scoreboard.quantitativeStats.averageCount > 0) {
+                insights.push(
+                  <View key="quantitative" style={styles.insightItem}>
+                    <Ionicons name="bar-chart" size={20} color={themeColors.info} />
+                    <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                      Your daily average is {scoreboard.quantitativeStats.averageCount.toFixed(1)} {scoreboard.quantitativeStats.unitText || 'units'}.
+                    </Text>
+                  </View>
+                );
+              }
+              
+              if (flow.trackingType === 'Time-based' && scoreboard.timeBasedStats.averageDuration > 0) {
+                insights.push(
+                  <View key="timebased" style={styles.insightItem}>
+                    <Ionicons name="time" size={20} color={themeColors.info} />
+                    <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                      You spend an average of {Math.floor(scoreboard.timeBasedStats.averageDuration / 60)}h {Math.floor(scoreboard.timeBasedStats.averageDuration % 60)}m daily.
+                    </Text>
+                  </View>
+                );
+              }
+              
+              if (scoreboard.finalScore > 0) {
+                insights.push(
+                  <View key="score" style={styles.insightItem}>
+                    <Ionicons name="star" size={20} color={themeColors.warning} />
+                    <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                      Your final score is {scoreboard.finalScore} points!
+                    </Text>
+                  </View>
+                );
+              }
+              
+              return insights;
+            })()}
           </View>
         </Card>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 
@@ -708,11 +1076,25 @@ const styles = StyleSheet.create({
     ...typography.styles.caption,
     opacity: 0.8,
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  headerActionButton: {
+    padding: layout.spacing.sm,
+    marginLeft: layout.spacing.sm,
+    borderRadius: layout.borderRadius.sm,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   timeframeSelector: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: layout.spacing.md,
-    backgroundColor: colors.light.progressBackground + '30',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: layout.borderRadius.md,
     padding: layout.spacing.xs,
   },
@@ -724,7 +1106,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTimeframeButton: {
-    shadowColor: colors.light.primaryOrange,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -832,7 +1213,7 @@ const styles = StyleSheet.create({
   heatMapStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: colors.light.progressBackground + '20',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: layout.borderRadius.md,
     padding: layout.spacing.md,
     marginBottom: layout.spacing.md,
@@ -914,7 +1295,7 @@ const styles = StyleSheet.create({
     padding: layout.spacing.md,
     borderRadius: layout.borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.light.primaryOrange + '30',
+    borderColor: 'rgba(255,149,0,0.3)',
   },
   selectedDayContent: {
     flexDirection: 'row',
@@ -937,7 +1318,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: layout.spacing.lg,
-    backgroundColor: colors.light.progressBackground + '10',
+    backgroundColor: 'rgba(0,0,0,0.03)',
     padding: layout.spacing.sm,
     borderRadius: layout.borderRadius.md,
   },
@@ -957,7 +1338,197 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     marginHorizontal: 2,
     borderWidth: 1,
-    borderColor: colors.light.border,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  // Emotional Tracking Styles
+  emotionalTracking: {
+    marginTop: layout.spacing.sm,
+  },
+  emotionalTrackingVertical: {
+    marginTop: layout.spacing.sm,
+  },
+  emotionalTrackingHorizontal: {
+    marginTop: layout.spacing.sm,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  emotionalTrackingSingleLine: {
+    marginTop: layout.spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  emotionItemSingleLine: {
+    alignItems: 'center',
+    paddingHorizontal: layout.spacing.xs,
+    paddingVertical: layout.spacing.sm,
+    minWidth: 60,
+    maxWidth: 80,
+  },
+  emotionLabelSingleLine: {
+    ...typography.styles.caption,
+    fontWeight: '500',
+    marginTop: layout.spacing.xs,
+    textAlign: 'center',
+    fontSize: 9,
+  },
+  emotionCountSingleLine: {
+    ...typography.styles.caption,
+    fontWeight: '700',
+    marginTop: layout.spacing.xs,
+    fontSize: 11,
+  },
+  emotionPercentageSingleLine: {
+    ...typography.styles.caption,
+    fontSize: 8,
+    marginTop: layout.spacing.xs,
+    textAlign: 'center',
+  },
+  emotionCardHorizontal: {
+    width: '48%',
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: layout.borderRadius.md,
+    marginBottom: layout.spacing.sm,
+    padding: layout.spacing.sm,
+  },
+  emotionCardContentHorizontal: {
+    alignItems: 'center',
+  },
+  emotionLabelHorizontal: {
+    ...typography.styles.caption,
+    fontWeight: '500',
+    marginTop: layout.spacing.xs,
+    textAlign: 'center',
+  },
+  emotionCountHorizontal: {
+    ...typography.styles.title3,
+    fontWeight: '700',
+    marginTop: layout.spacing.xs,
+  },
+  emotionPercentageHorizontal: {
+    ...typography.styles.caption,
+    fontSize: 10,
+    marginTop: layout.spacing.xs,
+    textAlign: 'center',
+  },
+  emotionCardVertical: {
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: layout.borderRadius.md,
+    marginBottom: layout.spacing.sm,
+    padding: layout.spacing.md,
+  },
+  emotionCardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  emotionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  emotionLabelVertical: {
+    ...typography.styles.body,
+    fontWeight: '500',
+    marginLeft: layout.spacing.sm,
+  },
+  emotionCardStats: {
+    alignItems: 'flex-end',
+  },
+  emotionCountVertical: {
+    ...typography.styles.title3,
+    fontWeight: '700',
+  },
+  emotionPercentageVertical: {
+    ...typography.styles.caption,
+    fontSize: 11,
+    marginTop: layout.spacing.xs,
+  },
+  emotionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  emotionInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  emotionEmoji: {
+    fontSize: 20,
+    marginRight: layout.spacing.sm,
+  },
+  emotionLabel: {
+    ...typography.styles.body,
+    fontWeight: '500',
+  },
+  emotionStats: {
+    alignItems: 'flex-end',
+  },
+  emotionCount: {
+    ...typography.styles.title3,
+    fontWeight: '700',
+  },
+  emotionPercentage: {
+    ...typography.styles.caption,
+    fontSize: 11,
+  },
+  // Notes Tracking Styles
+  notesTracking: {
+    marginTop: layout.spacing.sm,
+  },
+  notesSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  notesStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  notesStatInfo: {
+    alignItems: 'center',
+    marginTop: layout.spacing.xs,
+  },
+  notesStatValue: {
+    ...typography.styles.title2,
+    fontWeight: '700',
+    marginBottom: layout.spacing.xs,
+  },
+  notesStatLabel: {
+    ...typography.styles.caption,
+    textAlign: 'center',
+  },
+  // Activity Tracking Styles
+  activityTracking: {
+    marginTop: layout.spacing.sm,
+  },
+  activityGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  activityStat: {
+    width: '48%',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.md,
+    marginBottom: layout.spacing.sm,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: layout.borderRadius.md,
+  },
+  activityStatValue: {
+    ...typography.styles.title2,
+    fontWeight: '700',
+    marginTop: layout.spacing.xs,
+    marginBottom: layout.spacing.xs,
+  },
+  activityStatLabel: {
+    ...typography.styles.caption,
+    textAlign: 'center',
   },
 });
 

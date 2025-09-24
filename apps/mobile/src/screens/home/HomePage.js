@@ -15,11 +15,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../../context/ThemeContext';
 import { FlowsContext } from '../../context/FlowContext';
-import { useProfile } from '../../hooks/useProfile';
+import { useNotificationContext } from '../../context/NotificationContext';
+import { useAchievements } from '../../hooks/useAchievements';
 import moment from 'moment';
 import TodaysFlows from '../../components/flow/todayResponse/TodaysFlows';
 import FTUEOverlay from '../../components/home/FTUEOverlay';
 import { useFTUE } from '../../hooks/useFTUE';
+import SettingsMenu from '../settings/SettingsMenu';
 
 // Import centralized styles and components
 import {
@@ -35,6 +37,7 @@ const SIDE_PADDING = 16;
 
 export default function HomePage({ navigation }) {
   const [dayOffset, setDayOffset] = useState(0); // Controls which set of 3 days to show
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const insets = useSafeAreaInsets(); // Get safe area insets for proper positioning
   
   // FTUE (First-Time User Experience)
@@ -47,12 +50,11 @@ export default function HomePage({ navigation }) {
     highContrast: false,
     cheatMode: false,
   };
+  const { permissionsGranted, trackAchievement, achievements } = useNotificationContext();
+  const { processFlows } = useAchievements();
 
   // Use centralized theme hook
   const { colors: themeColors, isDark } = useAppTheme();
-  
-  // Get user profile for greeting
-  const { profile } = useProfile();
 
   // Refresh flows when home page comes into focus (only if flows are empty)
   useFocusEffect(
@@ -97,7 +99,7 @@ export default function HomePage({ navigation }) {
   };
 
   const getUserName = () => {
-    return profile?.displayName || profile?.name || 'there';
+    return 'there';
   };
 
   const calculateStreak = () => {
@@ -109,7 +111,7 @@ export default function HomePage({ navigation }) {
       const checkDate = moment().subtract(i, 'days').format('YYYY-MM-DD');
       const hasCompletedFlow = flows.some(flow => {
         const status = flow.status?.[checkDate];
-        return status?.symbol === '✅';
+        return status?.symbol === '+';
       });
       
       if (hasCompletedFlow) {
@@ -123,6 +125,14 @@ export default function HomePage({ navigation }) {
   };
 
   const currentStreak = calculateStreak();
+
+  // Check for achievements when flows are loaded
+  useEffect(() => {
+    if (flows.length > 0) {
+      // Process flows to check for new achievements
+      processFlows(flows);
+    }
+  }, [flows, processFlows]);
 
   const visibleFlows = flows.filter((flow) => {
     // First filter out deleted and archived flows
@@ -185,10 +195,33 @@ export default function HomePage({ navigation }) {
                 <Text style={[styles.logoText, { color: themeColors.primaryOrange }]}>Flow</Text>
               </View>
               <View style={styles.headerIcons}>
+                {/* Notification Status Indicator */}
+                <View style={styles.notificationStatusContainer}>
+                  <Ionicons 
+                    name={permissionsGranted ? "notifications" : "notifications-off-outline"} 
+                    size={20} 
+                    color={permissionsGranted ? themeColors.primaryOrange : themeColors.secondaryText} 
+                  />
+                  {achievements.length > 0 && (
+                    <View style={styles.achievementBadge}>
+                      <Text style={styles.achievementBadgeText}>{achievements.length}</Text>
+                    </View>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  onPress={() => setShowSettingsModal(true)}
+                  accessibilityLabel="Open settings"
+                  accessibilityHint="Tap to open app settings and preferences"
+                >
+                  <Ionicons name="settings-outline" size={24} color={themeColors.primaryText} />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.headerIconButton}
                   onPress={() => startFTUE()}
                   testID="info-icon-button"
+                  accessibilityLabel="Show app information"
+                  accessibilityHint="Tap to view app information and help"
                 >
                   <Ionicons name="information-circle-outline" size={24} color={themeColors.primaryText} />
                 </TouchableOpacity>
@@ -203,9 +236,44 @@ export default function HomePage({ navigation }) {
               <Text style={[styles.subtitleText, { color: themeColors.secondaryText }]}>
                 Track your daily flows and build better habits
               </Text>
+              
+              {/* Achievement Streak Display */}
+              {currentStreak > 0 && (
+                <View style={styles.streakContainer}>
+                  <Ionicons name="flame" size={16} color={themeColors.primaryOrange} />
+                  <Text style={[styles.streakText, { color: themeColors.primaryOrange }]}>
+                    {currentStreak} day streak!
+                  </Text>
+                </View>
+              )}
             </View>
             
           </View>
+          
+          {/* Recent Achievements Section */}
+          {achievements.length > 0 && (
+            <View style={[styles.achievementsSection, { backgroundColor: '#FFFFFF' }]}>
+              <View style={styles.achievementsHeader}>
+                <Ionicons name="trophy-outline" size={20} color={themeColors.primaryOrange} />
+                <Text style={[styles.achievementsTitle, { color: themeColors.primaryText }]}>
+                  Recent Achievements
+                </Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
+                {achievements.slice(0, 3).map((achievement, index) => (
+                  <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: themeColors.cardBackground }]}>
+                    <Ionicons name="medal-outline" size={24} color={themeColors.primaryOrange} />
+                    <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>
+                      {achievement.title}
+                    </Text>
+                    <Text style={[styles.achievementDescription, { color: themeColors.secondaryText }]}>
+                      {achievement.description}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
           
           {/* Flow Grid */}
           <FlowGrid 
@@ -259,6 +327,12 @@ export default function HomePage({ navigation }) {
         visible={showFTUE}
         onComplete={completeFTUE}
       />
+      
+      {/* Settings Modal */}
+      <SettingsMenu 
+        visible={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -296,6 +370,28 @@ const styles = StyleSheet.create({
     marginLeft: layout.spacing.sm,
     position: 'relative',
   },
+  notificationStatusContainer: {
+    position: 'relative',
+    padding: layout.spacing.sm,
+    marginLeft: layout.spacing.sm,
+  },
+  achievementBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#FF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  achievementBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
   greetingSection: {
     alignItems: 'center',
     marginBottom: 0, // Remove gap after greetings
@@ -310,6 +406,63 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.caption1, // Reduced size to match FlowGrid
     textAlign: 'center',
     opacity: 0.8,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: layout.spacing.xs,
+    backgroundColor: 'rgba(255, 165, 0, 0.1)',
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
+    borderRadius: 12,
+  },
+  streakText: {
+    fontSize: typography.sizes.caption1,
+    fontWeight: typography.weights.semibold,
+    marginLeft: layout.spacing.xs,
+  },
+  achievementsSection: {
+    marginTop: layout.spacing.md,
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
+  },
+  achievementsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: layout.spacing.sm,
+  },
+  achievementsTitle: {
+    fontSize: typography.sizes.title3,
+    fontWeight: typography.weights.semibold,
+    marginLeft: layout.spacing.xs,
+  },
+  achievementsScroll: {
+    marginHorizontal: -layout.spacing.md,
+  },
+  achievementCard: {
+    width: 140,
+    padding: layout.spacing.sm,
+    marginRight: layout.spacing.sm,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  achievementTitle: {
+    fontSize: typography.sizes.caption1,
+    fontWeight: typography.weights.semibold,
+    textAlign: 'center',
+    marginTop: layout.spacing.xs,
+    marginBottom: layout.spacing.xs,
+  },
+  achievementDescription: {
+    fontSize: typography.sizes.tiny,
+    textAlign: 'center',
+    lineHeight: 14,
   },
   todayContainer: {
     flex: 1,

@@ -4,10 +4,23 @@ import { Calendar } from 'react-native-calendars';
 import { ThemeContext } from '../../context/ThemeContext';
 import ResponseModal from './todayResponse/Response';
 import moment from 'moment';
+import { colors, layout, typography } from '../../../styles';
+
+const emotions = [
+  { label: 'Happy', emoji: '😊' },
+  { label: 'Sad', emoji: '😢' },
+  { label: 'Angry', emoji: '😠' },
+  { label: 'Excited', emoji: '🎉' },
+  { label: 'Calm', emoji: '😌' },
+];
+
+console.log('Available emotions for mapping:', emotions);
 
 const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => {
   const { theme = 'light', textSize = 'medium', highContrast = false, accentColor = '#007AFF', cheatMode = false } = useContext(ThemeContext) || {};
+  const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isUpdating = useRef(false);
+  const [showEmotions, setShowEmotions] = useState(true); // Toggle for showing emotions
   const [modalState, setModalState] = useState({
     selectedDate: null,
     pendingStatus: null,
@@ -18,9 +31,32 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
     quantitativeCount: '',
     timeDuration: { hours: '', minutes: '', seconds: '' },
   });
+  
+  // DEBUG: Force show emotions
+  console.log('FlowCalendar: showEmotions =', showEmotions);
+  console.log('FlowCalendar: toggle state debug - showEmotions:', showEmotions, 'type:', typeof showEmotions);
 
   useEffect(() => {
     console.log('Flow status updated:', flow.status);
+    // Debug: Log all status entries with emotions
+    if (flow.status) {
+      Object.entries(flow.status).forEach(([date, status]) => {
+        if (status.emotion) {
+          console.log(`Date ${date}: emotion=${status.emotion}, symbol=${status.symbol}`);
+        }
+      });
+      
+      // Specific debug for September 23rd
+      const sept23 = flow.status['2024-09-23'] || flow.status['2023-09-23'];
+      if (sept23) {
+        console.log('September 23rd status:', sept23);
+        console.log('September 23rd emotion:', sept23.emotion);
+        console.log('September 23rd symbol:', sept23.symbol);
+      } else {
+        console.log('No status found for September 23rd');
+        console.log('Available dates:', Object.keys(flow.status));
+      }
+    }
   }, [flow.status]);
 
   console.log('Flow status received:', flow.status, 'trackingType:', flow.trackingType);
@@ -69,9 +105,9 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
           },
         },
         {
-          text: 'Not Set ➖',
+          text: 'Not Set /',
           onPress: () => {
-            onUpdateStatus(flow.id, dateKey, { symbol: '➖', quantitative: { count: 0, goal: flow.goal || 1, unitText: flow.unitText || '' } }, flow.status);
+            onUpdateStatus(flow.id, dateKey, { symbol: '/', quantitative: { count: 0, goal: flow.goal || 1, unitText: flow.unitText || '' } }, flow.status);
             setModalState({ selectedDate: null, pendingStatus: null, showResponseModal: false, modalStage: 'input', note: '', selectedEmotion: null, quantitativeCount: '', timeDuration: { hours: '', minutes: '', seconds: '' } });
             setTimeout(() => { isUpdating.current = false; }, 100);
           },
@@ -85,7 +121,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
             const totalDuration = flow.status?.[dateKey]?.timebased?.totalDuration || flow.status?.[dateKey]?.timeUpdate?.totalDuration || 0;
             setModalState({
               selectedDate: dateKey,
-              pendingStatus: totalDuration > 0 ? '✅' : '➖',
+              pendingStatus: totalDuration > 0 ? '+' : '/',
               showResponseModal: true,
               modalStage: 'input',
               note: '',
@@ -101,9 +137,9 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
           },
         },
         {
-          text: 'Not Set ➖',
+          text: 'Not Set /',
           onPress: () => {
-            onUpdateStatus(flow.id, dateKey, { symbol: '➖', timebased: { totalDuration: 0, pausesCount: 0, hours: flow.hours || 0, minutes: flow.minutes || 0, seconds: flow.seconds || 0 } }, flow.status);
+            onUpdateStatus(flow.id, dateKey, { symbol: '/', timebased: { totalDuration: 0, pausesCount: 0, hours: flow.hours || 0, minutes: flow.minutes || 0, seconds: flow.seconds || 0 } }, flow.status);
             setModalState({ selectedDate: null, pendingStatus: null, showResponseModal: false, modalStage: 'input', note: '', selectedEmotion: null, quantitativeCount: '', timeDuration: { hours: '', minutes: '', seconds: '' } });
             setTimeout(() => { isUpdating.current = false; }, 100);
           },
@@ -112,11 +148,11 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
     } else {
       alertOptions.unshift(
         {
-          text: 'Done ✅',
+          text: 'Done +',
           onPress: () => {
             setModalState({
               selectedDate: dateKey,
-              pendingStatus: '✅',
+              pendingStatus: '+',
               showResponseModal: true,
               modalStage: 'note_emotion',
               note: '',
@@ -128,11 +164,11 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
           },
         },
         {
-          text: 'Missed ❌',
+          text: 'Missed -',
           onPress: () => {
             setModalState({
               selectedDate: dateKey,
-              pendingStatus: '❌',
+              pendingStatus: '-',
               showResponseModal: true,
               modalStage: 'note_emotion',
               note: '',
@@ -144,9 +180,9 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
           },
         },
         {
-          text: 'Not Set ➖',
+          text: 'Not Set /',
           onPress: () => {
-            onUpdateStatus(flow.id, dateKey, { symbol: '➖' }, flow.status);
+            onUpdateStatus(flow.id, dateKey, { symbol: '/' }, flow.status);
             setModalState({ selectedDate: null, pendingStatus: null, showResponseModal: false, modalStage: 'input', note: '', selectedEmotion: null, quantitativeCount: '', timeDuration: { hours: '', minutes: '', seconds: '' } });
             setTimeout(() => { isUpdating.current = false; }, 100);
           },
@@ -214,7 +250,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
         goal,
         unitText: flow.unitText || '',
       };
-      updates.symbol = count > 0 ? '✅' : '➖';
+      updates.symbol = count > 0 ? '+' : '/';
     } else if (flow.trackingType === 'Time-based') {
       const hours = parseInt(modalState.timeDuration.hours, 10) || 0;
       const minutes = parseInt(modalState.timeDuration.minutes, 10) || 0;
@@ -227,7 +263,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
         minutes: flow.minutes || 0,
         seconds: flow.seconds || 0,
       };
-      updates.symbol = totalDuration > 0 ? '✅' : '➖';
+      updates.symbol = totalDuration > 0 ? '+' : '/';
     }
 
     console.log('Submitting updates:', { id: flow.id, date: modalState.selectedDate, updates });
@@ -258,7 +294,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
         goal,
         unitText: flow.unitText || '',
       };
-      updates.symbol = count > 0 ? '✅' : '➖';
+      updates.symbol = count > 0 ? '+' : '/';
     } else if (flow.trackingType === 'Time-based') {
       const hours = parseInt(modalState.timeDuration.hours, 10) || 0;
       const minutes = parseInt(modalState.timeDuration.minutes, 10) || 0;
@@ -271,7 +307,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
         minutes: flow.minutes || 0,
         seconds: flow.seconds || 0,
       };
-      updates.symbol = totalDuration > 0 ? '✅' : '➖';
+      updates.symbol = totalDuration > 0 ? '+' : '/';
     }
 
     console.log('Skipping note/emotion:', { id: flow.id, date: modalState.selectedDate, updates });
@@ -291,18 +327,18 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
       let displaySymbol = status.symbol;
       if (flow.trackingType === 'Quantitative') {
         const count = status.quantitative?.count || 0;
-        displaySymbol = count > 0 ? '✅' : '➖';
+        displaySymbol = count > 0 ? '+' : '/';
       } else if (flow.trackingType === 'Time-based') {
         const duration = status.timebased?.totalDuration || status.timeUpdate?.totalDuration || 0;
-        displaySymbol = duration > 0 ? '✅' : '➖';
+        displaySymbol = duration > 0 ? '+' : '/';
       }
       dates[date] = {
         customStyles: {
           container: {
-            backgroundColor: displaySymbol === '✅' ? '#28a745' : displaySymbol === '❌' ? '#dc3545' : '#e0e0e0',
+            backgroundColor: displaySymbol === '+' ? themeColors.success : displaySymbol === '-' ? themeColors.error : themeColors.progressBackground,
           },
           text: {
-            color: displaySymbol === '➖' ? '#666' : '#fff',
+            color: displaySymbol === '/' ? themeColors.secondaryText : themeColors.background,
             fontWeight: highContrast ? '700' : 'bold',
           },
         },
@@ -310,7 +346,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
     });
     if (Object.keys(dates).length === 0) {
       dates[moment().format('YYYY-MM-DD')] = {
-        customStyles: { container: { backgroundColor: '#e0e0e0' }, text: { color: '#666' } },
+        customStyles: { container: { backgroundColor: themeColors.progressBackground }, text: { color: themeColors.secondaryText } },
       };
     }
     console.log('Marked dates:', dates);
@@ -320,18 +356,61 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
   const renderCustomDay = useCallback(({ date, state }) => {
     const dateKey = date.dateString;
     const status = flow.status?.[dateKey];
-    const emotion = status?.emotion ? emotions.find((e) => e.label === status.emotion)?.emoji || '' : '';
+    
+    // Handle both emotion labels and direct emoji values
+    let emotion = '';
+    if (status?.emotion) {
+      if (status.emotion.length === 1) {
+        // Direct emoji value
+        emotion = status.emotion;
+      } else {
+        // Emotion label - find corresponding emoji
+        emotion = emotions.find((e) => e.label === status.emotion)?.emoji || '';
+      }
+    }
+    
+    // TEST: Force show emotion on September 23rd for debugging
+    if (dateKey === '2025-09-23') {
+      emotion = '😞'; // Force the emotion to show
+      console.log('FORCING EMOTION ON SEPT 23:', emotion);
+    }
+    
+    // TEST: Show emotion on every day for debugging
+    if (!emotion) {
+      emotion = '😊'; // Default test emotion
+    }
+    
     const hasNote = status?.note && typeof status.note === 'string' && status.note.trim() ? '📝' : '';
     const isDisabled = state === 'disabled';
     let displayText = '';
+    let statusSymbol = '';
+
+    // Debug logging
+    if (status?.emotion) {
+      console.log(`Date ${dateKey}: emotion=${status.emotion}, emoji=${emotion}, showEmotions=${showEmotions}`);
+    }
+    
+    // Specific debug for September 23rd
+    if (dateKey === '2024-09-23' || dateKey === '2023-09-23' || dateKey === '2025-09-23') {
+      console.log(`Rendering September 23rd (${dateKey}):`);
+      console.log('- Status:', status);
+      console.log('- Emotion:', status?.emotion);
+      console.log('- Emotion emoji:', emotion);
+      console.log('- Show emotions:', showEmotions);
+      console.log('- Available emotions:', emotions);
+    }
 
     if (flow.trackingType === 'Quantitative') {
       const count = status?.quantitative?.count || 0;
       const unitText = status?.quantitative?.unitText || flow.unitText || '';
       displayText = count > 0 ? `${count} ${unitText}` : '';
+      statusSymbol = count > 0 ? '+' : '/';
     } else if (flow.trackingType === 'Time-based') {
       const duration = status?.timebased?.totalDuration || status?.timeUpdate?.totalDuration || 0;
       displayText = duration > 0 ? `${(duration / 3600).toFixed(1)}h` : '';
+      statusSymbol = duration > 0 ? '+' : '/';
+    } else {
+      statusSymbol = status?.symbol || '';
     }
 
     return (
@@ -340,9 +419,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
           style={[
             styles.dayText,
             {
-              color: isDisabled
-                ? theme === 'light' ? '#ccc' : '#666'
-                : theme === 'light' ? '#333' : '#e0e0e0',
+              color: isDisabled ? themeColors.disabledText : themeColors.primaryText,
               fontSize: textSize === 'small' ? 14 : textSize === 'large' ? 18 : 16,
               fontWeight: highContrast ? '700' : '500',
             },
@@ -350,35 +427,111 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
         >
           {date.day}
         </Text>
-        {displayText && (
+        
+        {/* Status Symbol */}
+        {statusSymbol && (
           <Text
-            style={{
-              fontSize: textSize === 'small' ? 10 : textSize === 'large' ? 14 : 12,
-              marginTop: 2,
-              color: theme === 'light' ? '#333' : '#e0e0e0',
-            }}
+            style={[
+              styles.statusSymbol,
+              {
+                fontSize: textSize === 'small' ? 12 : textSize === 'large' ? 16 : 14,
+                color: statusSymbol === '+' ? themeColors.success : 
+                       statusSymbol === '-' ? themeColors.error : 
+                       themeColors.secondaryText,
+              },
+            ]}
           >
-            {displayText}
+            {statusSymbol}
           </Text>
         )}
-        {emotion && (
+        
+        {/* Mood/Emotion Indicator - FORCE SHOW FOR DEBUGGING */}
+        {(showEmotions || true) && emotion && (
           <Text
-            style={{
-              fontSize: textSize === 'small' ? 12 : textSize === 'large' ? 16 : 14,
-              marginTop: 2,
-              color: theme === 'light' ? '#333' : '#e0e0e0',
-            }}
+            style={[
+              styles.moodIndicator,
+              {
+                fontSize: 18, // Larger font size
+                marginTop: 2,
+                backgroundColor: 'yellow', // DEBUG: Add background color to make it visible
+                padding: 4,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: 'orange',
+                minHeight: 24,
+                lineHeight: 20,
+              },
+            ]}
           >
             {emotion}
           </Text>
         )}
+        
+        {/* DEBUG: Always show test emotion on Sept 23 */}
+        {dateKey === '2025-09-23' && (
+          <Text
+            style={[
+              styles.moodIndicator,
+              {
+                fontSize: 12,
+                marginTop: 2,
+                backgroundColor: 'red',
+                color: 'white',
+                padding: 2,
+                borderRadius: 4,
+                fontWeight: 'bold',
+                minHeight: 16,
+                lineHeight: 14,
+              },
+            ]}
+          >
+            TEST
+          </Text>
+        )}
+        
+        {/* FORCE SHOW EMOTION ON EVERY DAY FOR DEBUGGING */}
+        <Text
+          style={[
+            styles.moodIndicator,
+            {
+              fontSize: 16,
+              marginTop: 2,
+              backgroundColor: 'green',
+              color: 'white',
+              padding: 2,
+              borderRadius: 4,
+              fontWeight: 'bold',
+            },
+          ]}
+        >
+          😊
+        </Text>
+        
+        {/* Value Display (for Quantitative/Time-based) */}
+        {displayText && (
+          <Text
+            style={[
+              styles.valueText,
+              {
+                fontSize: textSize === 'small' ? 8 : textSize === 'large' ? 12 : 10,
+                color: themeColors.secondaryText,
+              },
+            ]}
+          >
+            {displayText}
+          </Text>
+        )}
+        
+        {/* Note Indicator */}
         {hasNote && (
           <Text
-            style={{
-              fontSize: textSize === 'small' ? 10 : textSize === 'large' ? 14 : 12,
-              marginTop: 2,
-              color: theme === 'light' ? '#666' : '#a0a0a0',
-            }}
+            style={[
+              styles.noteIndicator,
+              {
+                fontSize: textSize === 'small' ? 8 : textSize === 'large' ? 12 : 10,
+                color: themeColors.info,
+              },
+            ]}
           >
             {hasNote}
           </Text>
@@ -395,37 +548,68 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
 
   const dynamicStyles = StyleSheet.create({
     calendar: {
-      backgroundColor: theme === 'light' ? '#fff' : '#1e1e1e',
-      borderRadius: 8,
-      marginVertical: 12,
-      padding: 8,
+      backgroundColor: themeColors.background,
+      borderRadius: layout.borderRadius.lg,
+      marginVertical: layout.spacing.md,
+      padding: layout.spacing.sm,
     },
     inputContainer: {
       flexDirection: 'row',
-      gap: 12,
-      marginBottom: 16,
+      gap: layout.spacing.md,
+      marginBottom: layout.spacing.md,
     },
     input: {
       flex: 1,
       borderWidth: 1,
-      borderColor: theme === 'light' ? '#ccc' : '#666',
-      borderRadius: 8,
-      padding: 12,
-      backgroundColor: theme === 'light' ? '#fff' : '#333',
-      color: theme === 'light' ? '#333' : '#e0e0e0',
+      borderColor: themeColors.border,
+      borderRadius: layout.borderRadius.md,
+      padding: layout.spacing.md,
+      backgroundColor: themeColors.background,
+      color: themeColors.primaryText,
       fontSize: textSize === 'small' ? 16 : textSize === 'large' ? 20 : 18,
       textAlign: 'center',
       minHeight: 48,
     },
     inputLabel: {
       fontSize: textSize === 'small' ? 14 : textSize === 'large' ? 18 : 16,
-      color: theme === 'light' ? '#666' : '#aaa',
-      marginBottom: 8,
+      color: themeColors.secondaryText,
+      marginBottom: layout.spacing.sm,
     },
   });
 
   return (
     <>
+      {/* Emotion Toggle Button */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[
+            styles.toggleButton,
+            {
+              backgroundColor: showEmotions ? themeColors.primaryOrange : themeColors.cardBackground,
+              borderColor: themeColors.border,
+            },
+          ]}
+          onPress={() => {
+            console.log('Toggling emotions from', showEmotions, 'to', !showEmotions);
+            setShowEmotions(!showEmotions);
+          }}
+          accessibilityLabel={showEmotions ? "Hide emotions" : "Show emotions"}
+          accessibilityHint="Toggle emotion display in calendar"
+        >
+          <Text style={styles.toggleEmoji}>😊</Text>
+          <Text
+            style={[
+              styles.toggleText,
+              {
+                color: showEmotions ? '#FFFFFF' : themeColors.primaryText,
+              },
+            ]}
+          >
+            {showEmotions ? 'Hide Emotions' : 'Show Emotions'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      
       <Calendar
         current={currentMonth.format('YYYY-MM-DD')}
         markedDates={markedDates}
@@ -435,13 +619,13 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
         enableSwipe={true}
         onMonthChange={handleMonthChange}
         theme={{
-          calendarBackground: theme === 'light' ? '#fff' : '#1e1e1e',
-          textSectionTitleColor: '#000',
-          todayTextColor: accentColor,
-          dayTextColor: theme === 'light' ? '#333' : '#e0e0e0',
-          arrowColor: '#FF9500',
-          monthTextColor: '#FF9500',
-          textDisabledColor: theme === 'light' ? '#ccc' : '#666',
+          calendarBackground: themeColors.background,
+          textSectionTitleColor: themeColors.primaryText,
+          todayTextColor: themeColors.primaryOrange,
+          dayTextColor: themeColors.primaryText,
+          arrowColor: themeColors.primaryOrange,
+          monthTextColor: themeColors.primaryOrange,
+          textDisabledColor: themeColors.disabledText,
           'stylesheet.calendar.header': {
             week: {
               marginTop: 5,
@@ -454,7 +638,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
               alignItems: 'center',
               paddingBottom: 10,
               paddingTop: 10,
-              backgroundColor: theme === 'light' ? '#fff' : '#1e1e1e',
+              backgroundColor: themeColors.background,
             },
           },
         }}
@@ -484,7 +668,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
                 value={modalState.quantitativeCount}
                 onChangeText={(text) => setModalState((prev) => ({ ...prev, quantitativeCount: text.replace(/[^0-9]/g, '') }))}
                 placeholder="Enter count"
-                placeholderTextColor={theme === 'light' ? '#666' : '#999'}
+                placeholderTextColor={themeColors.secondaryText}
                 keyboardType="numeric"
               />
             </View>
@@ -499,7 +683,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
                 value={modalState.timeDuration.hours}
                 onChangeText={(text) => setModalState((prev) => ({ ...prev, timeDuration: { ...prev.timeDuration, hours: text.replace(/[^0-9]/g, '') } }))}
                 placeholder="0"
-                placeholderTextColor={theme === 'light' ? '#666' : '#999'}
+                placeholderTextColor={themeColors.secondaryText}
                 keyboardType="numeric"
               />
             </View>
@@ -510,7 +694,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
                 value={modalState.timeDuration.minutes}
                 onChangeText={(text) => setModalState((prev) => ({ ...prev, timeDuration: { ...prev.timeDuration, minutes: text.replace(/[^0-9]/g, '') } }))}
                 placeholder="0"
-                placeholderTextColor={theme === 'light' ? '#666' : '#999'}
+                placeholderTextColor={themeColors.secondaryText}
                 keyboardType="numeric"
               />
             </View>
@@ -521,7 +705,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
                 value={modalState.timeDuration.seconds}
                 onChangeText={(text) => setModalState((prev) => ({ ...prev, timeDuration: { ...prev.timeDuration, seconds: text.replace(/[^0-9]/g, '') } }))}
                 placeholder="0"
-                placeholderTextColor={theme === 'light' ? '#666' : '#999'}
+                placeholderTextColor={themeColors.secondaryText}
                 keyboardType="numeric"
               />
             </View>
@@ -540,13 +724,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
+  toggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: layout.spacing.sm,
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
+    borderRadius: layout.borderRadius.md,
+    borderWidth: 1,
+    ...layout.shadows.buttonShadow,
+  },
+  toggleEmoji: {
+    fontSize: 16,
+    marginRight: layout.spacing.xs,
+  },
+  toggleText: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+  },
   dayContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     padding: 4,
+    minHeight: 60, // Increased height for better visibility
+    width: '100%',
   },
   dayText: {
     textAlign: 'center',
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  statusSymbol: {
+    textAlign: 'center',
+    marginTop: 2,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  moodIndicator: {
+    textAlign: 'center',
+    marginTop: 2,
+    fontSize: 16,
+    fontWeight: 'bold',
+    minHeight: 20, // Ensure minimum height
+    lineHeight: 20,
+  },
+  valueText: {
+    textAlign: 'center',
+    marginTop: 2,
+    fontWeight: '500',
+    fontSize: 10,
+  },
+  noteIndicator: {
+    textAlign: 'center',
+    marginTop: 2,
+    fontSize: 10,
   },
 });
 

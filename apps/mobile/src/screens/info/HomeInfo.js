@@ -53,7 +53,7 @@ const HomeInfo = ({ navigation }) => {
     {
       id: 5,
       title: "Navigation",
-      description: "Use the bottom tabs to navigate between Home, Stats, Plans, and Profile sections.",
+      description: "Use the bottom tabs to navigate between Home and Stats sections.",
       icon: "navigate",
       color: themeColors.primaryPurple,
     },

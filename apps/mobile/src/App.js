@@ -3,6 +3,11 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './navigation/AppNavigator';
+import { NotificationProvider } from './context/NotificationContext';
+import './config/firebaseInit'; // Initialize Firebase
+
+// Firebase is initialized via firebaseInit.js
+console.log('🔥 Firebase initialized with React Native Firebase');
 
 // Create QueryClient instance with proper configuration
 const queryClient = new QueryClient({
@@ -24,7 +29,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <AppNavigator />
+        <NotificationProvider>
+          <AppNavigator />
+        </NotificationProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

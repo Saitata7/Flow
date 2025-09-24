@@ -10,7 +10,7 @@ import TabNavigator from './TabNavigator';
 import Splash from '../screens/info/Splash';
 import Onboarding from '../screens/info/Onboarding';
 import Firsttime from '../screens/info/Firsttime';
-import useAuth from '../hooks/useAuth';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import useFirstTime from '../hooks/useFirstTime';
 import { FlowsProvider } from '../context/FlowContext';
 import { ThemeProvider } from '../context/ThemeContext';
@@ -40,7 +40,7 @@ const screenOptions = {
 
 const Stack = createNativeStackNavigator();
 
-const AppNavigator = () => {
+const AppNavigatorContent = () => {
   const { user, isLoading: authLoading } = useAuth();
   const { isFirstLaunch, isLoading: firstTimeLoading } = useFirstTime();
 
@@ -57,6 +57,22 @@ const AppNavigator = () => {
     );
   }
 
+  // Determine initial route based on authentication and first-time status
+  const getInitialRoute = () => {
+    // If user is already logged in, go directly to main app
+    if (user) {
+      return 'Main';
+    }
+    
+    // If it's first launch, show onboarding
+    if (isFirstLaunch) {
+      return 'Onboarding';
+    }
+    
+    // Otherwise, show auth (login/register)
+    return 'Auth';
+  };
+
   return (
     <ThemeProvider>
       <FlowsProvider>
@@ -70,7 +86,7 @@ const AppNavigator = () => {
             <NavigationContainer>
               <Stack.Navigator 
                 screenOptions={screenOptions}
-                initialRouteName="Splash"
+                initialRouteName={getInitialRoute()}
               >
                 {/* Show splash screen first */}
                 <Stack.Screen name="Splash" component={Splash} />
@@ -92,6 +108,14 @@ const AppNavigator = () => {
           </ActivityProvider>
       </FlowsProvider>
     </ThemeProvider>
+  );
+};
+
+const AppNavigator = () => {
+  return (
+    <AuthProvider>
+      <AppNavigatorContent />
+    </AuthProvider>
   );
 };
 

@@ -9,12 +9,11 @@ import {
   Platform,
   Alert,
   ScrollView,
-  SafeAreaView,
   StatusBar,
   KeyboardAvoidingView,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { FlowsContext } from '../../context/FlowContext';
 import { ThemeContext } from '../../context/ThemeContext';
@@ -35,20 +34,25 @@ const EditFlowScreen = ({ route, navigation }) => {
   const { textSize = 'medium', highContrast = false } = useContext(ThemeContext) || {};
   const flow = flows.find((f) => f.id === flowId);
   const insets = useSafeAreaInsets();
+  
+  // Theme colors
+  const themeColors = colors.light;
 
   if (!flow) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaWrapper style={styles.safeArea}>
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Flow not found</Text>
+          <Text style={[styles.errorText, { color: themeColors.primaryText }]}>Flow not found</Text>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { backgroundColor: themeColors.cardBackground }]}
             onPress={() => navigation.goBack()}
+            accessibilityLabel="Go back"
+            accessibilityHint="Returns to the previous screen"
           >
-            <Text style={styles.backButtonText}>← Go Back</Text>
+            <Text style={[styles.backButtonText, { color: themeColors.primaryText }]}>← Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
@@ -265,7 +269,7 @@ const EditFlowScreen = ({ route, navigation }) => {
   ]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaWrapper style={styles.safeArea}>
       <StatusBar 
         translucent
         backgroundColor="transparent"
@@ -277,23 +281,23 @@ const EditFlowScreen = ({ route, navigation }) => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: themeColors.background }]}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, { backgroundColor: themeColors.cardBackground }]}
             onPress={() => navigation.goBack()}
             accessibilityLabel="Go back"
             accessibilityHint="Returns to the previous screen"
           >
-            <Text style={styles.backButtonText}>←</Text>
+            <Text style={[styles.backButtonText, { color: themeColors.primaryText }]}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Flow</Text>
+          <Text style={[styles.headerTitle, { color: themeColors.primaryText }]}>Edit Flow</Text>
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={[styles.cancelButton, { backgroundColor: themeColors.cardBackground }]}
             onPress={() => navigation.goBack()}
             accessibilityLabel="Cancel editing"
             accessibilityHint="Cancels editing and returns to previous screen"
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Text style={[styles.cancelButtonText, { color: themeColors.secondaryText }]}>Cancel</Text>
           </TouchableOpacity>
         </View>
 
@@ -306,40 +310,53 @@ const EditFlowScreen = ({ route, navigation }) => {
           >
           {/* Title Card */}
           <Card variant="elevated" padding="md" margin="sm">
-            <Text style={styles.cardTitle}>Flow Title</Text>
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Flow Title</Text>
             <View style={styles.titleInputContainer}>
               <TextInput
                 style={[
                   styles.modernInput,
-                  titleError && styles.inputError,
-                  isCheckingTitle && styles.inputChecking
+                  { 
+                    borderColor: themeColors.border,
+                    backgroundColor: themeColors.cardBackground,
+                    color: themeColors.primaryText
+                  },
+                  titleError && { borderColor: themeColors.error, backgroundColor: themeColors.errorBackground },
+                  isCheckingTitle && { borderColor: themeColors.warning, backgroundColor: themeColors.warningBackground }
                 ]}
                 value={title}
                 onChangeText={setTitle}
                 placeholder="e.g., Read for 30 minutes"
-                placeholderTextColor={colors.light.tertiaryText}
+                placeholderTextColor={themeColors.tertiaryText}
                 maxLength={10}
                 accessibilityLabel="Flow title input"
                 accessibilityHint="Enter a unique name for your flow (max 10 characters)"
               />
               {isCheckingTitle && (
-                <Text style={styles.checkingText}>Checking availability...</Text>
+                <Text style={[styles.checkingText, { color: themeColors.warning }]}>Checking availability...</Text>
               )}
               {titleError && (
-                <Text style={styles.errorText}>{titleError}</Text>
+                <Text style={[styles.errorText, { color: themeColors.error }]}>{titleError}</Text>
               )}
             </View>
           </Card>
 
           {/* Description Card */}
           <Card variant="elevated" padding="md" margin="sm">
-            <Text style={styles.cardTitle}>Description</Text>
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Description</Text>
             <TextInput
-              style={[styles.modernInput, styles.textArea]}
+              style={[
+                styles.modernInput, 
+                styles.textArea,
+                { 
+                  borderColor: themeColors.border,
+                  backgroundColor: themeColors.cardBackground,
+                  color: themeColors.primaryText
+                }
+              ]}
               value={description}
               onChangeText={setDescription}
               placeholder="Optional description about your flow..."
-              placeholderTextColor={colors.light.tertiaryText}
+              placeholderTextColor={themeColors.tertiaryText}
               multiline
               numberOfLines={3}
               accessibilityLabel="Flow description input"
@@ -348,63 +365,109 @@ const EditFlowScreen = ({ route, navigation }) => {
           </Card>
 
           {/* Tracking Type Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Tracking Type</Text>
+          <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Tracking Type</Text>
             <View style={styles.trackingTypeContainer}>
               <TouchableOpacity
-                style={[styles.trackingTypeButton, trackingType === 'Binary' && styles.trackingTypeButtonSelected]}
+                style={[
+                  styles.trackingTypeButton, 
+                  { backgroundColor: themeColors.cardBackground, borderColor: 'transparent' },
+                  trackingType === 'Binary' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                ]}
                 onPress={() => setTrackingType('Binary')}
+                accessibilityLabel="Select Binary tracking"
+                accessibilityHint="Choose yes/no tracking for this flow"
               >
                 <Text style={styles.trackingTypeIcon}>✓</Text>
-                <Text style={[styles.trackingTypeText, trackingType === 'Binary' && styles.trackingTypeTextSelected]}>
+                <Text style={[
+                  styles.trackingTypeText, 
+                  { color: themeColors.secondaryText },
+                  trackingType === 'Binary' && { color: themeColors.warning }
+                ]}>
                   Binary
                 </Text>
-                <Text style={styles.trackingTypeSubtext}>Yes/No tracking</Text>
+                <Text style={[styles.trackingTypeSubtext, { color: themeColors.tertiaryText }]}>Yes/No tracking</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.trackingTypeButton, trackingType === 'Quantitative' && styles.trackingTypeButtonSelected]}
+                style={[
+                  styles.trackingTypeButton, 
+                  { backgroundColor: themeColors.cardBackground, borderColor: 'transparent' },
+                  trackingType === 'Quantitative' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                ]}
                 onPress={() => setTrackingType('Quantitative')}
+                accessibilityLabel="Select Quantitative tracking"
+                accessibilityHint="Choose numbers tracking for this flow"
               >
                 <Text style={styles.trackingTypeIcon}>📊</Text>
-                <Text style={[styles.trackingTypeText, trackingType === 'Quantitative' && styles.trackingTypeTextSelected]}>
+                <Text style={[
+                  styles.trackingTypeText, 
+                  { color: themeColors.secondaryText },
+                  trackingType === 'Quantitative' && { color: themeColors.warning }
+                ]}>
                   Quantitative
                 </Text>
-                <Text style={styles.trackingTypeSubtext}>Numbers tracking</Text>
+                <Text style={[styles.trackingTypeSubtext, { color: themeColors.tertiaryText }]}>Numbers tracking</Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.trackingTypeButton, trackingType === 'Time-based' && styles.trackingTypeButtonSelected]}
+                style={[
+                  styles.trackingTypeButton, 
+                  { backgroundColor: themeColors.cardBackground, borderColor: 'transparent' },
+                  trackingType === 'Time-based' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                ]}
                 onPress={() => setTrackingType('Time-based')}
+                accessibilityLabel="Select Time-based tracking"
+                accessibilityHint="Choose duration tracking for this flow"
               >
                 <Text style={styles.trackingTypeIcon}>⏱️</Text>
-                <Text style={[styles.trackingTypeText, trackingType === 'Time-based' && styles.trackingTypeTextSelected]}>
+                <Text style={[
+                  styles.trackingTypeText, 
+                  { color: themeColors.secondaryText },
+                  trackingType === 'Time-based' && { color: themeColors.warning }
+                ]}>
                   Time-based
                 </Text>
-                <Text style={styles.trackingTypeSubtext}>Duration tracking</Text>
+                <Text style={[styles.trackingTypeSubtext, { color: themeColors.tertiaryText }]}>Duration tracking</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Quantitative Settings */}
           {trackingType === 'Quantitative' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Quantitative Settings</Text>
+            <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+              <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Quantitative Settings</Text>
               <View style={styles.inputRow}>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Unit</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Unit</Text>
                   <TextInput
-                    style={styles.modernInput}
+                    style={[
+                      styles.modernInput,
+                      { 
+                        borderColor: themeColors.border,
+                        backgroundColor: themeColors.cardBackground,
+                        color: themeColors.primaryText
+                      }
+                    ]}
                     value={unitText}
                     onChangeText={setUnitText}
                     placeholder="e.g., glasses, steps"
-                    placeholderTextColor="#999"
+                    placeholderTextColor={themeColors.tertiaryText}
+                    accessibilityLabel="Unit text input"
+                    accessibilityHint="Enter the unit of measurement for this flow"
                   />
                 </View>
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Goal (Optional)</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Goal (Optional)</Text>
                   <TextInput
-                    style={styles.modernInput}
+                    style={[
+                      styles.modernInput,
+                      { 
+                        borderColor: themeColors.border,
+                        backgroundColor: themeColors.cardBackground,
+                        color: themeColors.primaryText
+                      }
+                    ]}
                     value={goalInput}
                     onChangeText={(text) => {
                       const cleanText = text.replace(/[^0-9]/g, '');
@@ -424,7 +487,9 @@ const EditFlowScreen = ({ route, navigation }) => {
                     }}
                     keyboardType="numeric"
                     placeholder="e.g., 8"
-                    placeholderTextColor="#999"
+                    placeholderTextColor={themeColors.tertiaryText}
+                    accessibilityLabel="Goal input"
+                    accessibilityHint="Enter the daily goal for this flow"
                   />
                 </View>
               </View>
@@ -433,13 +498,20 @@ const EditFlowScreen = ({ route, navigation }) => {
 
           {/* Time-based Settings */}
           {trackingType === 'Time-based' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Time Duration (Goal)</Text>
+            <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+              <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Time Duration (Goal)</Text>
               <View style={styles.timeInputRow}>
                 <View style={styles.timeInputGroup}>
-                  <Text style={styles.inputLabel}>Hours</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Hours</Text>
                   <TextInput
-                    style={styles.modernInput}
+                    style={[
+                      styles.modernInput,
+                      { 
+                        borderColor: themeColors.border,
+                        backgroundColor: themeColors.cardBackground,
+                        color: themeColors.primaryText
+                      }
+                    ]}
                     value={hoursInput}
                     onChangeText={(text) => {
                       const cleanText = text.replace(/[^0-9]/g, '');
@@ -459,13 +531,22 @@ const EditFlowScreen = ({ route, navigation }) => {
                     }}
                     keyboardType="numeric"
                     placeholder="00"
-                    placeholderTextColor="#999"
+                    placeholderTextColor={themeColors.tertiaryText}
+                    accessibilityLabel="Hours input"
+                    accessibilityHint="Enter the number of hours for this flow"
                   />
                 </View>
                 <View style={styles.timeInputGroup}>
-                  <Text style={styles.inputLabel}>Minutes</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Minutes</Text>
                   <TextInput
-                    style={styles.modernInput}
+                    style={[
+                      styles.modernInput,
+                      { 
+                        borderColor: themeColors.border,
+                        backgroundColor: themeColors.cardBackground,
+                        color: themeColors.primaryText
+                      }
+                    ]}
                     value={minutesInput}
                     onChangeText={(text) => {
                       const cleanText = text.replace(/[^0-9]/g, '');
@@ -485,13 +566,22 @@ const EditFlowScreen = ({ route, navigation }) => {
                     }}
                     keyboardType="numeric"
                     placeholder="00"
-                    placeholderTextColor="#999"
+                    placeholderTextColor={themeColors.tertiaryText}
+                    accessibilityLabel="Minutes input"
+                    accessibilityHint="Enter the number of minutes for this flow"
                   />
                 </View>
                 <View style={styles.timeInputGroup}>
-                  <Text style={styles.inputLabel}>Seconds</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Seconds</Text>
                   <TextInput
-                    style={styles.modernInput}
+                    style={[
+                      styles.modernInput,
+                      { 
+                        borderColor: themeColors.border,
+                        backgroundColor: themeColors.cardBackground,
+                        color: themeColors.primaryText
+                      }
+                    ]}
                     value={secondsInput}
                     onChangeText={(text) => {
                       const cleanText = text.replace(/[^0-9]/g, '');
@@ -511,7 +601,9 @@ const EditFlowScreen = ({ route, navigation }) => {
                     }}
                     keyboardType="numeric"
                     placeholder="00"
-                    placeholderTextColor="#999"
+                    placeholderTextColor={themeColors.tertiaryText}
+                    accessibilityLabel="Seconds input"
+                    accessibilityHint="Enter the number of seconds for this flow"
                   />
                 </View>
               </View>
@@ -519,22 +611,42 @@ const EditFlowScreen = ({ route, navigation }) => {
           )}
 
           {/* Frequency Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Frequency</Text>
+          <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Frequency</Text>
             <View style={styles.frequencyContainer}>
               <TouchableOpacity
-                style={[styles.frequencyButton, frequency === 'Daily' && styles.frequencyButtonSelected]}
+                style={[
+                  styles.frequencyButton, 
+                  { backgroundColor: themeColors.cardBackground, borderColor: 'transparent' },
+                  frequency === 'Daily' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                ]}
                 onPress={() => setFrequency('Daily')}
+                accessibilityLabel="Select Daily frequency"
+                accessibilityHint="Choose daily tracking for this flow"
               >
-                <Text style={[styles.frequencyText, frequency === 'Daily' && styles.frequencyTextSelected]}>
+                <Text style={[
+                  styles.frequencyText, 
+                  { color: themeColors.secondaryText },
+                  frequency === 'Daily' && { color: themeColors.warning }
+                ]}>
                   Daily
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.frequencyButton, frequency === 'Monthly' && styles.frequencyButtonSelected]}
+                style={[
+                  styles.frequencyButton, 
+                  { backgroundColor: themeColors.cardBackground, borderColor: 'transparent' },
+                  frequency === 'Monthly' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                ]}
                 onPress={() => setFrequency('Monthly')}
+                accessibilityLabel="Select Monthly frequency"
+                accessibilityHint="Choose monthly tracking for this flow"
               >
-                <Text style={[styles.frequencyText, frequency === 'Monthly' && styles.frequencyTextSelected]}>
+                <Text style={[
+                  styles.frequencyText, 
+                  { color: themeColors.secondaryText },
+                  frequency === 'Monthly' && { color: themeColors.warning }
+                ]}>
                   Monthly
                 </Text>
               </TouchableOpacity>
@@ -543,21 +655,23 @@ const EditFlowScreen = ({ route, navigation }) => {
 
           {/* Days Selection Card */}
           {frequency === 'Daily' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Schedule</Text>
+            <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+              <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Schedule</Text>
               <View style={styles.toggleRow}>
-                <Text style={styles.toggleLabel}>Every Day</Text>
+                <Text style={[styles.toggleLabel, { color: themeColors.primaryText }]}>Every Day</Text>
                 <Switch
                   style={styles.toggleSwitch}
                   value={everyDay}
                   onValueChange={setEveryDay}
-                  trackColor={{ false: '#ccc', true: '#F5A623' }}
-                  thumbColor="#fff"
+                  trackColor={{ false: themeColors.border, true: themeColors.warning }}
+                  thumbColor={themeColors.cardBackground}
+                  accessibilityLabel="Toggle every day"
+                  accessibilityHint="Enable or disable tracking every day"
                 />
               </View>
               {!everyDay && (
                 <View style={styles.daysContainer}>
-                  <Text style={styles.inputLabel}>Days of Week</Text>
+                  <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Days of Week</Text>
                   <View style={styles.daysGrid}>
                     {daysOfWeek.map((day) => (
                       <TouchableOpacity
@@ -565,13 +679,17 @@ const EditFlowScreen = ({ route, navigation }) => {
                         onPress={() => toggleDay(day)}
                         style={[
                           styles.dayButton,
-                          selectedDays.includes(day) && styles.dayButtonSelected,
+                          { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
+                          selectedDays.includes(day) && { backgroundColor: themeColors.warning, borderColor: themeColors.warning }
                         ]}
+                        accessibilityLabel={`Toggle ${day}`}
+                        accessibilityHint={`Select or deselect ${day} for tracking`}
                       >
                         <Text
                           style={[
                             styles.dayButtonText,
-                            selectedDays.includes(day) && styles.dayButtonTextSelected,
+                            { color: themeColors.secondaryText },
+                            selectedDays.includes(day) && { color: themeColors.onWarning }
                           ]}
                         >
                           {day}
@@ -585,8 +703,8 @@ const EditFlowScreen = ({ route, navigation }) => {
           )}
 
           {frequency === 'Monthly' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Days of Month</Text>
+            <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+              <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Days of Month</Text>
               <View style={styles.monthDaysGrid}>
                 {daysInMonth.map((day) => (
                   <TouchableOpacity
@@ -594,13 +712,17 @@ const EditFlowScreen = ({ route, navigation }) => {
                     onPress={() => toggleDay(day)}
                     style={[
                       styles.dayButton,
-                      selectedDays.includes(day) && styles.dayButtonSelected,
+                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
+                      selectedDays.includes(day) && { backgroundColor: themeColors.warning, borderColor: themeColors.warning }
                     ]}
+                    accessibilityLabel={`Toggle day ${day}`}
+                    accessibilityHint={`Select or deselect day ${day} for tracking`}
                   >
                     <Text
                       style={[
                         styles.dayButtonText,
-                        selectedDays.includes(day) && styles.dayButtonTextSelected,
+                        { color: themeColors.secondaryText },
+                        selectedDays.includes(day) && { color: themeColors.onWarning }
                       ]}
                     >
                       {day}
@@ -612,73 +734,157 @@ const EditFlowScreen = ({ route, navigation }) => {
           )}
 
           {/* Reminder Time Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Reminder</Text>
+          <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Reminder</Text>
             <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Enable Reminder</Text>
+              <Text style={[styles.toggleLabel, { color: themeColors.primaryText }]}>Enable Reminder</Text>
               <Switch
                 style={styles.toggleSwitch}
                 value={reminderTimeEnabled}
                 onValueChange={setReminderTimeEnabled}
-                trackColor={{ false: '#ccc', true: '#F5A623' }}
-                thumbColor="#fff"
+                trackColor={{ false: themeColors.border, true: themeColors.warning }}
+                thumbColor={themeColors.cardBackground}
+                accessibilityLabel="Toggle reminder"
+                accessibilityHint="Enable or disable daily reminders for this flow"
               />
             </View>
             {reminderTimeEnabled && (
-              <TouchableOpacity
-                style={styles.timePickerButton}
-                onPress={() => setShowTimePicker(true)}
-              >
-                <Text style={styles.timePickerText}>
-                  {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
-                </Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.timePickerButton,
+                    { 
+                      borderColor: themeColors.border,
+                      backgroundColor: themeColors.cardBackground
+                    }
+                  ]}
+                  onPress={() => setShowTimePicker(true)}
+                  accessibilityLabel="Set reminder time"
+                  accessibilityHint="Choose the time for daily reminders"
+                >
+                  <Text style={[styles.timePickerText, { color: themeColors.primaryText }]}>
+                    {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Reminder Level Section */}
+                <View style={styles.reminderLevelSection}>
+                  <Text style={[styles.reminderLevelLabel, { color: themeColors.primaryText }]}>Reminder Level</Text>
+                  <Text style={[styles.reminderLevelDescription, { color: themeColors.secondaryText }]}>
+                    Choose the intensity of your reminder
+                  </Text>
+                  <View style={styles.reminderLevelButtons}>
+                    {[
+                      { level: '1', label: 'Notification', description: 'Gentle notification' },
+                      { level: '2', label: 'Alert', description: 'Persistent alert with sound' },
+                      { level: '3', label: 'Alarm', description: 'Loud alarm with snooze' }
+                    ].map(({ level, label, description }) => (
+                      <TouchableOpacity
+                        key={level}
+                        style={[
+                          styles.reminderLevelButton,
+                          { 
+                            borderColor: themeColors.border,
+                            backgroundColor: themeColors.cardBackground
+                          },
+                          reminderLevel === level && {
+                            borderColor: themeColors.primaryOrange,
+                            backgroundColor: themeColors.primaryOrangeBackground || '#FFF3E0'
+                          }
+                        ]}
+                        onPress={() => setReminderLevel(level)}
+                        accessibilityLabel={`Set reminder level to ${label}`}
+                        accessibilityHint={`Sets reminder intensity to ${description}`}
+                      >
+                        <Text style={[
+                          styles.reminderLevelButtonText,
+                          { color: themeColors.primaryText },
+                          reminderLevel === level && { color: themeColors.primaryOrange }
+                        ]}>
+                          {label}
+                        </Text>
+                        <Text style={[
+                          styles.reminderLevelButtonDescription,
+                          { color: themeColors.secondaryText },
+                          reminderLevel === level && { color: themeColors.primaryOrange }
+                        ]}>
+                          {description}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
             )}
           </View>
 
           {/* Advanced Settings Card */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Advanced Settings</Text>
+          <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Advanced Settings</Text>
             
             <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Cheat Mode</Text>
+              <Text style={[styles.toggleLabel, { color: themeColors.primaryText }]}>Cheat Mode</Text>
               <Switch
                 style={styles.toggleSwitch}
                 value={cheatMode}
                 onValueChange={setCheatMode}
-                trackColor={{ false: '#ccc', true: '#F5A623' }}
-                thumbColor="#fff"
+                trackColor={{ false: themeColors.border, true: themeColors.warning }}
+                thumbColor={themeColors.cardBackground}
+                accessibilityLabel="Toggle cheat mode"
+                accessibilityHint="Enable or disable cheat mode for this flow"
               />
             </View>
             
             <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Archived</Text>
+              <Text style={[styles.toggleLabel, { color: themeColors.primaryText }]}>Archived</Text>
               <Switch
                 style={styles.toggleSwitch}
                 value={archived}
                 onValueChange={setArchived}
-                trackColor={{ false: '#ccc', true: '#F5A623' }}
-                thumbColor="#fff"
+                trackColor={{ false: themeColors.border, true: themeColors.warning }}
+                thumbColor={themeColors.cardBackground}
+                accessibilityLabel="Toggle archived"
+                accessibilityHint="Archive or unarchive this flow"
               />
             </View>
 
             <View style={styles.inputRow}>
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Visibility</Text>
+                <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Visibility</Text>
                 <View style={styles.visibilityContainer}>
                   <TouchableOpacity
-                    style={[styles.visibilityButton, visibility === 'private' && styles.visibilityButtonSelected]}
+                    style={[
+                      styles.visibilityButton,
+                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
+                      visibility === 'private' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                    ]}
                     onPress={() => setVisibility('private')}
+                    accessibilityLabel="Set private visibility"
+                    accessibilityHint="Make this flow private"
                   >
-                    <Text style={[styles.visibilityText, visibility === 'private' && styles.visibilityTextSelected]}>
+                    <Text style={[
+                      styles.visibilityText,
+                      { color: themeColors.secondaryText },
+                      visibility === 'private' && { color: themeColors.warning }
+                    ]}>
                       Private
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.visibilityButton, visibility === 'public' && styles.visibilityButtonSelected]}
+                    style={[
+                      styles.visibilityButton,
+                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
+                      visibility === 'public' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                    ]}
                     onPress={() => setVisibility('public')}
+                    accessibilityLabel="Set public visibility"
+                    accessibilityHint="Make this flow public"
                   >
-                    <Text style={[styles.visibilityText, visibility === 'public' && styles.visibilityTextSelected]}>
+                    <Text style={[
+                      styles.visibilityText,
+                      { color: themeColors.secondaryText },
+                      visibility === 'public' && { color: themeColors.warning }
+                    ]}>
                       Public
                     </Text>
                   </TouchableOpacity>
@@ -686,21 +892,41 @@ const EditFlowScreen = ({ route, navigation }) => {
               </View>
               
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Progress Mode</Text>
+                <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Progress Mode</Text>
                 <View style={styles.progressModeContainer}>
                   <TouchableOpacity
-                    style={[styles.progressModeButton, progressMode === 'sum' && styles.progressModeButtonSelected]}
+                    style={[
+                      styles.progressModeButton,
+                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
+                      progressMode === 'sum' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                    ]}
                     onPress={() => setProgressMode('sum')}
+                    accessibilityLabel="Set sum progress mode"
+                    accessibilityHint="Use sum for progress calculation"
                   >
-                    <Text style={[styles.progressModeText, progressMode === 'sum' && styles.progressModeTextSelected]}>
+                    <Text style={[
+                      styles.progressModeText,
+                      { color: themeColors.secondaryText },
+                      progressMode === 'sum' && { color: themeColors.warning }
+                    ]}>
                       Sum
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.progressModeButton, progressMode === 'average' && styles.progressModeButtonSelected]}
+                    style={[
+                      styles.progressModeButton,
+                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
+                      progressMode === 'average' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
+                    ]}
                     onPress={() => setProgressMode('average')}
+                    accessibilityLabel="Set average progress mode"
+                    accessibilityHint="Use average for progress calculation"
                   >
-                    <Text style={[styles.progressModeText, progressMode === 'average' && styles.progressModeTextSelected]}>
+                    <Text style={[
+                      styles.progressModeText,
+                      { color: themeColors.secondaryText },
+                      progressMode === 'average' && { color: themeColors.warning }
+                    ]}>
                       Average
                     </Text>
                   </TouchableOpacity>
@@ -725,11 +951,12 @@ const EditFlowScreen = ({ route, navigation }) => {
           </ScrollView>
 
           {/* Update Button - Inside SafeAreaWrapper to be above tab bar */}
-          <View style={styles.saveButtonContainer}>
+          <View style={[styles.saveButtonContainer, { backgroundColor: themeColors.background, borderTopColor: themeColors.border }]}>
             <TouchableOpacity
               style={[
                 styles.updateButton,
-                (!!titleError || isCheckingTitle) && styles.updateButtonDisabled
+                { backgroundColor: themeColors.primary },
+                (!!titleError || isCheckingTitle) && { backgroundColor: themeColors.disabled, opacity: 0.6 }
               ]}
               onPress={handleSave}
               disabled={!!titleError || isCheckingTitle}
@@ -737,14 +964,14 @@ const EditFlowScreen = ({ route, navigation }) => {
               accessibilityLabel="Update flow"
               accessibilityHint="Updates the current flow with new settings"
             >
-              <Text style={styles.updateButtonText}>
+              <Text style={[styles.updateButtonText, { color: themeColors.onPrimary }]}>
                 {isCheckingTitle ? 'Checking...' : 'Update Flow'}
               </Text>
             </TouchableOpacity>
           </View>
         </SafeAreaWrapper>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 
@@ -757,14 +984,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: layout.spacing.lg,
   },
   errorText: {
-    fontSize: 18,
+    ...typography.styles.title3,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
+    marginBottom: layout.spacing.lg,
     textAlign: 'center',
+  },
+  backButton: {
+    width: layout.button.iconSize,
+    height: layout.button.iconSize,
+    borderRadius: layout.squircle.borderRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...layout.shadows.buttonShadow,
+  },
+  backButtonText: {
+    ...typography.styles.title2,
+    fontWeight: 'bold',
   },
   header: {
     flexDirection: 'row',
@@ -773,37 +1011,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: layout.spacing.md,
     paddingTop: layout.spacing.md,
     paddingBottom: layout.spacing.md,
-    backgroundColor: colors.light.background,
     minHeight: 60, // Ensure consistent header height
-  },
-  backButton: {
-    width: layout.button.iconSize,
-    height: layout.button.iconSize,
-    borderRadius: layout.squircle.borderRadius,
-    backgroundColor: colors.light.cardBackground,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...layout.shadows.buttonShadow,
-  },
-  backButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.light.primaryText,
   },
   headerTitle: {
     ...typography.styles.title2,
-    color: colors.light.primaryText,
   },
   cancelButton: {
     paddingHorizontal: layout.spacing.sm,
     paddingVertical: layout.spacing.xs,
     borderRadius: layout.squircle.borderRadius,
-    backgroundColor: colors.light.cardBackground,
     ...layout.shadows.buttonShadow,
   },
   cancelButtonText: {
     ...typography.styles.body,
-    color: colors.light.secondaryText,
     fontWeight: '600',
   },
   contentWrapper: {
@@ -818,60 +1038,34 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     ...typography.styles.title3,
-    color: colors.light.primaryText,
     marginBottom: layout.spacing.md,
   },
   titleInputContainer: {
     position: 'relative',
   },
-  inputError: {
-    borderColor: colors.light.error,
-    backgroundColor: colors.light.errorBackground,
-  },
-  inputChecking: {
-    borderColor: colors.light.warning,
-    backgroundColor: colors.light.warningBackground,
-  },
   errorText: {
-    color: colors.light.error,
-    fontSize: typography.styles.caption1.fontSize,
+    ...typography.styles.caption1,
     marginTop: layout.spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   checkingText: {
-    color: colors.light.warning,
-    fontSize: typography.styles.caption1.fontSize,
+    ...typography.styles.caption1,
     marginTop: layout.spacing.xs,
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    borderRadius: layout.borderRadius.lg,
+    padding: layout.spacing.lg,
+    marginBottom: layout.spacing.md,
+    ...layout.shadows.cardShadow,
   },
   modernInput: {
     borderWidth: 1,
-    borderColor: colors.light.border,
     borderRadius: layout.squircle.borderRadius,
     paddingHorizontal: layout.spacing.md,
     paddingVertical: layout.spacing.sm,
-    fontSize: typography.styles.body.fontSize,
-    color: colors.light.primaryText,
-    backgroundColor: colors.light.cardBackground,
+    ...typography.styles.body,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   textArea: {
@@ -885,35 +1079,24 @@ const styles = StyleSheet.create({
   trackingTypeButton: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    paddingVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.sm,
+    marginHorizontal: layout.spacing.xs,
+    borderRadius: layout.borderRadius.md,
     borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  trackingTypeButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
   },
   trackingTypeIcon: {
     fontSize: 24,
-    marginBottom: 8,
+    marginBottom: layout.spacing.sm,
   },
   trackingTypeText: {
-    fontSize: 14,
+    ...typography.styles.caption1,
     fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
+    marginBottom: layout.spacing.xs,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  trackingTypeTextSelected: {
-    color: '#92400E',
-  },
   trackingTypeSubtext: {
-    fontSize: 12,
-    color: '#9CA3AF',
+    ...typography.styles.caption2,
     textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
@@ -923,13 +1106,12 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: layout.spacing.xs,
   },
   inputLabel: {
-    fontSize: 14,
+    ...typography.styles.caption1,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    marginBottom: layout.spacing.sm,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   timeInputRow: {
@@ -938,7 +1120,7 @@ const styles = StyleSheet.create({
   },
   timeInputGroup: {
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: layout.spacing.xs,
   },
   frequencyContainer: {
     flexDirection: 'row',
@@ -946,45 +1128,34 @@ const styles = StyleSheet.create({
   },
   frequencyButton: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
+    paddingVertical: layout.spacing.sm,
+    paddingHorizontal: layout.spacing.md,
+    marginHorizontal: layout.spacing.xs,
+    borderRadius: layout.borderRadius.md,
     borderWidth: 2,
-    borderColor: 'transparent',
     alignItems: 'center',
   },
-  frequencyButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
   frequencyText: {
-    fontSize: 16,
+    ...typography.styles.body,
     fontWeight: '600',
-    color: '#6B7280',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  frequencyTextSelected: {
-    color: '#92400E',
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: layout.spacing.md,
   },
   toggleLabel: {
-    fontSize: 16,
+    ...typography.styles.body,
     fontWeight: '600',
-    color: '#374151',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   toggleSwitch: {
     transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
   },
   daysContainer: {
-    marginTop: 16,
+    marginTop: layout.spacing.md,
   },
   daysGrid: {
     flexDirection: 'row',
@@ -994,26 +1165,16 @@ const styles = StyleSheet.create({
   dayButton: {
     width: '14%',
     aspectRatio: 1,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+    borderRadius: layout.borderRadius.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
-  },
-  dayButtonSelected: {
-    backgroundColor: '#F59E0B',
-    borderColor: '#F59E0B',
+    marginBottom: layout.spacing.sm,
   },
   dayButtonText: {
-    fontSize: 12,
+    ...typography.styles.caption2,
     fontWeight: '600',
-    color: '#6B7280',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  dayButtonTextSelected: {
-    color: '#FFFFFF',
   },
   monthDaysGrid: {
     flexDirection: 'row',
@@ -1022,28 +1183,22 @@ const styles = StyleSheet.create({
   },
   timePickerButton: {
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    borderRadius: layout.borderRadius.md,
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
   },
   timePickerText: {
-    fontSize: 16,
-    color: '#333',
+    ...typography.styles.body,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   saveButtonContainer: {
     paddingHorizontal: layout.spacing.md,
     paddingTop: layout.spacing.md,
     paddingBottom: layout.spacing.md,
-    backgroundColor: colors.light.background,
     borderTopWidth: 1,
-    borderTopColor: colors.light.border,
     // SafeAreaWrapper handles the bottom spacing
   },
   updateButton: {
-    backgroundColor: colors.light.primary,
     borderRadius: layout.squircle.borderRadius,
     paddingVertical: layout.spacing.md,
     paddingHorizontal: layout.spacing.lg,
@@ -1052,29 +1207,9 @@ const styles = StyleSheet.create({
     minHeight: layout.button.standardHeight,
     ...layout.shadows.buttonShadow,
   },
-  updateButtonDisabled: {
-    backgroundColor: colors.light.disabled,
-    opacity: 0.6,
-  },
   updateButtonText: {
     ...typography.styles.button,
-    color: colors.light.onPrimary,
     fontWeight: '600',
-  },
-  saveButtonGradient: {
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  saveButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   visibilityContainer: {
     flexDirection: 'row',
@@ -1082,27 +1217,17 @@ const styles = StyleSheet.create({
   },
   visibilityButton: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginHorizontal: 2,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+    paddingVertical: layout.spacing.sm,
+    paddingHorizontal: layout.spacing.sm,
+    marginHorizontal: layout.spacing.xs,
+    borderRadius: layout.borderRadius.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     alignItems: 'center',
   },
-  visibilityButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
   visibilityText: {
-    fontSize: 14,
+    ...typography.styles.caption1,
     fontWeight: '600',
-    color: '#6B7280',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  visibilityTextSelected: {
-    color: '#92400E',
   },
   progressModeContainer: {
     flexDirection: 'row',
@@ -1110,27 +1235,60 @@ const styles = StyleSheet.create({
   },
   progressModeButton: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginHorizontal: 2,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+    paddingVertical: layout.spacing.sm,
+    paddingHorizontal: layout.spacing.sm,
+    marginHorizontal: layout.spacing.xs,
+    borderRadius: layout.borderRadius.sm,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     alignItems: 'center',
   },
-  progressModeButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
   progressModeText: {
-    fontSize: 14,
+    ...typography.styles.caption1,
     fontWeight: '600',
-    color: '#6B7280',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  progressModeTextSelected: {
-    color: '#92400E',
+  reminderLevelSection: {
+    marginTop: layout.spacing.md,
+    paddingTop: layout.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.light.border,
+  },
+  reminderLevelLabel: {
+    fontSize: typography.styles.body.fontSize,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.primaryText,
+    marginBottom: layout.spacing.xs,
+  },
+  reminderLevelDescription: {
+    fontSize: typography.styles.caption1.fontSize,
+    color: colors.light.secondaryText,
+    marginBottom: layout.spacing.sm,
+  },
+  reminderLevelButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: layout.spacing.xs,
+  },
+  reminderLevelButton: {
+    flex: 1,
+    paddingVertical: layout.spacing.sm,
+    paddingHorizontal: layout.spacing.xs,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.light.border,
+    backgroundColor: colors.light.cardBackground,
+    alignItems: 'center',
+  },
+  reminderLevelButtonText: {
+    fontSize: typography.styles.caption1.fontSize,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.primaryText,
+    marginBottom: 2,
+  },
+  reminderLevelButtonDescription: {
+    fontSize: typography.styles.caption2.fontSize,
+    color: colors.light.secondaryText,
+    textAlign: 'center',
   },
 });
 

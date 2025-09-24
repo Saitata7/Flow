@@ -105,15 +105,15 @@ export const ActivityProvider = ({ children }) => {
           }
         } else {
           // Binary flow logic
-          if (symbol === '✅') {
+          if (symbol === '+') {
             completed++;
             streak++;
             if (streak > 0 && streak % 7 === 0) {
               streakBonus += 5;
             }
           } else {
-            if (symbol === '❌') failed++;
-            else if (symbol === '➖') skipped++;
+            if (symbol === '-') failed++;
+            else if (symbol === '/') skipped++;
             else if (symbol === '-') inactive++;
             streak = 0;
           }
@@ -231,9 +231,9 @@ export const ActivityProvider = ({ children }) => {
         } else {
           activities.push({
             date: dayKey,
-            status: dayStat.symbol === '✅' ? 'Completed' :
-                   dayStat.symbol === '❌' ? 'Missed' :
-                   dayStat.symbol === '➖' ? 'Skipped' : 'Inactive',
+            status: dayStat.symbol === '+' ? 'Completed' :
+                   dayStat.symbol === '-' ? 'Missed' :
+                   dayStat.symbol === '/' ? 'Skipped' : 'Inactive',
           });
         }
       }
@@ -259,9 +259,11 @@ export const ActivityProvider = ({ children }) => {
   const getEmotionalActivity = (flowId) => {
     const flow = flows.find((h) => h.id === flowId) || {};
     const status = flow.status || {};
-    const startDate = moment(flow.startDate);
+    
+    // Use createdAt as fallback if startDate is not available
+    const startDate = moment(flow.startDate || flow.createdAt);
     if (!startDate.isValid()) {
-      console.warn('Invalid startDate for flow:', flow.id, flow.title);
+      console.warn('Invalid startDate for flow:', flow.id, flow.title, 'startDate:', flow.startDate, 'createdAt:', flow.createdAt);
       return { totalEmotions: 0, byEmotion: { Happy: 0, Sad: 0, Angry: 0, Excited: 0, Calm: 0 } };
     }
     const endDate = moment();

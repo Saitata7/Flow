@@ -7,7 +7,7 @@ import {
   Dimensions,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import moment from 'moment';
@@ -18,16 +18,14 @@ import Card from '../../components/common/card';
 import Button from '../../components/common/Button';
 import { colors, typography, layout } from '../../../styles';
 import statsService from '../../services/statsService';
-import FlowStatsSummary from '../../components/FlowStats/FlowStatsSummary';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const StatsScreen = ({ navigation }) => {
   const { flows, activeFlows } = useContext(FlowsContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
-  const [selectedTimeframe, setSelectedTimeframe] = useState('7D');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
-  const [viewMode, setViewMode] = useState('overview'); // 'overview' or 'summary'
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
@@ -63,43 +61,43 @@ const StatsScreen = ({ navigation }) => {
 
   // Chart configurations
   const chartConfig = {
-    backgroundColor: '#FFFFFF',
-    backgroundGradientFrom: '#FFFFFF',
-    backgroundGradientTo: '#FFFFFF',
+    backgroundColor: themeColors.background,
+    backgroundGradientFrom: themeColors.background,
+    backgroundGradientTo: themeColors.background,
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
-    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
+    labelColor: (opacity = 1) => `${themeColors.primaryText}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
     style: {
-      borderRadius: 12,
+      borderRadius: layout.borderRadius.lg,
     },
     propsForDots: {
       r: '3',
       strokeWidth: '2',
-      stroke: '#FF9500',
+      stroke: themeColors.primaryOrange,
     },
     propsForBackgroundLines: {
       strokeDasharray: '',
-      stroke: '#E5E5E5',
+      stroke: themeColors.progressBackground,
       strokeWidth: 1,
     },
     propsForLabels: {
       fontSize: 10,
-      fill: '#000000',
+      fill: themeColors.primaryText,
     },
     propsForVerticalLabels: {
       fontSize: 10,
-      fill: '#000000',
+      fill: themeColors.primaryText,
     },
     propsForHorizontalLabels: {
       fontSize: 10,
-      fill: '#000000',
+      fill: themeColors.primaryText,
     },
   };
 
   // Handle empty state
   if (!flows || flows.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+      <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
         <View style={styles.emptyState}>
           <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
           <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>No Flows Yet</Text>
@@ -111,9 +109,11 @@ const StatsScreen = ({ navigation }) => {
             title="Create Flow"
             onPress={() => navigation.navigate('AddFlow')}
             style={styles.emptyButton}
+            accessibilityLabel="Create your first flow to start tracking habits"
+            accessibilityHint="Navigates to the add flow screen"
           />
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
@@ -142,10 +142,12 @@ const StatsScreen = ({ navigation }) => {
       style={[styles.flowCard, { backgroundColor: themeColors.cardBackground }]}
       activeOpacity={0.8}
       onPress={() => navigation.navigate('FlowStatsDetail', { flowId: flow.id })}
+      accessibilityLabel={`${flow.name} performance: ${flow.performance.toFixed(0)}%`}
+      accessibilityHint={`View detailed statistics for ${flow.name}`}
     >
       <View style={styles.flowCardHeader}>
         <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
-        <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? colors.light.success : flow.performance >= 60 ? colors.light.warning : colors.light.error }]}>
+        <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? themeColors.warning : themeColors.error }]}>
           <Text style={styles.performanceText}>{flow.performance.toFixed(0)}%</Text>
         </View>
       </View>
@@ -172,7 +174,7 @@ const StatsScreen = ({ navigation }) => {
               styles.progressFill,
               {
                 width: `${flow.performance}%`,
-                backgroundColor: flow.performance >= 80 ? colors.light.success : flow.performance >= 60 ? colors.light.warning : colors.light.error
+                backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? themeColors.warning : themeColors.error
               }
             ]}
           />
@@ -226,10 +228,10 @@ const StatsScreen = ({ navigation }) => {
     if (count === 0) return themeColors.progressBackground;
     
     const intensity = count / maxCount;
-    if (intensity <= 0.25) return colors.light.success + '40';
-    if (intensity <= 0.5) return colors.light.success + '60';
-    if (intensity <= 0.75) return colors.light.success + '80';
-    return colors.light.success;
+    if (intensity <= 0.25) return themeColors.success + '40';
+    if (intensity <= 0.5) return themeColors.success + '60';
+    if (intensity <= 0.75) return themeColors.success + '80';
+    return themeColors.success;
   };
 
   const performanceChartData = {
@@ -237,7 +239,7 @@ const StatsScreen = ({ navigation }) => {
     datasets: [
       {
         data: stats.overall.dailyData.map(d => d.percentage).slice(-7),
-        color: (opacity = 1) => `rgba(255, 149, 0, ${opacity})`,
+        color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
         strokeWidth: 3,
       },
     ],
@@ -247,21 +249,21 @@ const StatsScreen = ({ navigation }) => {
     {
       name: 'Completed',
       population: stats.overall.totalCompleted,
-      color: colors.light.success,
+      color: themeColors.success,
       legendFontColor: themeColors.primaryText,
       legendFontSize: 12,
     },
     {
       name: 'Missed',
-      population: stats.overall.totalScheduled - stats.overall.totalCompleted,
-      color: colors.light.error,
+      population: Math.max(0, stats.overall.totalScheduled - stats.overall.totalCompleted),
+      color: themeColors.error,
       legendFontColor: themeColors.primaryText,
       legendFontSize: 12,
     },
   ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+    <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
       <ScrollView 
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -274,73 +276,36 @@ const StatsScreen = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* View Mode Toggle */}
-        <View style={styles.viewModeSelector}>
-          <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              viewMode === 'overview' && styles.activeViewModeButton,
-              { backgroundColor: viewMode === 'overview' ? colors.light.primaryOrange : themeColors.cardBackground }
-            ]}
-            onPress={() => setViewMode('overview')}
-          >
-            <Text
-              style={[
-                styles.viewModeText,
-                { color: viewMode === 'overview' ? '#FFFFFF' : themeColors.primaryText }
-              ]}
-            >
-              Overview
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.viewModeButton,
-              viewMode === 'summary' && styles.activeViewModeButton,
-              { backgroundColor: viewMode === 'summary' ? colors.light.primaryOrange : themeColors.cardBackground }
-            ]}
-            onPress={() => setViewMode('summary')}
-          >
-            <Text
-              style={[
-                styles.viewModeText,
-                { color: viewMode === 'summary' ? '#FFFFFF' : themeColors.primaryText }
-              ]}
-            >
-              Summary
-            </Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Timeframe Selector */}
         <View style={styles.timeframeSelector}>
-          {['7D', '30D', '1Y'].map((timeframe) => (
+          {[
+            { key: 'weekly', label: 'Weekly' },
+            { key: 'monthly', label: 'Monthly' },
+            { key: 'yearly', label: 'Yearly' }
+          ].map((timeframe) => (
             <TouchableOpacity
-              key={timeframe}
+              key={timeframe.key}
               style={[
                 styles.timeframeButton,
-                selectedTimeframe === timeframe && styles.activeTimeframeButton,
-                { backgroundColor: selectedTimeframe === timeframe ? colors.light.primaryOrange : themeColors.cardBackground }
+                selectedTimeframe === timeframe.key && styles.activeTimeframeButton,
+                { backgroundColor: selectedTimeframe === timeframe.key ? themeColors.primaryOrange : themeColors.cardBackground }
               ]}
-              onPress={() => setSelectedTimeframe(timeframe)}
+              onPress={() => setSelectedTimeframe(timeframe.key)}
+              accessibilityLabel={`Select ${timeframe.label.toLowerCase()} timeframe`}
+              accessibilityHint={`View statistics for the ${timeframe.label.toLowerCase()} period`}
             >
               <Text
                 style={[
                   styles.timeframeText,
-                  { color: selectedTimeframe === timeframe ? '#FFFFFF' : themeColors.primaryText }
+                  { color: selectedTimeframe === timeframe.key ? '#FFFFFF' : themeColors.primaryText }
                 ]}
               >
-                {timeframe}
+                {timeframe.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Render based on view mode */}
-        {viewMode === 'summary' ? (
-          <FlowStatsSummary navigation={navigation} />
-        ) : (
-          <>
 
         {/* Analytics */}
         <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Analytics</Text>
@@ -390,14 +355,14 @@ const StatsScreen = ({ navigation }) => {
                 <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Avg</Text>
               </View>
               <View style={styles.chartStatItem}>
-                <Text style={[styles.chartStatValue, { color: colors.light.success }]}>
-                  {Math.max(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1)}%
+                <Text style={[styles.chartStatValue, { color: themeColors.success }]}>
+                  {stats.overall.dailyData.length > 0 ? Math.max(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1) : '0.0'}%
                 </Text>
                 <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Best</Text>
               </View>
               <View style={styles.chartStatItem}>
-                <Text style={[styles.chartStatValue, { color: colors.light.error }]}>
-                  {Math.min(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1)}%
+                <Text style={[styles.chartStatValue, { color: themeColors.error }]}>
+                  {stats.overall.dailyData.length > 0 ? Math.min(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1) : '0.0'}%
                 </Text>
                 <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Lowest</Text>
               </View>
@@ -412,12 +377,12 @@ const StatsScreen = ({ navigation }) => {
             style={styles.chart}
             withDots={true}
             withShadow={false}
-            withInnerLines={true}
+            withInnerLines={false}
             withOuterLines={false}
           />
           <View style={styles.chartLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.light.primaryOrange }]} />
+              <View style={[styles.legendDot, { backgroundColor: themeColors.primaryOrange }]} />
               <Text style={[styles.legendText, { color: themeColors.secondaryText }]}>
                 Daily Completion Rate (%)
               </Text>
@@ -467,7 +432,7 @@ const StatsScreen = ({ navigation }) => {
           <View style={styles.insightsContainer}>
             {stats.overall.successRate >= 80 && (
               <View style={styles.insightItem}>
-                <Ionicons name="trophy" size={20} color={colors.light.success} />
+                <Ionicons name="trophy" size={20} color={themeColors.success} />
                 <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
                   Excellent consistency! You're maintaining a {stats.overall.successRate.toFixed(1)}% success rate.
                 </Text>
@@ -475,7 +440,7 @@ const StatsScreen = ({ navigation }) => {
             )}
             {stats.overall.avgDailyCompletion < 50 && (
               <View style={styles.insightItem}>
-                <Ionicons name="trending-up" size={20} color={colors.light.warning} />
+                <Ionicons name="trending-up" size={20} color={themeColors.warning} />
                 <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
                   Consider focusing on consistency. Your daily average is {stats.overall.avgDailyCompletion.toFixed(1)}%.
                 </Text>
@@ -483,7 +448,7 @@ const StatsScreen = ({ navigation }) => {
             )}
             {stats.overall.activeFlows >= 5 && (
               <View style={styles.insightItem}>
-                <Ionicons name="star" size={20} color={colors.light.primaryOrange} />
+                <Ionicons name="star" size={20} color={themeColors.primaryOrange} />
                 <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
                   You're tracking {stats.overall.activeFlows} flows! Keep up the great work.
                 </Text>
@@ -491,7 +456,7 @@ const StatsScreen = ({ navigation }) => {
             )}
             {stats.overall.totalPoints >= 1000 && (
               <View style={styles.insightItem}>
-                <Ionicons name="medal" size={20} color={colors.light.info} />
+                <Ionicons name="medal" size={20} color={themeColors.info} />
                 <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
                   Amazing! You've earned {stats.overall.totalPoints.toLocaleString()} points this period.
                 </Text>
@@ -499,10 +464,8 @@ const StatsScreen = ({ navigation }) => {
             )}
           </View>
         </Card>
-          </>
-        )}
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 
@@ -512,7 +475,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: layout.spacing.sm,
-    paddingBottom: layout.spacing.xl + 80,
+    paddingBottom: layout.spacing.xl + 80, // Extra bottom padding to prevent tab bar overlap
   },
   header: {
     alignItems: 'center',
@@ -531,7 +494,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginBottom: layout.spacing.md,
-    backgroundColor: colors.light.progressBackground + '30',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     borderRadius: layout.borderRadius.md,
     padding: layout.spacing.xs,
   },
@@ -543,7 +506,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTimeframeButton: {
-    shadowColor: colors.light.primaryOrange,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
@@ -799,7 +761,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 6,
-    backgroundColor: colors.light.progressBackground,
+    backgroundColor: 'rgba(0,0,0,0.1)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -842,33 +804,6 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     marginTop: layout.spacing.md,
-  },
-  viewModeSelector: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: layout.spacing.sm,
-    backgroundColor: colors.light.progressBackground + '30',
-    borderRadius: layout.borderRadius.sm,
-    padding: layout.spacing.xs,
-  },
-  viewModeButton: {
-    flex: 1,
-    paddingVertical: layout.spacing.xs,
-    paddingHorizontal: layout.spacing.sm,
-    borderRadius: layout.borderRadius.sm,
-    alignItems: 'center',
-  },
-  activeViewModeButton: {
-    shadowColor: colors.light.primaryOrange,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  viewModeText: {
-    ...typography.styles.caption,
-    fontWeight: '600',
-    fontSize: 12,
   },
 });
 

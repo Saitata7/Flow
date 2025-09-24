@@ -11,13 +11,13 @@ import {
   Animated,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlowsContext } from '../../context/FlowContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import ImportExport from '../../components/Settings/ImportExport';
 import NotificationSettings from '../../components/Settings/Notification';
 import ColorPicker from '../../components/Settings/ColorPicker';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
 const SETTINGS_STORAGE_KEY = 'app_settings';
 
@@ -29,13 +29,6 @@ const defaultSettings = {
   cheatMode: false,
   highlightDayStreak: true,
   closeTime: '21:00',
-  profile: {
-    name: '',
-    email: '',
-    profilePicture: '',
-    timeZone: 'UTC',
-    language: 'en',
-  },
   habitDefaults: {
     type: 'binary',
     goalFrequency: 'daily',
@@ -82,17 +75,17 @@ const SettingsScreen = () => {
   if (!flowsContext) {
     console.warn('FlowsContext is undefined.');
     return (
-      <SafeAreaView>
+      <SafeAreaWrapper>
         <Text>Error: FlowsContext not available</Text>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
   if (!themeContext) {
     console.warn('ThemeContext is undefined.');
     return (
-      <SafeAreaView>
+      <SafeAreaWrapper>
         <Text>Error: ThemeContext not available</Text>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
@@ -172,14 +165,6 @@ const SettingsScreen = () => {
 
   const handlePressOut = () => {
     Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
-  };
-
-  // Profile Settings
-  const updateProfile = (field, value) => {
-    saveSettings({
-      ...settings,
-      profile: { ...settings.profile, [field]: value },
-    });
   };
 
   // Theme & Accessibility
@@ -388,73 +373,13 @@ const SettingsScreen = () => {
   });
 
   return (
-    <SafeAreaView style={[styles.safeContainer, dynamicStyles.container]} edges={['top']}>
+    <SafeAreaWrapper style={[styles.safeContainer, dynamicStyles.container]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
           <Text style={[styles.header, dynamicStyles.label]}>Settings</Text>
           <Text style={[styles.subtitle, dynamicStyles.text]}>
             Customize your app experience
           </Text>
-        </View>
-
-        {/* Profile Settings */}
-        <View style={[styles.card, dynamicStyles.card]}>
-          <Text style={[styles.sectionTitle, dynamicStyles.label]}>Profile</Text>
-          <View style={styles.settingRow}>
-            <Text style={[styles.label, dynamicStyles.label]}>Name</Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input]}
-              value={settings.profile.name}
-              onChangeText={(text) => updateProfile('name', text)}
-              placeholder="Enter your name"
-            />
-          </View>
-          <View style={styles.settingRow}>
-            <Text style={[styles.label, dynamicStyles.label]}>Email</Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input]}
-              value={settings.profile.email}
-              onChangeText={(text) => updateProfile('email', text)}
-              placeholder="Enter your email"
-              keyboardType="email-address"
-            />
-          </View>
-          <View style={styles.settingRow}>
-            <Text style={[styles.label, dynamicStyles.label]}>Time Zone</Text>
-            <TextInput
-              style={[styles.input, dynamicStyles.input]}
-              value={settings.profile.timeZone}
-              onChangeText={(text) => updateProfile('timeZone', text)}
-              placeholder="e.g., UTC"
-            />
-          </View>
-          <View style={styles.settingRow}>
-            <Text style={[styles.label, dynamicStyles.label]}>Language</Text>
-            <View style={styles.textSizeOptions}>
-              {['en', 'es', 'fr'].map((lang) => (
-                <TouchableOpacity
-                  key={lang}
-                  onPress={() => updateProfile('language', lang)}
-                  style={[
-                    styles.textSizeButton,
-                    settings.profile.language === lang && {
-                      backgroundColor: settings.accentColor,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.text,
-                      dynamicStyles.text,
-                      settings.profile.language === lang && { color: '#fff' },
-                    ]}
-                  >
-                    {lang.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
         </View>
 
         {/* Appearance */}
@@ -907,7 +832,7 @@ const SettingsScreen = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 

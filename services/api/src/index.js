@@ -15,6 +15,8 @@ const { plansRoutes } = require('./routes/plans');
 const { profilesRoutes } = require('./routes/profiles');
 const { settingsRoutes } = require('./routes/settings');
 const { statsRoutes } = require('./routes/stats');
+const { notificationRoutes } = require('./routes/notifications');
+const schedulerService = require('./services/schedulerService');
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -178,6 +180,7 @@ const registerRoutes = async () => {
     await fastify.register(profilesRoutes, { prefix: '/profiles' });
     await fastify.register(settingsRoutes, { prefix: '/settings' });
     await fastify.register(statsRoutes, { prefix: '/stats' });
+    await fastify.register(notificationRoutes, { prefix: '/notifications' });
   }, { prefix: '/v1' });
 
   // Root endpoint
@@ -210,6 +213,7 @@ const gracefulShutdown = async (signal) => {
   fastify.log.info(`Received ${signal}, shutting down gracefully...`);
   
   try {
+    schedulerService.stop();
     await redis.disconnect();
     await closePool();
     await fastify.close();
@@ -234,6 +238,10 @@ const start = async () => {
     // Connect to Redis
     await redis.connect();
     fastify.log.info('Connected to Redis');
+
+    // Initialize scheduler service
+    await schedulerService.initialize();
+    fastify.log.info('Scheduler service initialized');
 
     // Register everything
     await registerPlugins();

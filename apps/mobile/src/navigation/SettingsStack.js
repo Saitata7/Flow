@@ -5,6 +5,7 @@ import Settings from '../screens/settings/Settings';
 import SettingsMenu from '../screens/settings/SettingsMenu';
 import AccountSettings from '../screens/settings/AccountSettings';
 import NotificationSettings from '../screens/settings/NotificationSettings';
+import NotificationLogScreen from '../screens/notifications/NotificationLogScreen';
 import PrivacySettings from '../screens/settings/PrivacySettings';
 import LocationSettings from '../screens/settings/LocationSettings';
 import CheatModeSettings from '../screens/settings/CheatModeSettings';
@@ -45,6 +46,13 @@ const SettingsStack = () => {
         component={NotificationSettings}
         options={{
           title: 'Notifications',
+        }}
+      />
+      <Stack.Screen 
+        name="NotificationLog" 
+        component={NotificationLogScreen}
+        options={{
+          title: 'Notification History',
         }}
       />
       <Stack.Screen 

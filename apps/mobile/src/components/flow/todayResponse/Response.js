@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Modal, StyleSheet } from 'react-native';
+import { ThemeContext } from '../../../context/ThemeContext';
+import { colors, layout, typography } from '../../../../styles';
 
 const emotions = [
   { label: 'Happy', emoji: '😊' },
   { label: 'Sad', emoji: '😢' },
-  { label: 'Angry', emoji: '😣' },
+  { label: 'Angry', emoji: '😠' },
   { label: 'Excited', emoji: '🎉' },
   { label: 'Calm', emoji: '😌' },
 ];
@@ -25,6 +27,8 @@ const ResponseModal = ({
   modalStage,
   trackingType,
 }) => {
+  const { theme = 'light' } = useContext(ThemeContext) || {};
+  const themeColors = theme === 'light' ? colors.light : colors.dark;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -44,6 +48,8 @@ const ResponseModal = ({
                       selectedEmotion?.label === emotion.label && styles.emotionButtonSelected,
                     ]}
                     onPress={() => setSelectedEmotion(emotion)}
+                    accessibilityLabel={`Select ${emotion.label} emotion`}
+                    accessibilityHint={`Tap to select ${emotion.label} as your emotion`}
                   >
                     <Text style={styles.emotionButtonText}>
                       {emotion.emoji} {emotion.label}
@@ -64,14 +70,29 @@ const ResponseModal = ({
           )}
           <View style={styles.modalActions}>
             {showBackButton && (
-              <TouchableOpacity style={styles.modalButton} onPress={onBack}>
+              <TouchableOpacity 
+                style={styles.modalButton} 
+                onPress={onBack}
+                accessibilityLabel="Go back to previous step"
+                accessibilityHint="Tap to return to the previous input step"
+              >
                 <Text style={styles.modalButtonText}>Back</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.modalButton} onPress={onSubmit}>
+            <TouchableOpacity 
+              style={styles.modalButton} 
+              onPress={onSubmit}
+              accessibilityLabel="Submit response"
+              accessibilityHint="Tap to submit your response and save the flow status"
+            >
               <Text style={styles.modalButtonText}>Submit</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.modalButton} onPress={onSkip}>
+            <TouchableOpacity 
+              style={styles.modalButton} 
+              onPress={onSkip}
+              accessibilityLabel="Skip response"
+              accessibilityHint="Tap to skip adding notes and emotions"
+            >
               <Text style={styles.modalButtonText}>Skip</Text>
             </TouchableOpacity>
           </View>
@@ -87,80 +108,80 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: layout.spacing.md,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
+    backgroundColor: colors.light.background,
+    borderRadius: layout.borderRadius.lg,
+    padding: layout.spacing.lg,
     width: '100%',
     maxWidth: 400,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
     textAlign: 'center',
-    marginBottom: 16,
-    color: '#333',
+    marginBottom: layout.spacing.md,
+    color: colors.light.primaryText,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginBottom: 12,
-    marginTop: 8,
-    color: '#333',
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.medium,
+    marginBottom: layout.spacing.md,
+    marginTop: layout.spacing.sm,
+    color: colors.light.primaryText,
   },
   emotionGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 16,
+    gap: layout.spacing.md,
+    marginBottom: layout.spacing.md,
   },
   emotionButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: colors.light.info,
+    paddingVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.md,
+    borderRadius: layout.borderRadius.md,
     flex: 1,
     minWidth: '45%',
     alignItems: 'center',
   },
   emotionButtonSelected: {
-    backgroundColor: '#1E40AF',
+    backgroundColor: colors.light.primaryOrange,
   },
   emotionButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    color: colors.light.background,
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
   },
   noteInput: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: colors.light.border,
+    borderRadius: layout.borderRadius.md,
+    padding: layout.spacing.md,
     height: 96,
     textAlignVertical: 'top',
-    marginBottom: 16,
-    fontSize: 18,
-    color: '#333',
+    marginBottom: layout.spacing.md,
+    fontSize: typography.sizes.md,
+    color: colors.light.primaryText,
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: layout.spacing.md,
     justifyContent: 'space-between',
   },
   modalButton: {
     flex: 1,
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    backgroundColor: colors.light.info,
+    paddingVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.md,
+    borderRadius: layout.borderRadius.md,
     alignItems: 'center',
   },
   modalButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
+    color: colors.light.background,
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
   },
 });
 

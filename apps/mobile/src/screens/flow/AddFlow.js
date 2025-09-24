@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Alert,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -432,7 +431,7 @@ export default function AddFlow({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+    <SafeAreaWrapper style={styles.safeArea}>
       <StatusBar 
         translucent
         backgroundColor="transparent"
@@ -457,7 +456,7 @@ export default function AddFlow({ navigation }) {
           <View style={styles.placeholder} />
         </View>
 
-        <SafeAreaWrapper style={styles.contentWrapper}>
+        <View style={styles.contentWrapper}>
           <ScrollView 
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -557,46 +556,20 @@ export default function AddFlow({ navigation }) {
 
           {/* Quantitative Settings */}
           {trackingType === 'Quantitative' && (
-            <Card variant="elevated" padding="md" margin="sm">
+            <Card variant="elevated" padding="md" margin="sm" style={{ overflow: 'visible' }}>
               <Text style={styles.cardTitle}>Quantitative Settings</Text>
               <View style={styles.inputRow}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Unit</Text>
-                  <TouchableOpacity
-                    style={styles.dropdownButton}
-                    onPress={() => setShowUnitDropdown(!showUnitDropdown)}
-                  >
-                    <Text style={[styles.dropdownButtonText, !selectedUnit && styles.placeholderText]}>
-                      {selectedUnit === 'other' ? 'Other (Custom)' : selectedUnit || 'Select unit'}
-                    </Text>
-                    <Text style={styles.dropdownArrow}>{showUnitDropdown ? '▲' : '▼'}</Text>
-                  </TouchableOpacity>
-                  
-                  {showUnitDropdown && (
-                    <View style={styles.dropdownList}>
-                      {predefinedUnits.map((unit) => (
-                        <TouchableOpacity
-                          key={unit}
-                          style={styles.dropdownItem}
-                          onPress={() => handleUnitSelection(unit)}
-                        >
-                          <Text style={styles.dropdownItemText}>
-                            {unit === 'other' ? 'Other (Custom)' : unit}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                  
-                  {selectedUnit === 'other' && (
-                    <TextInput
-                      style={[styles.modernInput, { marginTop: 8 }]}
-                      value={unitText}
-                      onChangeText={setUnitText}
-                      placeholder="Enter custom unit"
-                      placeholderTextColor="#999"
-                    />
-                  )}
+                  <TextInput
+                    style={styles.modernInput}
+                    value={unitText}
+                    onChangeText={setUnitText}
+                    placeholder="e.g., pages, minutes, cups"
+                    placeholderTextColor={colors.light.tertiaryText}
+                    accessibilityLabel="Unit input"
+                    accessibilityHint="Enter the unit for your quantitative tracking"
+                  />
                 </View>
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Goal (Optional)</Text>
@@ -764,17 +737,58 @@ export default function AddFlow({ navigation }) {
               />
             </View>
             {reminderTimeEnabled && (
-              <TouchableOpacity
-                style={styles.timePickerButton}
-                onPress={() => setShowTimePicker(true)}
-                accessibilityLabel="Set reminder time"
-                accessibilityHint="Opens time picker to set reminder time"
-                accessibilityRole="button"
-              >
-                <Text style={styles.timePickerText}>
-                  {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
-                </Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={styles.timePickerButton}
+                  onPress={() => setShowTimePicker(true)}
+                  accessibilityLabel="Set reminder time"
+                  accessibilityHint="Opens time picker to set reminder time"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.timePickerText}>
+                    {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Reminder Level Section */}
+                <View style={styles.reminderLevelSection}>
+                  <Text style={styles.reminderLevelLabel}>Reminder Level</Text>
+                  <Text style={styles.reminderLevelDescription}>
+                    Choose the intensity of your reminder
+                  </Text>
+                  <View style={styles.reminderLevelButtons}>
+                    {[
+                      { level: '1', label: 'Notification', description: 'Gentle notification' },
+                      { level: '2', label: 'Alert', description: 'Persistent alert with sound' },
+                      { level: '3', label: 'Alarm', description: 'Loud alarm with snooze' }
+                    ].map(({ level, label, description }) => (
+                      <TouchableOpacity
+                        key={level}
+                        style={[
+                          styles.reminderLevelButton,
+                          reminderLevel === level && styles.reminderLevelButtonSelected
+                        ]}
+                        onPress={() => setReminderLevel(level)}
+                        accessibilityLabel={`Set reminder level to ${label}`}
+                        accessibilityHint={`Sets reminder intensity to ${description}`}
+                      >
+                        <Text style={[
+                          styles.reminderLevelButtonText,
+                          reminderLevel === level && styles.reminderLevelButtonTextSelected
+                        ]}>
+                          {label}
+                        </Text>
+                        <Text style={[
+                          styles.reminderLevelButtonDescription,
+                          reminderLevel === level && styles.reminderLevelButtonDescriptionSelected
+                        ]}>
+                          {description}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
             )}
           </Card>
 
@@ -794,7 +808,7 @@ export default function AddFlow({ navigation }) {
           )}
 
           </ScrollView>
-        </SafeAreaWrapper>
+        </View>
 
         {/* Save Button - Fixed at bottom above tab bar */}
         <View style={styles.saveButtonContainer}>
@@ -811,7 +825,7 @@ export default function AddFlow({ navigation }) {
           />
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 }
 
@@ -927,6 +941,8 @@ const styles = StyleSheet.create({
   inputGroup: {
     flex: 1,
     marginHorizontal: 4,
+    zIndex: 1,
+    overflow: 'visible',
   },
   inputLabel: {
     fontSize: 14,
@@ -1038,17 +1054,13 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
   saveButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: layout.spacing.md,
     paddingTop: layout.spacing.md,
     paddingBottom: layout.spacing.md,
     backgroundColor: colors.light.background,
     borderTopWidth: 1,
     borderTopColor: colors.light.border,
-    // This will be above the tab bar due to SafeAreaWrapper handling the bottom space
+    // SafeAreaWrapper will handle the bottom safe area automatically
   },
   saveButtonGradient: {
     borderRadius: 18,
@@ -1075,6 +1087,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 2,
   },
   dropdownButtonText: {
     fontSize: 16,
@@ -1099,12 +1112,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginTop: 4,
     maxHeight: 200,
-    zIndex: 1000,
-    elevation: 5,
+    zIndex: 9999,
+    elevation: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
   dropdownItem: {
     paddingHorizontal: 16,
@@ -1149,5 +1162,58 @@ const styles = StyleSheet.create({
   },
   saveButtonTextDisabled: {
     color: '#9CA3AF',
+  },
+  reminderLevelSection: {
+    marginTop: layout.spacing.md,
+    paddingTop: layout.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.light.border,
+  },
+  reminderLevelLabel: {
+    fontSize: typography.styles.body.fontSize,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.primaryText,
+    marginBottom: layout.spacing.xs,
+  },
+  reminderLevelDescription: {
+    fontSize: typography.styles.caption1.fontSize,
+    color: colors.light.secondaryText,
+    marginBottom: layout.spacing.sm,
+  },
+  reminderLevelButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: layout.spacing.xs,
+  },
+  reminderLevelButton: {
+    flex: 1,
+    paddingVertical: layout.spacing.sm,
+    paddingHorizontal: layout.spacing.xs,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.light.border,
+    backgroundColor: colors.light.cardBackground,
+    alignItems: 'center',
+  },
+  reminderLevelButtonSelected: {
+    borderColor: colors.light.primaryOrange,
+    backgroundColor: colors.light.primaryOrangeBackground || '#FFF3E0',
+  },
+  reminderLevelButtonText: {
+    fontSize: typography.styles.caption1.fontSize,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.primaryText,
+    marginBottom: 2,
+  },
+  reminderLevelButtonTextSelected: {
+    color: colors.light.primaryOrange,
+  },
+  reminderLevelButtonDescription: {
+    fontSize: typography.styles.caption2.fontSize,
+    color: colors.light.secondaryText,
+    textAlign: 'center',
+  },
+  reminderLevelButtonDescriptionSelected: {
+    color: colors.light.primaryOrange,
   },
 });

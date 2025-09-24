@@ -67,7 +67,7 @@ export const flowService = {
         const flow = flows[flowIndex];
         if (!flow.status) flow.status = {};
         flow.status[date] = {
-          symbol: '✅',
+          symbol: '+',
           timestamp: new Date().toISOString(),
         };
         await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(flows));

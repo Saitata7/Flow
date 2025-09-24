@@ -9,13 +9,13 @@ import {
   Switch,
   Alert
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useSettings } from '../../hooks/useSettings';
 import Button from '../../components/common/Button';
+import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
 const PrivacySettings = () => {
   const navigation = useNavigation();
@@ -31,7 +31,6 @@ const PrivacySettings = () => {
   } = useSettings();
 
   const [privacyData, setPrivacyData] = useState({
-    profileVisibility: 'private',
     shareStats: false,
     shareAchievements: false,
     allowFriendRequests: false,
@@ -42,7 +41,6 @@ const PrivacySettings = () => {
   useEffect(() => {
     if (settings?.privacy) {
       setPrivacyData({
-        profileVisibility: settings.privacy.profileVisibility || 'private',
         shareStats: settings.privacy.shareStats || false,
         shareAchievements: settings.privacy.shareAchievements || false,
         allowFriendRequests: settings.privacy.allowFriendRequests || false,
@@ -55,13 +53,6 @@ const PrivacySettings = () => {
     setPrivacyData(prev => ({
       ...prev,
       [field]: value
-    }));
-  };
-
-  const handleVisibilityChange = (visibility) => {
-    setPrivacyData(prev => ({
-      ...prev,
-      profileVisibility: visibility
     }));
   };
 
@@ -172,21 +163,21 @@ const PrivacySettings = () => {
 
   if (loading && !settings) {
     return (
-      <SafeAreaView style={dynamicStyles.container}>
+      <SafeAreaWrapper style={dynamicStyles.container}>
         <View style={dynamicStyles.loadingContainer}>
           <Text style={dynamicStyles.headerTitle}>Loading...</Text>
         </View>
-      </SafeAreaView>
+      </SafeAreaWrapper>
     );
   }
 
   return (
-    <SafeAreaView style={dynamicStyles.container} edges={['top']}>
+    <SafeAreaWrapper style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
         <TouchableOpacity 
           style={dynamicStyles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Home')}
         >
           <Ionicons 
             name="arrow-back" 
@@ -203,37 +194,6 @@ const PrivacySettings = () => {
         contentContainerStyle={dynamicStyles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Visibility */}
-        <View style={dynamicStyles.section}>
-          <Text style={dynamicStyles.sectionTitle}>Profile Visibility</Text>
-          
-          <View style={dynamicStyles.visibilityOptions}>
-            {[
-              { key: 'private', label: 'Private' },
-              { key: 'friends', label: 'Friends Only' },
-              { key: 'public', label: 'Public' }
-            ].map((option) => (
-              <TouchableOpacity
-                key={option.key}
-                onPress={() => handleVisibilityChange(option.key)}
-                style={[
-                  dynamicStyles.visibilityButton,
-                  privacyData.profileVisibility === option.key && dynamicStyles.visibilityButtonActive
-                ]}
-              >
-                <Text
-                  style={[
-                    dynamicStyles.visibilityText,
-                    privacyData.profileVisibility === option.key && dynamicStyles.visibilityTextActive
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Sharing Preferences */}
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>Sharing Preferences</Text>
@@ -313,7 +273,7 @@ const PrivacySettings = () => {
           disabled={updating}
         />
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaWrapper>
   );
 };
 

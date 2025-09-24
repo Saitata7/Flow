@@ -3,18 +3,23 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { layout } from '../../../styles';
 
-const SafeAreaWrapper = ({ children, style, excludeBottom = false }) => {
+const SafeAreaWrapper = ({ children, style, excludeTop = false, excludeBottom = false }) => {
   const insets = useSafeAreaInsets();
   
+  // Calculate top safe area (status bar + notch)
+  const topSafeArea = excludeTop ? 0 : insets.top;
+  
   // Calculate bottom safe area including tab bar height
-  // Tab bar is typically 49-83px depending on device
-  const tabBarHeight = Platform.OS === 'ios' ? 49 : 56;
-  const bottomSafeArea = excludeBottom ? 0 : Math.max(insets.bottom, tabBarHeight);
+  // Tab bar height is 60px base + bottom safe area inset (as per TabNavigator)
+  const baseTabHeight = 60;
+  const tabBarHeight = baseTabHeight + insets.bottom;
+  const bottomSafeArea = excludeBottom ? 0 : tabBarHeight;
   
   const containerStyle = [
     styles.container,
     {
-      paddingBottom: bottomSafeArea + layout.spacing.md, // Extra spacing above tab bar
+      paddingTop: topSafeArea,
+      paddingBottom: bottomSafeArea + layout.tabSpacing + layout.spacing.lg, // Extra spacing above tab bar as per cursor rules
     },
     style,
   ];

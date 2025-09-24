@@ -16,14 +16,14 @@ import { colors, typography, layout } from '../../../styles';
 const { width: screenWidth } = Dimensions.get('window');
 
 const SimpleAnalyticsDashboard = ({ flows, theme = 'light', navigation }) => {
-  const [selectedTimeframe, setSelectedTimeframe] = useState('7D');
+  const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const themeColors = theme === 'light' ? colors.light : colors.dark;
 
   // Calculate comprehensive analytics
   const analytics = useMemo(() => {
     const now = moment();
     const startDate = moment().subtract(
-      selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : 365,
+      selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365,
       'days'
     );
 
@@ -34,7 +34,7 @@ const SimpleAnalyticsDashboard = ({ flows, theme = 'light', navigation }) => {
     let flowPerformance = [];
 
     // Generate weekly data for charts
-    for (let i = 0; i < (selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : 52); i++) {
+    for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 52); i++) {
       const date = startDate.clone().add(i, 'days');
       const dayKey = date.format('YYYY-MM-DD');
       
@@ -73,7 +73,7 @@ const SimpleAnalyticsDashboard = ({ flows, theme = 'light', navigation }) => {
       let flowStreak = 0;
       let maxStreak = 0;
 
-      for (let i = 0; i < (selectedTimeframe === '7D' ? 7 : selectedTimeframe === '30D' ? 30 : 365); i++) {
+      for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365); i++) {
         const date = startDate.clone().add(i, 'days');
         const dayKey = date.format('YYYY-MM-DD');
         
@@ -224,23 +224,27 @@ const SimpleAnalyticsDashboard = ({ flows, theme = 'light', navigation }) => {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Timeframe Selector */}
       <View style={styles.timeframeSelector}>
-        {['7D', '30D', '1Y'].map((timeframe) => (
+        {[
+          { key: 'weekly', label: 'Weekly' },
+          { key: 'monthly', label: 'Monthly' },
+          { key: 'yearly', label: 'Yearly' }
+        ].map((timeframe) => (
           <TouchableOpacity
-            key={timeframe}
+            key={timeframe.key}
             style={[
               styles.timeframeButton,
-              selectedTimeframe === timeframe && styles.activeTimeframeButton,
-              { backgroundColor: selectedTimeframe === timeframe ? colors.light.primaryOrange : themeColors.cardBackground }
+              selectedTimeframe === timeframe.key && styles.activeTimeframeButton,
+              { backgroundColor: selectedTimeframe === timeframe.key ? colors.light.primaryOrange : themeColors.cardBackground }
             ]}
-            onPress={() => setSelectedTimeframe(timeframe)}
+            onPress={() => setSelectedTimeframe(timeframe.key)}
           >
             <Text
               style={[
                 styles.timeframeText,
-                { color: selectedTimeframe === timeframe ? '#FFFFFF' : themeColors.primaryText }
+                { color: selectedTimeframe === timeframe.key ? '#FFFFFF' : themeColors.primaryText }
               ]}
             >
-              {timeframe}
+              {timeframe.label}
             </Text>
           </TouchableOpacity>
         ))}
