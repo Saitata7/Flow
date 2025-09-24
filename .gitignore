@@ -15,17 +15,15 @@ package-lock.json
 .pnp.*
 
 # Mobile App (React Native/Expo)
+apps/mobile/node_modules/
 apps/mobile/.expo/
+apps/mobile/.expo-shared/
 apps/mobile/dist/
-apps/mobile/android/app/build/
-apps/mobile/android/build/
-apps/mobile/android/.gradle/
-apps/mobile/android/local.properties
-apps/mobile/ios/build/
-apps/mobile/ios/Pods/
-apps/mobile/ios/*.xcworkspace/xcuserdata/
-apps/mobile/ios/*.xcodeproj/xcuserdata/
-apps/mobile/ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+apps/mobile/web-build/
+apps/mobile/expo-env.d.ts
+apps/mobile/.metro-cache/
+apps/mobile/.react-native-debugger/
+apps/mobile/.flipper/
 apps/mobile/metro.config.js.bak
 apps/mobile/babel.config.js.bak
 
@@ -33,6 +31,7 @@ apps/mobile/babel.config.js.bak
 apps/mobile/android/app/google-services.json
 apps/mobile/ios/GoogleService-Info.plist
 apps/mobile/firebase-config.json
+apps/mobile/.env
 apps/mobile/.env.local
 apps/mobile/.env.production
 
@@ -91,6 +90,9 @@ test-results.xml
 .env.development.local
 .env.test.local
 .env.production.local
+apps/mobile/.env
+apps/mobile/.env.local
+apps/mobile/.env.production
 
 # IDE
 .vscode/
@@ -161,6 +163,33 @@ temp/
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+
+# React Native build artifacts
+apps/mobile/android/app/src/main/assets/index.android.bundle
+apps/mobile/android/app/src/main/assets/index.android.map
+apps/mobile/ios/main.jsbundle
+apps/mobile/ios/main.jsbundle.map
+
+# Android Build Files
+apps/mobile/android/app/build/
+apps/mobile/android/build/
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/android/gradle.properties.bak
+apps/mobile/android/app/debug.keystore
+apps/mobile/android/app/release.keystore
+apps/mobile/android/app/src/main/assets/fonts/
+apps/mobile/android/app/src/main/res/drawable-*/
+
+# iOS Build Files
+apps/mobile/ios/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/*.xcworkspace/xcuserdata/
+apps/mobile/ios/*.xcodeproj/xcuserdata/
+apps/mobile/ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+apps/mobile/ios/Podfile.lock
+apps/mobile/ios/DerivedData/
+apps/mobile/ios/Archive/
 
 # Local development
 .local/

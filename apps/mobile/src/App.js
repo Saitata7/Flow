@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './navigation/AppNavigator';
 import { NotificationProvider } from './context/NotificationContext';
+// Load environment variables
+import 'dotenv/config';
+
 import './config/firebaseInit'; // Initialize Firebase
 
 // Firebase is initialized via firebaseInit.js
