@@ -1,5 +1,5 @@
 import React, { useContext, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Animated, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Animated, Alert, Modal } from 'react-native';
 import SafeAreaWrapper from '../common/SafeAreaWrapper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +55,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [dateOffset, setDateOffset] = useState(0); // For navigating through date ranges
+  const [showCalculationModal, setShowCalculationModal] = useState(false);
+  const [selectedChart, setSelectedChart] = useState(null);
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
@@ -131,7 +133,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
       const status = flow.status?.[dayKey];
       
       if (flow.trackingType === 'Binary') {
-        intensity = status?.symbol === '✅' ? 1 : 0;
+        intensity = (status?.symbol === '✅' || status?.symbol === '+') ? 1 : 0;
       } else if (flow.trackingType === 'Quantitative') {
         const quantitative = status?.quantitative;
         const value = quantitative?.count || 0;
@@ -428,12 +430,22 @@ const FlowStatsDetail = ({ route, navigation }) => {
         let completed = 0;
         let value = 0;
         
-        if (status?.symbol === '✅') {
+        if (status?.symbol === '✅' || status?.symbol === '+') {
           completed = 1;
           if (flow.trackingType === 'Quantitative') {
             value = status?.quantitative?.count || 0;
           } else if (flow.trackingType === 'Time-based') {
             value = status?.timebased?.totalDuration || 0;
+          }
+        } else if (flow.trackingType === 'Time-based' && status?.timebased?.totalDuration > 0) {
+          // For time-based flows, include any entry with duration data
+          value = status?.timebased?.totalDuration || 0;
+          // Mark as completed if duration meets goal
+          const goalSeconds = ((status?.timebased?.hours || flow.hours || 0) * 3600) +
+                            ((status?.timebased?.minutes || flow.minutes || 0) * 60) +
+                            (status?.timebased?.seconds || flow.seconds || 0);
+          if (value >= goalSeconds) {
+            completed = 1;
           }
         }
         
@@ -461,8 +473,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
             // Focus on count: show actual count values
             return day.value || 0;
           case 'Time-based':
-            // Focus on duration: show minutes (more granular than hours)
-            return Math.floor((day.value || 0) / 60);
+            // Focus on duration: return seconds for chart data
+            return day.value || 0;
           default:
             return day.completed ? 100 : 0;
         }
@@ -478,7 +490,19 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
-            dataPointLabels: dailyData.map(d => getDataValue(d).toString()),
+            dataPointLabels: dailyData.map(d => {
+              if (flow.trackingType === 'Time-based') {
+                const seconds = getDataValue(d);
+                if (seconds < 60) {
+                  return `${seconds}s`;
+                } else if (seconds < 3600) {
+                  return `${Math.floor(seconds / 60)}m`;
+                } else {
+                  return `${Math.floor(seconds / 3600)}h`;
+                }
+              }
+              return getDataValue(d).toString();
+            }),
           };
           
         case 'monthly':
@@ -511,8 +535,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
               // Focus on count: sum all counts for the week
               weekValue = weekData.reduce((sum, d) => sum + (d.value || 0), 0);
             } else if (flow.trackingType === 'Time-based') {
-              // Focus on duration: sum all durations for the week (in minutes)
-              weekValue = weekData.reduce((sum, d) => sum + Math.floor((d.value || 0) / 60), 0);
+              // Focus on duration: sum all durations for the week (in seconds)
+              weekValue = weekData.reduce((sum, d) => sum + (d.value || 0), 0);
             } else {
               weekValue = weekData.reduce((sum, d) => sum + getDataValue(d), 0);
             }
@@ -531,7 +555,19 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
-            dataPointLabels: weeklyData.map(w => Math.round(w.value).toString()),
+            dataPointLabels: weeklyData.map(w => {
+              if (flow.trackingType === 'Time-based') {
+                const seconds = Math.round(w.value);
+                if (seconds < 60) {
+                  return `${seconds}s`;
+                } else if (seconds < 3600) {
+                  return `${Math.floor(seconds / 60)}m`;
+                } else {
+                  return `${Math.floor(seconds / 3600)}h`;
+                }
+              }
+              return Math.round(w.value).toString();
+            }),
           };
           
         case 'yearly':
@@ -561,8 +597,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
               // Focus on count: sum all counts for the month
               monthValue = monthDays.reduce((sum, d) => sum + (d.value || 0), 0);
             } else if (flow.trackingType === 'Time-based') {
-              // Focus on duration: sum all durations for the month (in minutes)
-              monthValue = monthDays.reduce((sum, d) => sum + Math.floor((d.value || 0) / 60), 0);
+              // Focus on duration: sum all durations for the month (in seconds)
+              monthValue = monthDays.reduce((sum, d) => sum + (d.value || 0), 0);
             } else {
               monthValue = monthDays.reduce((sum, d) => sum + getDataValue(d), 0);
             }
@@ -580,7 +616,19 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
-            dataPointLabels: monthlyData.map(m => Math.round(m.value).toString()),
+            dataPointLabels: monthlyData.map(m => {
+              if (flow.trackingType === 'Time-based') {
+                const seconds = Math.round(m.value);
+                if (seconds < 60) {
+                  return `${seconds}s`;
+                } else if (seconds < 3600) {
+                  return `${Math.floor(seconds / 60)}m`;
+                } else {
+                  return `${Math.floor(seconds / 3600)}h`;
+                }
+              }
+              return Math.round(m.value).toString();
+            }),
           };
           
         default:
@@ -591,7 +639,19 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
-            dataPointLabels: dailyData.map(d => getDataValue(d).toString()),
+            dataPointLabels: dailyData.map(d => {
+              if (flow.trackingType === 'Time-based') {
+                const seconds = getDataValue(d);
+                if (seconds < 60) {
+                  return `${seconds}s`;
+                } else if (seconds < 3600) {
+                  return `${Math.floor(seconds / 60)}m`;
+                } else {
+                  return `${Math.floor(seconds / 3600)}h`;
+                }
+              }
+              return getDataValue(d).toString();
+            }),
           };
       }
     };
@@ -630,9 +690,9 @@ const FlowStatsDetail = ({ route, navigation }) => {
           // Quantitative specific stats
           quantitativeStats: [
             { title: 'Total Count', value: `${scoreboard.quantitativeStats.totalCount.toLocaleString()}`, icon: 'bar-chart', color: themeColors.success },
-            { title: 'Average Count', value: `${scoreboard.quantitativeStats.averageCount.toFixed(1)}`, icon: 'trending-up', color: themeColors.info },
+            { title: 'Average Count', value: `${scoreboard.quantitativeStats.averageCount.toFixed(1)}`, icon: 'trending-up', color: themeColors.primaryOrange },
             { title: 'Unit Text', value: scoreboard.quantitativeStats.unitText || 'units', icon: 'text', color: themeColors.primaryOrange },
-            { title: 'Goal Achievement', value: `${((scoreboard.quantitativeStats.totalCount / (flow.goal || 1)) * 100).toFixed(1)}%`, icon: 'flag', color: themeColors.warning },
+            { title: 'Goal Achievement', value: flow.goal ? `${((scoreboard.quantitativeStats.averageCount / flow.goal) * 100).toFixed(1)}%` : 'No goal set', icon: 'flag', color: themeColors.warning },
           ],
         };
       
@@ -650,12 +710,18 @@ const FlowStatsDetail = ({ route, navigation }) => {
           chartSubtitle: `Your daily time investment over ${dateRange.label.toLowerCase()}`,
           heatMapData: generateHeatMapData(),
           // Time-based specific stats
-          timeBasedStats: [
-            { title: 'Total Duration', value: `${Math.floor(scoreboard.timeBasedStats.totalDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.totalDuration % 60)}m`, icon: 'time', color: themeColors.success },
-            { title: 'Average Duration', value: `${Math.floor(scoreboard.timeBasedStats.averageDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.averageDuration % 60)}m`, icon: 'hourglass', color: themeColors.info },
-            { title: 'Total Pauses', value: `${scoreboard.timeBasedStats.totalPauses}`, icon: 'pause', color: themeColors.primaryOrange },
-            { title: 'Goal Achievement', value: `${((scoreboard.timeBasedStats.totalDuration / ((flow.hours || 0) * 3600 + (flow.minutes || 0) * 60 + (flow.seconds || 0) || 1)) * 100).toFixed(1)}%`, icon: 'flag', color: themeColors.warning },
-          ],
+          timeBasedStats: (() => {
+            const timeframeTotalDuration = dailyData.reduce((sum, day) => sum + (day.value || 0), 0);
+            const timeframeAverageDuration = dailyData.length > 0 ? timeframeTotalDuration / dailyData.length : 0;
+            const goalSeconds = ((flow.hours || 0) * 3600) + ((flow.minutes || 0) * 60) + (flow.seconds || 0);
+            
+            return [
+              { title: 'Total Duration', value: `${Math.floor(timeframeTotalDuration / 3600)}h ${Math.floor((timeframeTotalDuration % 3600) / 60)}m`, icon: 'time', color: themeColors.success },
+              { title: 'Average Duration', value: `${Math.floor(timeframeAverageDuration / 3600)}h ${Math.floor((timeframeAverageDuration % 3600) / 60)}m`, icon: 'hourglass', color: themeColors.primaryOrange },
+              { title: 'Total Pauses', value: `${scoreboard.timeBasedStats.totalPauses}`, icon: 'pause', color: themeColors.primaryOrange },
+              { title: 'Goal Achievement', value: goalSeconds > 0 ? `${((timeframeAverageDuration / goalSeconds) * 100).toFixed(1)}%` : 'No goal set', icon: 'flag', color: themeColors.warning },
+            ];
+          })(),
         };
       
       default:
@@ -664,6 +730,41 @@ const FlowStatsDetail = ({ route, navigation }) => {
   };
 
   const analytics = useMemo(() => getFlowTypeAnalytics(), [flowId, selectedTimeframe, flows, dateOffset]);
+
+  // Handle donut chart tap
+  const handleDonutChartTap = (chartType) => {
+    setSelectedChart(chartType);
+    setShowCalculationModal(true);
+  };
+
+  // Get calculation breakdown
+  const getCalculationBreakdown = () => {
+    if (!scoreboardData) return null;
+
+    const breakdown = {
+      completed: scoreboardData.completed || 0,
+      partial: scoreboardData.partial || 0,
+      failed: scoreboardData.failed || 0,
+      inactive: scoreboardData.inactive || 0,
+      streakBonus: scoreboardData.streakBonus || 0,
+      emotionBonus: scoreboardData.emotionBonus || 0,
+      notesCount: scoreboardData.notesCount || 0,
+    };
+
+    const calculations = {
+      completionPoints: breakdown.completed * 10,
+      partialPoints: breakdown.partial * 5,
+      failedPoints: breakdown.failed * -8,
+      inactivePoints: breakdown.inactive * -4,
+      notesPoints: breakdown.notesCount * 1,
+    };
+
+    const total = calculations.completionPoints + calculations.partialPoints + 
+                  calculations.failedPoints + calculations.inactivePoints + 
+                  breakdown.streakBonus + breakdown.emotionBonus + calculations.notesPoints;
+
+    return { breakdown, calculations, total };
+  };
 
   // Get scoreboard data for donut charts
   const scoreboardData = useMemo(() => {
@@ -842,7 +943,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
           <View style={styles.donutChartsContainer}>
             <View style={styles.donutChartsGrid}>
             {/* Success Rate Donut Chart */}
-            <View style={styles.donutChartItem}>
+            <TouchableOpacity style={styles.donutChartItem} onPress={() => handleDonutChartTap('successRate')}>
               <View style={styles.donutChartContainer}>
                 <CircularProgress
                   size={60}
@@ -858,10 +959,10 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 </View>
               </View>
               <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Success Rate</Text>
-            </View>
+            </TouchableOpacity>
 
             {/* Completed Days Donut Chart */}
-            <View style={styles.donutChartItem}>
+            <TouchableOpacity style={styles.donutChartItem} onPress={() => handleDonutChartTap('completedDays')}>
               <View style={styles.donutChartContainer}>
                 <CircularProgress
                   size={60}
@@ -877,10 +978,10 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 </View>
               </View>
               <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Completed Days</Text>
-            </View>
+            </TouchableOpacity>
 
             {/* Final Score Donut Chart */}
-            <View style={styles.donutChartItem}>
+            <TouchableOpacity style={styles.donutChartItem} onPress={() => handleDonutChartTap('finalScore')}>
               <View style={styles.donutChartContainer}>
                 <CircularProgress
                   size={60}
@@ -896,10 +997,10 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 </View>
               </View>
               <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Final Score</Text>
-            </View>
+            </TouchableOpacity>
 
             {/* Current Streak Donut Chart */}
-            <View style={styles.donutChartItem}>
+            <TouchableOpacity style={styles.donutChartItem} onPress={() => handleDonutChartTap('streak')}>
               <View style={styles.donutChartContainer}>
                 <CircularProgress
                   size={60}
@@ -915,7 +1016,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 </View>
               </View>
               <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Current Streak</Text>
-            </View>
+            </TouchableOpacity>
 
             {/* Total Count Donut Chart - Only for Quantitative flows */}
             {flow.trackingType === 'Quantitative' && (
@@ -950,8 +1051,17 @@ const FlowStatsDetail = ({ route, navigation }) => {
                     backgroundColor="hsl(0, 0%, 90%)"
                   />
                   <View style={styles.donutChartOverlay}>
-                    <Text style={[styles.donutChartValue, { color: 'hsl(60, 80%, 65%)' }]}>
-                      {Math.floor((scoreboardData.timeBasedStats?.totalDuration || 0) / 60)}h
+                    <Text style={[styles.donutChartValue, { color: 'hsl(60, 80%, 65%)', fontSize: 10 }]}>
+                      {(() => {
+                        const totalSeconds = scoreboardData.timeBasedStats?.totalDuration || 0;
+                        if (totalSeconds < 60) {
+                          return `${totalSeconds}s`;
+                        } else if (totalSeconds < 3600) {
+                          return `${Math.floor(totalSeconds / 60)}m`;
+                        } else {
+                          return `<1h`;
+                        }
+                      })()}
                     </Text>
                   </View>
                 </View>
@@ -1225,6 +1335,163 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </View>
         </Card>
       </ScrollView>
+
+      {/* Calculation Modal */}
+      <Modal
+        visible={showCalculationModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCalculationModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.cardBackground }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: themeColors.primaryText }]}>
+                {selectedChart === 'finalScore' ? 'Final Score Calculation' :
+                 selectedChart === 'successRate' ? 'Success Rate Calculation' :
+                 selectedChart === 'completedDays' ? 'Completed Days Calculation' :
+                 selectedChart === 'streak' ? 'Streak Calculation' : 'Calculation'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowCalculationModal(false)}>
+                <Ionicons name="close" size={24} color={themeColors.primaryText} />
+              </TouchableOpacity>
+            </View>
+
+            {selectedChart === 'finalScore' && (() => {
+              const calc = getCalculationBreakdown();
+              if (!calc) return null;
+              
+              return (
+                <View style={styles.calculationContent}>
+                  <Text style={[styles.calculationTitle, { color: themeColors.primaryText }]}>
+                    How your {calc.total} points were calculated:
+                  </Text>
+                  
+                  <View style={styles.calculationRow}>
+                    <Text style={[styles.calculationLabel, { color: themeColors.primaryText }]}>
+                      ✅ Completed Days ({calc.breakdown.completed})
+                    </Text>
+                    <Text style={[styles.calculationValue, { color: themeColors.success }]}>
+                      +{calc.calculations.completionPoints}
+                    </Text>
+                  </View>
+                  
+                  {calc.breakdown.partial > 0 && (
+                    <View style={styles.calculationRow}>
+                      <Text style={[styles.calculationLabel, { color: themeColors.primaryText }]}>
+                        ~ Partial Days ({calc.breakdown.partial})
+                      </Text>
+                      <Text style={[styles.calculationValue, { color: themeColors.warning }]}>
+                        +{calc.calculations.partialPoints}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {calc.breakdown.failed > 0 && (
+                    <View style={styles.calculationRow}>
+                      <Text style={[styles.calculationLabel, { color: themeColors.primaryText }]}>
+                        ❌ Failed Days ({calc.breakdown.failed})
+                      </Text>
+                      <Text style={[styles.calculationValue, { color: themeColors.error }]}>
+                        {calc.calculations.failedPoints}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {calc.breakdown.inactive > 0 && (
+                    <View style={styles.calculationRow}>
+                      <Text style={[styles.calculationLabel, { color: themeColors.primaryText }]}>
+                        ⏸️ Inactive Days ({calc.breakdown.inactive})
+                      </Text>
+                      <Text style={[styles.calculationValue, { color: themeColors.error }]}>
+                        {calc.calculations.inactivePoints}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {calc.breakdown.streakBonus > 0 && (
+                    <View style={styles.calculationRow}>
+                      <Text style={[styles.calculationLabel, { color: themeColors.primaryText }]}>
+                        🔥 Streak Bonus
+                      </Text>
+                      <Text style={[styles.calculationValue, { color: themeColors.warning }]}>
+                        +{calc.breakdown.streakBonus}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {calc.breakdown.emotionBonus > 0 && (
+                    <View style={styles.calculationRow}>
+                      <Text style={[styles.calculationLabel, { color: themeColors.primaryText }]}>
+                        😊 Emotion Bonus
+                      </Text>
+                      <Text style={[styles.calculationValue, { color: themeColors.info }]}>
+                        +{calc.breakdown.emotionBonus}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {calc.calculations.notesPoints > 0 && (
+                    <View style={styles.calculationRow}>
+                      <Text style={[styles.calculationLabel, { color: themeColors.primaryText }]}>
+                        📝 Notes Bonus ({calc.breakdown.notesCount})
+                      </Text>
+                      <Text style={[styles.calculationValue, { color: themeColors.info }]}>
+                        +{calc.calculations.notesPoints}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  <View style={[styles.calculationRow, styles.totalRow]}>
+                    <Text style={[styles.calculationLabel, styles.totalLabel, { color: themeColors.primaryText }]}>
+                      🎯 Total Score
+                    </Text>
+                    <Text style={[styles.calculationValue, styles.totalValue, { color: themeColors.primaryOrange }]}>
+                      {calc.total}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })()}
+
+            {selectedChart === 'successRate' && (
+              <View style={styles.calculationContent}>
+                <Text style={[styles.calculationTitle, { color: themeColors.primaryText }]}>
+                  Success Rate = (Completed + Partial) ÷ Total Scheduled Days × 100
+                </Text>
+                <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
+                  = ({scoreboardData.completed || 0} + {scoreboardData.partial || 0}) ÷ {scoreboardData.completed + scoreboardData.partial + scoreboardData.failed + scoreboardData.skipped + scoreboardData.inactive || 1} × 100
+                </Text>
+                <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
+                  = {scoreboardData.completionRate?.toFixed(1) || 0}%
+                </Text>
+              </View>
+            )}
+
+            {selectedChart === 'completedDays' && (
+              <View style={styles.calculationContent}>
+                <Text style={[styles.calculationTitle, { color: themeColors.primaryText }]}>
+                  Completed Days: {scoreboardData.completed || 0}
+                </Text>
+                <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
+                  Days where you marked the flow as completed
+                </Text>
+              </View>
+            )}
+
+            {selectedChart === 'streak' && (
+              <View style={styles.calculationContent}>
+                <Text style={[styles.calculationTitle, { color: themeColors.primaryText }]}>
+                  Current Streak: {scoreboardData.streak || 0} days
+                </Text>
+                <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
+                  Consecutive completed days from today backwards
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaWrapper>
   );
 };
@@ -1767,6 +2034,73 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 60,
     height: 60,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: layout.spacing.lg,
+  },
+  modalContent: {
+    borderRadius: layout.radii.lg,
+    padding: layout.spacing.lg,
+    maxWidth: '90%',
+    maxHeight: '80%',
+    width: '100%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: layout.spacing.lg,
+  },
+  modalTitle: {
+    ...typography.styles.title2,
+    fontWeight: '600',
+    flex: 1,
+  },
+  calculationContent: {
+    gap: layout.spacing.md,
+  },
+  calculationTitle: {
+    ...typography.styles.title3,
+    fontWeight: '600',
+    marginBottom: layout.spacing.sm,
+  },
+  calculationText: {
+    ...typography.styles.body,
+    marginBottom: layout.spacing.xs,
+  },
+  calculationRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.xs,
+  },
+  calculationLabel: {
+    ...typography.styles.body,
+    flex: 1,
+  },
+  calculationValue: {
+    ...typography.styles.body,
+    fontWeight: '600',
+    minWidth: 60,
+    textAlign: 'right',
+  },
+  totalRow: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.1)',
+    marginTop: layout.spacing.sm,
+    paddingTop: layout.spacing.sm,
+  },
+  totalLabel: {
+    fontWeight: '700',
+  },
+  totalValue: {
+    fontWeight: '700',
+    fontSize: 18,
   },
 });
 
