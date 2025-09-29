@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   },
   challengeCard: {
     backgroundColor: colors.light.cardBackground,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
     padding: layout.spacing.xl,
     alignItems: 'center',
     shadowColor: '#000',

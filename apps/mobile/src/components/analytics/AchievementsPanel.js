@@ -308,12 +308,12 @@ const styles = StyleSheet.create({
   achievementCard: {
     width: screenWidth * 0.7,
     marginRight: layout.spacing.md,
-    borderRadius: layout.borderRadius.lg,
-    ...layout.shadows.small,
+    borderRadius: layout.radii.large,
+    ...layout.elevation.low,
   },
   achievementGradient: {
     padding: layout.spacing.md,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
   },
   achievementHeader: {
     flexDirection: 'row',

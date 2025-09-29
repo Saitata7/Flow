@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
   },
   insightGradient: {
     padding: layout.spacing.md,
-    borderRadius: layout.borderRadius.lg,
-    ...layout.shadows.small,
+    borderRadius: layout.radii.large,
+    ...layout.elevation.low,
   },
   insightHeader: {
     flexDirection: 'row',

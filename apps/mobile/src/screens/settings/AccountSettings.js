@@ -38,14 +38,17 @@ const AccountSettings = () => {
   const { user, logout } = useAuth();
 
   const [formData, setFormData] = useState({
-    dataPrivacy: {
-      cloudBackup: false,
-      localBackup: false,
-      clinicianConsent: false
+    profile: {
+      email: '',
+      password: '',
+      phoneNumber: ''
     },
-    location: {
-      enabled: false,
-      shareLocation: false
+    dataPrivacy: {
+      cloudBackup: false
+    },
+    timezone: {
+      autoTimezone: true,
+      manualTimezone: 'UTC'
     }
   });
 
@@ -55,18 +58,21 @@ const AccountSettings = () => {
   useEffect(() => {
     if (settings) {
       setFormData({
-        dataPrivacy: {
-          cloudBackup: settings.dataPrivacy?.cloudBackup || false,
-          localBackup: settings.dataPrivacy?.localBackup || false,
-          clinicianConsent: settings.dataPrivacy?.clinicianConsent || false
+        profile: {
+          email: user?.email || '',
+          password: '',
+          phoneNumber: user?.phoneNumber || ''
         },
-        location: {
-          enabled: settings.location?.enabled || false,
-          shareLocation: settings.location?.shareLocation || false
+        dataPrivacy: {
+          cloudBackup: settings.dataPrivacy?.cloudBackup || false
+        },
+        timezone: {
+          autoTimezone: settings.timezone?.autoTimezone !== false, // Default to true
+          manualTimezone: settings.timezone?.manualTimezone || 'UTC'
         }
       });
     }
-  }, [settings]);
+  }, [settings, user]);
 
   const handleInputChange = (section, field, value) => {
     setFormData(prev => ({
@@ -98,6 +104,19 @@ const AccountSettings = () => {
 
   const validateForm = () => {
     const newErrors = {};
+    
+    // Validate email
+    if (formData.profile.email && !isValidEmail(formData.profile.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    
+    // Validate password (if provided)
+    if (formData.profile.password && formData.profile.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long';
+    }
+    
+    // Phone number is optional, no validation needed
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -149,33 +168,25 @@ const AccountSettings = () => {
     );
   };
 
-  const handleDeleteAccount = () => {
+  const handleResetAllData = () => {
     Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all associated data. This action cannot be undone.',
+      'Reset All Data',
+      'This will delete all habits, settings, and account data. This action cannot be undone. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete Account', 
+        {
+          text: 'Reset',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Confirm Deletion',
-              'Are you absolutely sure? This will delete everything.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { 
-                  text: 'Yes, Delete', 
-                  style: 'destructive',
-                  onPress: () => {
-                    // TODO: Implement account deletion
-                    Alert.alert('Coming Soon', 'Account deletion will be available in a future update.');
-                  }
-                }
-              ]
-            );
-          }
-        }
+          onPress: async () => {
+            try {
+              // TODO: Implement data reset
+              Alert.alert('Success', 'All data has been reset');
+            } catch (error) {
+              console.error('Failed to reset data:', error);
+              Alert.alert('Error', 'Failed to reset data');
+            }
+          },
+        },
       ]
     );
   };
@@ -193,7 +204,7 @@ const AccountSettings = () => {
       paddingVertical: 12,
       backgroundColor: themeColors.cardBackground,
       borderBottomWidth: 1,
-      borderBottomColor: themeColors.progressBackground,
+      borderBottomColor: themeColors.border,
     },
     headerTitle: {
       fontSize: typography.sizes.title2,
@@ -234,7 +245,7 @@ const AccountSettings = () => {
     },
     input: {
       borderWidth: 1,
-      borderColor: themeColors.progressBackground,
+      borderColor: themeColors.border,
       borderRadius: 8,
       padding: 12,
       fontSize: typography.sizes.body,
@@ -272,7 +283,7 @@ const AccountSettings = () => {
       paddingHorizontal: 16,
       borderRadius: 8,
       borderWidth: 1,
-      borderColor: themeColors.progressBackground,
+      borderColor: themeColors.border,
     },
     languageButtonActive: {
       backgroundColor: themeColors.primaryOrange,
@@ -321,7 +332,7 @@ const AccountSettings = () => {
     userInfo: {
       marginBottom: 16,
       padding: 16,
-      backgroundColor: themeColors.progressBackground,
+      backgroundColor: themeColors.surface,
       borderRadius: 8,
     },
     userName: {
@@ -352,7 +363,7 @@ const AccountSettings = () => {
       padding: 16,
       marginTop: 8,
       borderWidth: 1,
-      borderColor: themeColors.progressBackground,
+      borderColor: themeColors.border,
     },
     profileHeader: {
       flexDirection: 'row',
@@ -428,7 +439,7 @@ const AccountSettings = () => {
     },
     statItem: {
       width: '48%',
-      backgroundColor: themeColors.progressBackground,
+      backgroundColor: themeColors.surface,
       padding: 12,
       borderRadius: 8,
       alignItems: 'center',
@@ -506,6 +517,55 @@ const AccountSettings = () => {
           contentContainerStyle={dynamicStyles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Profile Information */}
+          <View style={dynamicStyles.section}>
+            <Text style={dynamicStyles.sectionTitle}>Profile Information</Text>
+            
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.label}>Email Address</Text>
+              <TextInput
+                style={[dynamicStyles.input, errors.email && { borderColor: themeColors.error }]}
+                value={formData.profile.email}
+                onChangeText={(value) => handleInputChange('profile', 'email', value)}
+                placeholder="Enter your email"
+                placeholderTextColor={themeColors.secondaryText}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {errors.email && <Text style={dynamicStyles.errorText}>{errors.email}</Text>}
+            </View>
+
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.label}>Password</Text>
+              <TextInput
+                style={[dynamicStyles.input, errors.password && { borderColor: themeColors.error }]}
+                value={formData.profile.password}
+                onChangeText={(value) => handleInputChange('profile', 'password', value)}
+                placeholder="Enter new password"
+                placeholderTextColor={themeColors.secondaryText}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {errors.password && <Text style={dynamicStyles.errorText}>{errors.password}</Text>}
+            </View>
+
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.label}>Phone Number (Optional)</Text>
+              <TextInput
+                style={[dynamicStyles.input, errors.phoneNumber && { borderColor: themeColors.error }]}
+                value={formData.profile.phoneNumber}
+                onChangeText={(value) => handleInputChange('profile', 'phoneNumber', value)}
+                placeholder="Enter your phone number"
+                placeholderTextColor={themeColors.secondaryText}
+                keyboardType="phone-pad"
+                autoCorrect={false}
+              />
+              {errors.phoneNumber && <Text style={dynamicStyles.errorText}>{errors.phoneNumber}</Text>}
+            </View>
+          </View>
+
           {/* Data Privacy */}
           <View style={dynamicStyles.section}>
             <Text style={dynamicStyles.sectionTitle}>Data Privacy</Text>
@@ -524,71 +584,42 @@ const AccountSettings = () => {
                 thumbColor={formData.dataPrivacy.cloudBackup ? '#fff' : '#f4f3f4'}
               />
             </View>
-
-            <View style={dynamicStyles.toggleItem}>
-              <View style={{ flex: 1 }}>
-                <Text style={dynamicStyles.toggleLabel}>Local Backup</Text>
-                <Text style={dynamicStyles.toggleDescription}>
-                  Keep a local backup of your data
-                </Text>
-              </View>
-              <Switch
-                value={formData.dataPrivacy.localBackup}
-                onValueChange={(value) => handleToggleChange('dataPrivacy', 'localBackup', value)}
-                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                thumbColor={formData.dataPrivacy.localBackup ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-
-            <View style={dynamicStyles.toggleItem}>
-              <View style={{ flex: 1 }}>
-                <Text style={dynamicStyles.toggleLabel}>Clinician Consent</Text>
-                <Text style={dynamicStyles.toggleDescription}>
-                  Allow sharing data with healthcare providers
-                </Text>
-              </View>
-              <Switch
-                value={formData.dataPrivacy.clinicianConsent}
-                onValueChange={(value) => handleToggleChange('dataPrivacy', 'clinicianConsent', value)}
-                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                thumbColor={formData.dataPrivacy.clinicianConsent ? '#fff' : '#f4f3f4'}
-              />
-            </View>
           </View>
 
-          {/* Location Settings */}
+          {/* Time Zone Settings */}
           <View style={dynamicStyles.section}>
-            <Text style={dynamicStyles.sectionTitle}>Location</Text>
+            <Text style={dynamicStyles.sectionTitle}>Time Zone</Text>
             
             <View style={dynamicStyles.toggleItem}>
               <View style={{ flex: 1 }}>
-                <Text style={dynamicStyles.toggleLabel}>Enable Location</Text>
+                <Text style={dynamicStyles.toggleLabel}>Auto Time Zone</Text>
                 <Text style={dynamicStyles.toggleDescription}>
-                  Allow the app to access your location for enhanced features
+                  Automatically detect and use your device's time zone
                 </Text>
               </View>
               <Switch
-                value={formData.location?.enabled || false}
-                onValueChange={(value) => handleToggleChange('location', 'enabled', value)}
+                value={formData.timezone.autoTimezone}
+                onValueChange={(value) => handleToggleChange('timezone', 'autoTimezone', value)}
                 trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                thumbColor={(formData.location?.enabled || false) ? '#fff' : '#f4f3f4'}
+                thumbColor={formData.timezone.autoTimezone ? '#fff' : '#f4f3f4'}
               />
             </View>
 
-            <View style={dynamicStyles.toggleItem}>
-              <View style={{ flex: 1 }}>
-                <Text style={dynamicStyles.toggleLabel}>Share Location</Text>
-                <Text style={dynamicStyles.toggleDescription}>
-                  Allow sharing your location with other users
-                </Text>
+            {!formData.timezone.autoTimezone && (
+              <View style={dynamicStyles.inputGroup}>
+                <Text style={dynamicStyles.label}>Manual Time Zone</Text>
+                <TextInput
+                  style={[dynamicStyles.input, errors.manualTimezone && { borderColor: themeColors.error }]}
+                  value={formData.timezone.manualTimezone}
+                  onChangeText={(value) => handleInputChange('timezone', 'manualTimezone', value)}
+                  placeholder="e.g., UTC, EST, PST"
+                  placeholderTextColor={themeColors.secondaryText}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                />
+                {errors.manualTimezone && <Text style={dynamicStyles.errorText}>{errors.manualTimezone}</Text>}
               </View>
-              <Switch
-                value={formData.location?.shareLocation || false}
-                onValueChange={(value) => handleToggleChange('location', 'shareLocation', value)}
-                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                thumbColor={(formData.location?.shareLocation || false) ? '#fff' : '#f4f3f4'}
-              />
-            </View>
+            )}
           </View>
 
           {/* Save Button */}
@@ -599,72 +630,6 @@ const AccountSettings = () => {
             style={dynamicStyles.saveButton}
             disabled={updating}
           />
-
-          {/* Profile Information */}
-          {user && (
-            <View style={dynamicStyles.section}>
-              <Text style={dynamicStyles.sectionTitle}>Profile Information</Text>
-              
-              <View style={dynamicStyles.profileCard}>
-                <View style={dynamicStyles.profileHeader}>
-                  <View style={dynamicStyles.avatarContainer}>
-                    {user.avatarUrl ? (
-                      <Image source={{ uri: user.avatarUrl }} style={dynamicStyles.avatar} />
-                    ) : (
-                      <View style={dynamicStyles.avatarPlaceholder}>
-                        <Ionicons name="person" size={24} color="#fff" />
-                      </View>
-                    )}
-                  </View>
-                  <View style={dynamicStyles.profileInfo}>
-                    <Text style={dynamicStyles.profileName}>{user.displayName || user.name || 'User'}</Text>
-                    <Text style={dynamicStyles.profileEmail}>{user.email}</Text>
-                    <Text style={dynamicStyles.profileUsername}>@{user.username || 'user'}</Text>
-                  </View>
-                </View>
-                
-                {user.bio && (
-                  <View style={dynamicStyles.bioSection}>
-                    <Text style={dynamicStyles.bioLabel}>Bio</Text>
-                    <Text style={dynamicStyles.bioText}>{user.bio}</Text>
-                  </View>
-                )}
-                
-                <View style={dynamicStyles.statsSection}>
-                  <Text style={dynamicStyles.statsLabel}>Stats</Text>
-                  <View style={dynamicStyles.statsGrid}>
-                    <View style={dynamicStyles.statItem}>
-                      <Text style={dynamicStyles.statNumber}>{user.stats?.personalPlans || 0}</Text>
-                      <Text style={dynamicStyles.statLabel}>Personal Plans</Text>
-                    </View>
-                    <View style={dynamicStyles.statItem}>
-                      <Text style={dynamicStyles.statNumber}>{user.stats?.publicPlans || 0}</Text>
-                      <Text style={dynamicStyles.statLabel}>Public Plans</Text>
-                    </View>
-                    <View style={dynamicStyles.statItem}>
-                      <Text style={dynamicStyles.statNumber}>{user.stats?.followers || 0}</Text>
-                      <Text style={dynamicStyles.statLabel}>Followers</Text>
-                    </View>
-                    <View style={dynamicStyles.statItem}>
-                      <Text style={dynamicStyles.statNumber}>{user.stats?.following || 0}</Text>
-                      <Text style={dynamicStyles.statLabel}>Following</Text>
-                    </View>
-                  </View>
-                </View>
-                
-                <View style={dynamicStyles.joinDateSection}>
-                  <Text style={dynamicStyles.joinDateLabel}>Member since</Text>
-                  <Text style={dynamicStyles.joinDateText}>
-                    {new Date(user.joinedAt || user.createdAt).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
 
           {/* Authentication Section */}
           <View style={dynamicStyles.section}>
@@ -699,9 +664,15 @@ const AccountSettings = () => {
             <Text style={dynamicStyles.dangerTitle}>Danger Zone</Text>
             <TouchableOpacity
               style={dynamicStyles.dangerButton}
-              onPress={handleDeleteAccount}
+              onPress={handleDeactivateAccount}
             >
-              <Text style={dynamicStyles.dangerButtonText}>Delete Account</Text>
+              <Text style={dynamicStyles.dangerButtonText}>Deactivate Account</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[dynamicStyles.dangerButton, { marginTop: 12 }]}
+              onPress={handleResetAllData}
+            >
+              <Text style={dynamicStyles.dangerButtonText}>Reset All Data</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>

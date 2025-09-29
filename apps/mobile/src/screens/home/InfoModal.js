@@ -193,8 +193,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 400,
     maxHeight: screenHeight * 0.8,
-    borderRadius: layout.borderRadius.xl,
-    ...layout.shadows.large,
+    borderRadius: layout.radii.large,
+    ...layout.elevation.high,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     marginTop: layout.spacing.md,
     padding: layout.spacing.md,
     backgroundColor: colors.light.background,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
   },
   tipsTitle: {
     fontSize: typography.sizes.title3,
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     borderTopColor: colors.light.border,
   },
   gotItButton: {
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
   },
 });
 

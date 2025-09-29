@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 4,
-    ...layout.shadows.small,
+    ...layout.elevation.low,
   },
   badgeText: {
     ...typography.styles.caption1,

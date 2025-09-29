@@ -1,4 +1,5 @@
 import moment from 'moment';
+import { colors } from '../../styles';
 
 /**
  * Stats Service - Analytics and Statistics Calculations
@@ -361,7 +362,7 @@ class StatsService {
       progress: totalCompletions,
       target: 100,
       completed: totalCompletions >= 100,
-      color: '#4CAF50'
+      color: colors.light.success // Use HSL success color #4DB34D
     });
 
     // Month Master Achievement

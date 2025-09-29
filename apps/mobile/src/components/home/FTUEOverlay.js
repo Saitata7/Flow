@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: layout.spacing.sm,
     paddingHorizontal: layout.spacing.lg,
-    borderRadius: layout.button.pillRadius,
+    borderRadius: layout?.radii?.large || 28,
   },
   nextButtonText: {
     fontSize: typography.sizes.body,

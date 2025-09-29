@@ -549,7 +549,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
   const dynamicStyles = StyleSheet.create({
     calendar: {
       backgroundColor: themeColors.background,
-      borderRadius: layout.borderRadius.lg,
+      borderRadius: layout.radii.large,
       marginVertical: layout.spacing.md,
       padding: layout.spacing.sm,
     },
@@ -562,7 +562,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
       flex: 1,
       borderWidth: 1,
       borderColor: themeColors.border,
-      borderRadius: layout.borderRadius.md,
+      borderRadius: layout.radii.base,
       padding: layout.spacing.md,
       backgroundColor: themeColors.background,
       color: themeColors.primaryText,
@@ -734,9 +734,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: layout.spacing.md,
     paddingVertical: layout.spacing.sm,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     borderWidth: 1,
-    ...layout.shadows.buttonShadow,
+    ...layout.elevation.low,
   },
   toggleEmoji: {
     fontSize: 16,

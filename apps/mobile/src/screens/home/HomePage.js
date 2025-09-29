@@ -15,7 +15,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../../context/ThemeContext';
 import { FlowsContext } from '../../context/FlowContext';
-import { useNotificationContext } from '../../context/NotificationContext';
 import { useAchievements } from '../../hooks/useAchievements';
 import moment from 'moment';
 import TodaysFlows from '../../components/flow/todayResponse/TodaysFlows';
@@ -33,8 +32,6 @@ import {
 } from '../../../styles';
 import { Button, Card, Icon, FlowGrid } from '../../components';
 
-const SIDE_PADDING = 16;
-
 export default function HomePage({ navigation }) {
   const [dayOffset, setDayOffset] = useState(0); // Controls which set of 3 days to show
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -50,7 +47,6 @@ export default function HomePage({ navigation }) {
     highContrast: false,
     cheatMode: false,
   };
-  const { permissionsGranted, trackAchievement, achievements } = useNotificationContext();
   const { processFlows } = useAchievements();
 
   // Use centralized theme hook
@@ -121,7 +117,7 @@ export default function HomePage({ navigation }) {
       }
     }
     
-    return streak;
+    return streak >= 4 ? streak : 0; // Only show if 4+ streaks, otherwise 0 (don't show)
   };
 
   const currentStreak = calculateStreak();
@@ -179,35 +175,28 @@ export default function HomePage({ navigation }) {
   console.log('HomePage: Todays flows:', visibleFlows.map(f => ({ id: f.id, title: f.title })));
 
   return (
-    <SafeAreaView style={[commonStyles.container, { backgroundColor: '#FEDFCD' }]} edges={['top']}>
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle={isDark ? "light-content" : "dark-content"}
-      />
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <View style={[commonStyles.container, { backgroundColor: '#FEDFCD' }]}>
-          {/* Enhanced Header */}
-          <View style={[styles.headerContainer, { backgroundColor: '#FEDFCD' }]}>
+    <LinearGradient
+      colors={['#FFE3C3', '#FFFFFF']}
+      style={[commonStyles.container]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 1 }}
+    >
+      <SafeAreaView style={[commonStyles.container, { backgroundColor: 'transparent' }]} edges={['top']}>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle={isDark ? "light-content" : "dark-content"}
+        />
+        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          <View style={[commonStyles.container, { backgroundColor: 'transparent' }]}>
+            {/* Enhanced Header */}
+            <View style={[styles.headerContainer, { backgroundColor: 'transparent' }]}>
             {/* Top Row - Logo and Icons */}
             <View style={styles.headerTopRow}>
               <View style={styles.logoContainer}>
                 <Text style={[styles.logoText, { color: themeColors.primaryOrange }]}>Flow</Text>
               </View>
               <View style={styles.headerIcons}>
-                {/* Notification Status Indicator */}
-                <View style={styles.notificationStatusContainer}>
-                  <Ionicons 
-                    name={permissionsGranted ? "notifications" : "notifications-off-outline"} 
-                    size={20} 
-                    color={permissionsGranted ? themeColors.primaryOrange : themeColors.secondaryText} 
-                  />
-                  {achievements.length > 0 && (
-                    <View style={styles.achievementBadge}>
-                      <Text style={styles.achievementBadgeText}>{achievements.length}</Text>
-                    </View>
-                  )}
-                </View>
                 <TouchableOpacity
                   style={styles.headerIconButton}
                   onPress={() => setShowSettingsModal(true)}
@@ -250,30 +239,6 @@ export default function HomePage({ navigation }) {
             
           </View>
           
-          {/* Recent Achievements Section */}
-          {achievements.length > 0 && (
-            <View style={[styles.achievementsSection, { backgroundColor: '#FFFFFF' }]}>
-              <View style={styles.achievementsHeader}>
-                <Ionicons name="trophy-outline" size={20} color={themeColors.primaryOrange} />
-                <Text style={[styles.achievementsTitle, { color: themeColors.primaryText }]}>
-                  Recent Achievements
-                </Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
-                {achievements.slice(0, 3).map((achievement, index) => (
-                  <View key={achievement.id} style={[styles.achievementCard, { backgroundColor: themeColors.cardBackground }]}>
-                    <Ionicons name="medal-outline" size={24} color={themeColors.primaryOrange} />
-                    <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>
-                      {achievement.title}
-                    </Text>
-                    <Text style={[styles.achievementDescription, { color: themeColors.secondaryText }]}>
-                      {achievement.description}
-                    </Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-          )}
           
           {/* Flow Grid */}
           <FlowGrid 
@@ -289,7 +254,7 @@ export default function HomePage({ navigation }) {
           />
           
           {/* Today Flows - Moved inside ScrollView */}
-          <View style={[styles.todayContainer, { backgroundColor: '#FFFFFF' }]}>
+          <View style={[styles.todayContainer, { backgroundColor: 'transparent' }]}>
             <View style={styles.todaySection}>
               <Text style={[typography.styles.title2, { color: themeColors.primaryText, marginBottom: layout.spacing.md }]}>Today Flows</Text>
               <TodaysFlows navigation={navigation} visibleFlows={visibleFlows} />
@@ -297,19 +262,19 @@ export default function HomePage({ navigation }) {
             <View style={styles.bottomSpacing} />
           </View>
           
-          {/* White background extension to cover remaining area */}
-          <View style={styles.whiteBackgroundExtension} />
+          {/* Gradient continues to bottom */}
+          <View style={[styles.whiteBackgroundExtension, { backgroundColor: 'transparent' }]} />
         </View>
         </ScrollView>
       
       {/* Floating Action Button - Add Flow */}
       <TouchableOpacity
-        style={[styles.fabContainer, { bottom: 60 + insets.bottom + 20 }]} // Tab bar height (60) + safe area + padding
+        style={[styles.fabContainer, { bottom: 60 + insets.bottom + layout.spacing.lg }]} // Tab bar height (60) + safe area + padding
         onPress={() => navigation.navigate('AddFlow')}
         activeOpacity={0.8}
       >
         <LinearGradient
-          colors={[themeColors.primaryOrange, themeColors.primaryOrangeVariants.light]}
+          colors={['#F7BA53', '#F7A053']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.fabGradient}
@@ -317,7 +282,7 @@ export default function HomePage({ navigation }) {
           <Ionicons 
             name="add" 
             size={28} 
-            color={themeColors.cardBackground} 
+            color="#FFFFFF" 
           />
         </LinearGradient>
       </TouchableOpacity>
@@ -333,7 +298,8 @@ export default function HomePage({ navigation }) {
         visible={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -370,28 +336,6 @@ const styles = StyleSheet.create({
     marginLeft: layout.spacing.sm,
     position: 'relative',
   },
-  notificationStatusContainer: {
-    position: 'relative',
-    padding: layout.spacing.sm,
-    marginLeft: layout.spacing.sm,
-  },
-  achievementBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: '#FF4444',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  achievementBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
   greetingSection: {
     alignItems: 'center',
     marginBottom: 0, // Remove gap after greetings
@@ -422,82 +366,39 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     marginLeft: layout.spacing.xs,
   },
-  achievementsSection: {
-    marginTop: layout.spacing.md,
-    paddingHorizontal: layout.spacing.md,
-    paddingVertical: layout.spacing.sm,
-  },
-  achievementsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: layout.spacing.sm,
-  },
-  achievementsTitle: {
-    fontSize: typography.sizes.title3,
-    fontWeight: typography.weights.semibold,
-    marginLeft: layout.spacing.xs,
-  },
-  achievementsScroll: {
-    marginHorizontal: -layout.spacing.md,
-  },
-  achievementCard: {
-    width: 140,
-    padding: layout.spacing.sm,
-    marginRight: layout.spacing.sm,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  achievementTitle: {
-    fontSize: typography.sizes.caption1,
-    fontWeight: typography.weights.semibold,
-    textAlign: 'center',
-    marginTop: layout.spacing.xs,
-    marginBottom: layout.spacing.xs,
-  },
-  achievementDescription: {
-    fontSize: typography.sizes.tiny,
-    textAlign: 'center',
-    lineHeight: 14,
-  },
   todayContainer: {
     flex: 1,
-    marginTop: 40, // Add 30px top space
-    paddingHorizontal: layout.spacing.md,
+    marginTop: layout.spacing.x3l, // Use spacing token instead of hardcoded 40px
+    paddingHorizontal: layout.spacing.base,
   },
   todaySection: {
     marginBottom: layout.spacing.lg,
   },
   bottomSpacing: {
-    height: 120, // Space for FAB button (56px + padding)
+    height: layout.spacing.x5l + layout.spacing.x2l, // Space for FAB button (64px + 32px padding)
   },
   whiteBackgroundExtension: {
-    backgroundColor: '#FFFFFF',
-    minHeight: 200, // Ensure enough white background coverage
+    minHeight: layout.spacing.x5l * 3, // Ensure enough white background coverage (192px)
     flex: 1,
   },
   // Floating Action Button (FAB) - Right Corner
   fabContainer: {
     position: 'absolute',
     // bottom: calculated dynamically with safe area
-    right: 20, // Right corner positioning
-    width: 56, // Standard FAB size
+    right: layout.spacing.lg, // Right corner positioning using spacing token
+    width: 56, // Standard FAB size (components.fab.size)
     height: 56,
-    borderRadius: 28, // Perfect circle
+    borderRadius: 28, // Perfect circle (components.fab.borderRadius)
     zIndex: 999, // Above content, below tab bar
-    // Shadow for floating effect
+    // Shadow for floating effect - using elevation tokens
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8, // Android shadow
+    shadowOpacity: 0.14, // elevation.high shadowOpacity
+    shadowRadius: 16, // elevation.high shadowRadius
+    elevation: 12, // elevation.high Android shadow
   },
   fabGradient: {
     width: '100%',

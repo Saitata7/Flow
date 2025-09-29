@@ -223,9 +223,9 @@ const HeatMapPanel = ({ flows, theme = 'light' }) => {
 const styles = StyleSheet.create({
   container: {
     padding: layout.spacing.md,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
     marginVertical: layout.spacing.md,
-    ...layout.shadows.small,
+    ...layout.elevation.low,
   },
   header: {
     alignItems: 'center',
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: layout.spacing.sm,
+    marginHorizontal: layout?.spacing?.sm || 8,
     marginBottom: layout.spacing.xs,
   },
   legendSquare: {

@@ -1,105 +1,95 @@
 // styles/colors.js
-// Comprehensive color palette for Flow Tracker app
-// Supports light/dark modes with iOS-inspired semantics
-// Extended for flow-specific elements like streaks, progress, and categories
+// Simplified colors system to fix undefined error
 
+// Simple colors object with no dependencies
 export const colors = {
-    light: {
-      // iOS System Colors
-      primaryOrange: '#FF9500', // Main accent for buttons, highlights
-      primaryOrangeVariants: {
-        dark: '#FF8C00', // Pressed/hover state
-        light: '#FFB84D', // Disabled or secondary
-        vibrant: '#FF7A00', // Intense highlights
-      },
-      successGreen: '#34C759', // Completed flows, checkmarks
-      background: '#FFF0E6', // Warm peachy-pink main background
-      cardBackground: '#FFFFFF', // Flow cards, modals
-      iOSBlue: '#007AFF', // Links, secondary actions
+  light: {
+    // Main gradients
+    bgStart: '#FEDFCE',
+    bgEnd: '#FFE3C3',
+    
+    // Accent colors
+    accentStart: '#F7BA53',
+    accentEnd: '#F7A053',
+    
+    // Text colors
+    textPrimary: '#3E3E3E',
+    textSecondary: '#585858',
+    
+    // Semantic colors
+    success: '#4DB34D',
+    danger: '#FF6961',
+    warning: '#F2A005',
+    
+    // Background and surface colors
+    background: '#FFFFFF',
+    surface: '#F8F9FA',
+    border: '#E0E0E0',
+    
+    // Status colors
+    completed: '#4DB34D',
+    missed: '#FF6961',
+    pending: '#FFFFFF',
+    noTask: 'transparent',
+    
+    // Legacy compatibility
+    primaryOrange: '#F7BA53',
+    successGreen: '#4DB34D',
+    cardBackground: '#FFFFFF',
+    primaryText: '#3E3E3E',
+    secondaryText: '#585858',
+    error: '#FF6961',
+  },
   
-      // Text Colors
-      primaryText: '#1D1D1F', // Main flow titles, body text
-      secondaryText: '#86868B', // Subtitles, dates
-      tertiaryText: '#C7C7CC', // Hints, metadata
-      placeholderText: '#AEAEB2', // Input placeholders
-  
-      // Semantic Colors
-      error: '#FF3B30', // Missed flows, alerts
-      warning: '#FF9500', // Streak warnings, partial progress
-      info: '#007AFF', // Tips, info modals
-      success: '#34C759', // Completions, achievements
-  
-      // Streak Counter Colors
-      streakGradient: ['#FF9500', '#FF3B30'], // Orange to red for streak flames/progress
-      badgeBackground: '#FFCC00', // Streak badges, achievements
-  
-      // Flow Tracker Specific
-      flowCompleted: '#34C759', // Green fill for done days
-      flowMissed: '#FF3B30', // Red for missed
-      flowInProgress: '#FF9500', // Orange for ongoing
-      progressFill: '#FF9500', // Progress bars/rings
-      progressBackground: '#E5E5EA', // Unfilled progress
-      streakText: '#FFFFFF', // Text on streak badges
-      categoryPastels: {
-        productivity: '#CADBFC', // Soft blue
-        wellness: '#FEECF5', // Light pink
-        fitness: '#F9EAFE', // Pastel purple
-        learning: '#EBBCFC', // Pastel magenta
-        custom: '#FF0061', // Vibrant accent pink
-      },
-      calendarDayNeutral: '#E5E5EA', // Empty calendar days
-      calendarDayHighlight: '#FFB84D', // Current day border
-    },
-    dark: {
-      // Adapted from iOS dark mode cheat sheet (e.g., lighter accents for visibility)
-      primaryOrange: '#FF9F0A', // Brighter orange for dark
-      primaryOrangeVariants: {
-        dark: '#FF9500',
-        light: '#FFC53A',
-        vibrant: '#FF9F0A',
-      },
-      successGreen: '#32D74B', // Brighter green
-      background: '#1C1C1E', // Dark neutral background
-      cardBackground: '#2C2C2E', // Elevated cards
-      iOSBlue: '#0A84FF', // Brighter blue
-  
-      // Text Colors (inverted for dark)
-      primaryText: '#FFFFFF',
-      secondaryText: '#EBEBF599', // Semi-transparent white
-      tertiaryText: '#EBEBF560',
-      placeholderText: '#EBEBF530',
-  
-      // Semantic Colors (brighter in dark)
-      error: '#FF453A',
-      warning: '#FF9F0A',
-      info: '#0A84FF',
-      success: '#32D74B',
-  
-      // Streak Counter Colors
-      streakGradient: ['#FF9F0A', '#FF453A'], // Adjusted for dark
-      badgeBackground: '#FFD60A', // Brighter gold
-  
-      // Flow Tracker Specific
-      flowCompleted: '#32D74B',
-      flowMissed: '#FF453A',
-      flowInProgress: '#FF9F0A',
-      progressFill: '#FF9F0A',
-      progressBackground: '#3A3A3C',
-      streakText: '#000000', // Dark text on light badges
-      categoryPastels: {
-        productivity: '#3A4B6C', // Darkened blue
-        wellness: '#6E5C65', // Darkened pink
-        fitness: '#695C6E', // Darkened purple
-        learning: '#5B4B6C', // Darkened magenta
-        custom: '#FF0061', // Keep vibrant
-      },
-      calendarDayNeutral: '#3A3A3C',
-      calendarDayHighlight: '#FFC53A',
-    },
-  };
-  
-  // Usage example in components:
-  // import { colors } from './styles/colors';
-  // import { useColorScheme } from 'react-native';
-  // const scheme = useColorScheme();
-  // const themeColors = colors[scheme || 'light'];
+  dark: {
+    // Main gradients
+    bgStart: '#2D1B0E',
+    bgEnd: '#3D2412',
+    
+    // Accent colors
+    accentStart: '#F7BA53',
+    accentEnd: '#F7A053',
+    
+    // Text colors
+    textPrimary: '#FFFFFF',
+    textSecondary: 'rgba(255, 255, 255, 0.7)',
+    
+    // Semantic colors
+    success: '#5DC35D',
+    danger: '#FF7A7A',
+    warning: '#F2B005',
+    
+    // Background and surface colors
+    background: '#1C1C1E',
+    surface: '#2C2C2E',
+    border: '#3A3A3C',
+    
+    // Status colors
+    completed: '#5DC35D',
+    missed: '#FF7A7A',
+    pending: '#FFFFFF',
+    noTask: 'transparent',
+    
+    // Legacy compatibility
+    primaryOrange: '#F7BA53',
+    successGreen: '#5DC35D',
+    cardBackground: '#2C2C2E',
+    primaryText: '#FFFFFF',
+    secondaryText: 'rgba(255, 255, 255, 0.7)',
+    error: '#FF7A7A',
+  },
+};
+
+// HSL utility functions (separate from colors object)
+export const hslUtils = {
+  hsl: (h, s, l) => `hsl(${h}, ${s}%, ${l}%)`,
+  tint: (h, s, l, amount = 10) => `hsl(${h}, ${s}%, ${Math.min(100, l + amount)}%)`,
+  shade: (h, s, l, amount = 10) => `hsl(${h}, ${s}%, ${Math.max(0, l - amount)}%)`,
+  mute: (h, s, l, sAmount = 20, lAmount = 8) => `hsl(${h}, ${Math.max(0, s - sAmount)}%, ${Math.min(100, l + lAmount)}%)`,
+};
+
+// Simple gradients
+export const gradients = {
+  mainBackground: ['#FEDFCE', '#FFE3C3'],
+  accentGradient: ['#F7BA53', '#F7A053'],
+};

@@ -16,7 +16,6 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import useAuth from '../../hooks/useAuth';
-import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -59,6 +58,13 @@ const SettingsMenu = ({ visible, onClose }) => {
     //   screen: 'LocationSettings'
     // },
     {
+      id: 'importexport',
+      title: 'Import & Export',
+      icon: 'download-outline',
+      description: 'Export data and import from files',
+      screen: 'ImportExportSettings'
+    },
+    {
       id: 'help',
       title: 'Help & About',
       icon: 'help-circle-outline',
@@ -75,11 +81,14 @@ const SettingsMenu = ({ visible, onClose }) => {
   ];
 
   const handleCategoryPress = (category) => {
+    console.log('SettingsMenu: Navigating to:', category.screen);
     onClose();
-    // Navigate to SettingsStack screens
-    navigation.navigate('SettingsStack', { 
-      screen: category.screen 
-    });
+    // First navigate to SettingsStack, then to the specific screen
+    navigation.navigate('SettingsStack');
+    // Use a small delay to ensure the navigation completes
+    setTimeout(() => {
+      navigation.navigate(category.screen);
+    }, 50);
   };
 
   const handleSignOut = () => {
@@ -119,8 +128,9 @@ const SettingsMenu = ({ visible, onClose }) => {
       backgroundColor: themeColors.cardBackground,
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      maxHeight: screenHeight * 0.8,
-      minHeight: screenHeight * 0.4,
+      maxHeight: screenHeight * 0.85,
+      minHeight: screenHeight * 0.5,
+      paddingBottom: 20,
     },
     header: {
       flexDirection: 'row',
@@ -129,7 +139,7 @@ const SettingsMenu = ({ visible, onClose }) => {
       paddingHorizontal: 20,
       paddingVertical: 16,
       borderBottomWidth: 1,
-      borderBottomColor: themeColors.progressBackground,
+      borderBottomColor: themeColors.border,
     },
     headerTitle: {
       fontSize: typography.sizes.title2,
@@ -187,7 +197,7 @@ const SettingsMenu = ({ visible, onClose }) => {
       marginTop: 20,
       paddingTop: 20,
       borderTopWidth: 1,
-      borderTopColor: themeColors.progressBackground,
+      borderTopColor: themeColors.border,
     },
     signOutButton: {
       flexDirection: 'row',
@@ -228,7 +238,7 @@ const SettingsMenu = ({ visible, onClose }) => {
       marginTop: 20,
       paddingTop: 20,
       borderTopWidth: 1,
-      borderTopColor: themeColors.progressBackground,
+      borderTopColor: themeColors.border,
     },
     versionText: {
       fontSize: typography.sizes.caption1,
@@ -250,28 +260,26 @@ const SettingsMenu = ({ visible, onClose }) => {
           onPress={onClose}
         />
         <View style={dynamicStyles.modalContent}>
-          <SafeAreaWrapper excludeTop={true}>
-            {/* Header */}
-            <View style={dynamicStyles.header}>
-              <Text style={dynamicStyles.headerTitle}>Settings</Text>
-              <TouchableOpacity 
-                style={dynamicStyles.closeButton}
-                onPress={onClose}
-                accessibilityLabel="Close settings"
-                accessibilityRole="button"
-              >
-                <Ionicons 
-                  name="close" 
-                  size={20} 
-                  color={themeColors.primaryText} 
-                />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView 
-              style={dynamicStyles.scrollContent}
-              showsVerticalScrollIndicator={false}
+          <View style={dynamicStyles.header}>
+            <Text style={dynamicStyles.headerTitle}>Settings</Text>
+            <TouchableOpacity 
+              style={dynamicStyles.closeButton}
+              onPress={onClose}
+              accessibilityLabel="Close settings"
+              accessibilityRole="button"
             >
+              <Ionicons 
+                name="close" 
+                size={20} 
+                color={themeColors.primaryText} 
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView 
+            style={dynamicStyles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
               {/* Settings Categories */}
               {settingsCategories.map((category) => (
                 <TouchableOpacity
@@ -350,7 +358,6 @@ const SettingsMenu = ({ visible, onClose }) => {
                 </Text>
               </View>
             </ScrollView>
-          </SafeAreaWrapper>
         </View>
       </View>
     </Modal>

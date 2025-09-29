@@ -10,7 +10,8 @@ const Card = ({
   variant = 'default',
   padding = 'md',
   margin = 'sm',
-  elevated = false 
+  elevated = false,
+  backgroundColor = colors.light.cardBackground
 }) => {
   const getPadding = () => {
     switch (padding) {
@@ -38,7 +39,7 @@ const Card = ({
     switch (variant) {
       case 'elevated':
         return {
-          ...layout.shadows.large,
+          ...layout.elevation.high,
         };
       case 'outlined':
         return {
@@ -47,7 +48,7 @@ const Card = ({
         };
       case 'filled':
         return {
-          backgroundColor: colors.light.progressBackground,
+          backgroundColor: colors.light.surface,
         };
       default:
         return {
@@ -62,6 +63,7 @@ const Card = ({
     {
       padding: getPadding(),
       marginVertical: getMargin(),
+      backgroundColor: backgroundColor,
     },
     style,
   ];
@@ -84,8 +86,7 @@ Card.propTypes = {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.light.cardBackground,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
     ...(Platform.OS === 'ios' ? { borderCurve: 'continuous' } : {}),
   },
 });

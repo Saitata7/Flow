@@ -6,6 +6,7 @@ import moment from 'moment';
 import { FlowsContext } from '../../context/FlowContext';
 import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
+import { colors } from '../../../styles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
   trendChange: {
     textAlign: 'center',
     fontSize: 14,
-    color: '#4CAF50',
+    color: colors.light.success, // Use HSL success color #4DB34D
   },
 });
 

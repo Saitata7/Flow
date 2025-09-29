@@ -4,7 +4,7 @@ import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import moment from 'moment';
 import { FlowsContext } from '../../context/FlowContext';
 import { useAppTheme } from '../../../styles';
-import { colors, typography, layout } from '../../../styles';
+import { colors, typography, layout, hslUtils, commonStyles } from '../../../styles';
 
 const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
   const { flows } = useContext(FlowsContext);
@@ -77,11 +77,24 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
       return 'none'; // Not scheduled
     }
     
+    // Check if this is a future date (tomorrow or later)
+    const today = moment().format('YYYY-MM-DD');
+    const isFutureDate = dateStr > today;
+    
+    // For future dates, don't show any status unless explicitly set
+    if (isFutureDate && !status.symbol) {
+      return 'none'; // Future dates with no symbol should show as not scheduled
+    }
+    
     // Check the symbol field which is used in the existing system
     if (status.symbol === '+') {
       return 'done';
     } else if (status.symbol === '-') {
       return 'missed';
+    } else if (status.symbol === '~' || status.symbol === '≈' || status.symbol === 'p' || status.symbol === '/') {
+      return 'partial'; // Partial completion or incomplete
+    } else if (status.symbol === 's' || status.symbol === 'skip') {
+      return 'skip'; // Skipped
     } else {
       return 'available'; // Scheduled but not completed
     }
@@ -107,7 +120,7 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
 
 
   // Render status circle
-  const renderStatusCircle = (flow, date) => {
+  const renderStatusCircle = (flow, date, flowIndex, dateIndex) => {
     const status = getFlowStatus(flow, date);
     const isToday = date.isSame(moment(), 'day');
 
@@ -126,13 +139,20 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
         case 'done':
           return {
             ...baseStyle,
-            backgroundColor: '#4CAF50', // Green
+            backgroundColor: hslUtils.tint(120, 40.2, 50.2, 30), // Same light green as Today flows
             borderColor: '#FFFFFF',
           };
         case 'missed':
           return {
             ...baseStyle,
-            backgroundColor: '#F44336', // Red
+            backgroundColor: hslUtils.tint(3, 100, 69.0, 20), // Same light red as Today flows
+            borderColor: '#FFFFFF',
+          };
+        case 'partial':
+        case 'skip':
+          return {
+            ...baseStyle,
+            backgroundColor: hslUtils.tint(39.2, 96.0, 48.4, 25), // Light orange from HSL warning color
             borderColor: '#FFFFFF',
           };
         case 'available':
@@ -155,9 +175,12 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
     const getIcon = () => {
       switch (status) {
         case 'done':
-          return { symbol: '✓', color: '#FFFFFF', fontSize: 18 };
+          return <View style={commonStyles.flowGridCompletedIcon} />;
         case 'missed':
-          return { symbol: '✗', color: '#FFFFFF', fontSize: 16 };
+          return <View style={commonStyles.flowGridMissedIcon} />;
+        case 'partial':
+        case 'skip':
+          return <View style={commonStyles.flowGridPartialIcon} />;
         default:
           return null;
       }
@@ -174,11 +197,7 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
             },
         ]}
       >
-        {getIcon() && (
-            <Text style={[styles.statusIcon, { color: getIcon().color, fontSize: getIcon().fontSize }]}>
-              {getIcon().symbol}
-          </Text>
-        )}
+        {getIcon()}
         </Animated.View>
       </View>
     );
@@ -323,7 +342,7 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
                           console.log(`FlowGrid: Rendering status circle ${dateIndex} for flow ${flowIndex}:`, date.format('ddd D'));
                           return (
                             <View key={`status-${flowIndex}-${dateIndex}`} style={styles.statusColumn}>
-                              {renderStatusCircle(flow, date)}
+                              {renderStatusCircle(flow, date, flowIndex, dateIndex)}
                             </View>
                           );
                         })}
@@ -351,7 +370,7 @@ const styles = StyleSheet.create({
   mainCard: {
     backgroundColor: '#FFFFFF', // White background card panel
     borderRadius: 22, // Squircle formula
-    ...layout.shadows.elevatedShadow,
+    ...layout.elevation.medium,
     overflow: 'hidden',
   },
   cardContent: {
@@ -449,13 +468,13 @@ const styles = StyleSheet.create({
     marginBottom: 2, // Small gap between weekday and date
   },
   todayDateDay: {
-    color: '#000000', // Black text for today's weekday
+    color: '#000000', // Black text for all days
   },
   dateNumber: {
     fontSize: typography.sizes.body, // Further reduced font size for date number
     fontWeight: typography.weights.bold,
     lineHeight: 14,
-    color: '#000000', // Black text for all dates
+    color: '#000000', // Black text for all days
   },
   todayDateNumber: {
     color: '#FFB366', // Orange text for today's date number
@@ -468,7 +487,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.body,
     fontWeight: typography.weights.medium, // Medium-weight text
     lineHeight: 20,
-    color: '#000000', // Black text
+    color: '#000000', // Black text for all days
   },
   flowTitleSmall: {
     fontSize: typography.sizes.caption1,
@@ -490,7 +509,7 @@ const styles = StyleSheet.create({
   emptyCard: {
     backgroundColor: '#FFFFFF', // White background
     borderRadius: 22, // Squircle formula
-    ...layout.shadows.elevatedShadow,
+    ...layout.elevation.medium,
     padding: layout.spacing.xl,
   },
   emptyState: {
@@ -501,7 +520,7 @@ const styles = StyleSheet.create({
     fontSize: typography.sizes.title3,
     fontWeight: typography.weights.semibold,
     marginBottom: layout.spacing.sm,
-    color: '#000000', // Black text
+    color: '#000000', // Black text for all days
   },
   emptyMessage: {
     fontSize: typography.sizes.body,

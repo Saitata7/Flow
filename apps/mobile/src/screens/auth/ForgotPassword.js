@@ -130,18 +130,18 @@ const ForgotPassword = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: layout.screen.paddingTop,
-    paddingBottom: layout.screen.paddingBottom,
+    paddingTop: layout.screen.safeAreaTop,
+    paddingBottom: layout.screen.safeAreaBottom,
   },
   formCard: {
-    borderRadius: layout.squircle.borderRadius,
-    ...layout.shadows.cardShadow,
+    borderRadius: layout.radii.squircle,
+    ...layout.elevation.low,
     padding: layout.spacing.lg,
-    marginHorizontal: layout.card.marginHorizontal,
-    marginVertical: layout.card.marginVertical,
+    marginHorizontal: layout?.components?.card?.marginHorizontal || 16,
+    marginVertical: layout?.components?.card?.marginVertical || 8,
   },
   title: {
-    ...typography.styles.largeTitle,
+    ...typography.largeTitle,
     textAlign: 'center',
     marginBottom: layout.spacing.md,
   },

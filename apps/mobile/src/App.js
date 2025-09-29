@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AppNavigator from './navigation/AppNavigator';
 import { NotificationProvider } from './context/NotificationContext';
-// Load environment variables
-import 'dotenv/config';
+// Environment variables are handled via React Native's built-in support
+// No need to import dotenv in React Native environment
 
 import './config/firebaseInit'; // Initialize Firebase
 

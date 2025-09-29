@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FlowsContext } from '../../../context/FlowContext';
 import { useNavigation } from '@react-navigation/native';
+import { colors, hslUtils } from '../../../../styles';
 
 // Define emotions array
 const emotions = [
@@ -169,6 +170,17 @@ const UnifiedFlowCard = ({ flow }) => {
   const isPending = status === '/';
   const isCompleted = status === '+' || status === '✓';
   const isMissed = status === '-';
+  const hasResponse = status === '+' || status === '-' || status === '*' || status === '/' || status === '✓';
+  
+  // Debug logging
+  console.log('UnifiedFlowCard Debug:', {
+    flowId: flow.id,
+    flowTitle: flow.title,
+    status: status,
+    hasResponse: hasResponse,
+    isCompleted: isCompleted,
+    isMissed: isMissed
+  });
 
   const triggerHaptic = useCallback(() => {
     if (Platform.OS !== 'web') {
@@ -489,11 +501,26 @@ const UnifiedFlowCard = ({ flow }) => {
   // Render action buttons based on tracking type - matching Figma designs
   const renderActionButtons = () => {
     if (flow.trackingType === 'Binary') {
-      if (isCompleted || isMissed) {
+      if (isCompleted || isMissed || hasResponse) {
+        const getStatusText = () => {
+          if (isCompleted) return 'Completed';
+          if (isMissed) return 'Missed';
+          if (status === '*') return 'Partial';
+          if (status === '/') return 'Skipped';
+          return 'Responded';
+        };
+        
+        const getStatusColor = () => {
+          if (isCompleted) return '#34A853';
+          if (isMissed) return '#EA4335';
+          if (status === '*' || status === '/') return '#F59E0B';
+          return '#6B7280';
+        };
+        
         return (
           <View style={styles.actionButtonsContainer}>
-            <Text style={[styles.statusText, { color: isCompleted ? '#34A853' : '#EA4335' }]}>
-              {isCompleted ? 'Completed' : 'Missed'}
+            <Text style={[styles.statusText, { color: getStatusColor() }]}>
+              {getStatusText()}
             </Text>
           </View>
         );
@@ -516,16 +543,31 @@ const UnifiedFlowCard = ({ flow }) => {
         );
       }
     } else if (flow.trackingType === 'Quantitative') {
-      // Show status text when completed or missed
-      if (isCompleted || isMissed) {
-        const statusText = flow.status?.[todayKey]?.statusText || 
-          (flow.status?.[todayKey]?.quantitative?.unitText ? 
-            `${flow.status[todayKey].quantitative.unitText}: ${count}` : 
-            `Count: ${count}`);
+      // Show status text when completed, missed, or has response
+      if (isCompleted || isMissed || hasResponse) {
+        const getStatusText = () => {
+          if (isCompleted || isMissed) {
+            return flow.status?.[todayKey]?.statusText || 
+              (flow.status?.[todayKey]?.quantitative?.unitText ? 
+                `${flow.status[todayKey].quantitative.unitText}: ${count}` : 
+                `Count: ${count}`);
+          }
+          if (status === '*') return 'Partial';
+          if (status === '/') return 'Skipped';
+          return 'Responded';
+        };
+        
+        const getStatusColor = () => {
+          if (isCompleted) return '#34A853';
+          if (isMissed) return '#EA4335';
+          if (status === '*' || status === '/') return '#F59E0B';
+          return '#6B7280';
+        };
+        
         return (
           <View style={styles.actionButtonsContainer}>
-            <Text style={[styles.statusText, { color: isCompleted ? '#34A853' : '#EA4335' }]}>
-              {statusText}
+            <Text style={[styles.statusText, { color: getStatusColor() }]}>
+              {getStatusText()}
             </Text>
           </View>
         );
@@ -642,9 +684,14 @@ const UnifiedFlowCard = ({ flow }) => {
     <TouchableOpacity onPress={handleCardPress} activeOpacity={0.8}>
       <View style={styles.cardContainer}>
         {/* Card Header - matching Figma designs */}
-        {(isCompleted || isMissed) ? (
+        {hasResponse ? (
           <LinearGradient
-            colors={isCompleted ? ['#FFFFFF', '#D1FAE5'] : ['#FFFFFF', '#FEE2E2']}
+            colors={
+              isCompleted ? ['#FFFFFF', '#D1FAE5'] : 
+              isMissed ? ['#FFFFFF', '#FEE2E2'] :
+              hasResponse ? ['#FFFFFF', '#FEF3C7'] : // Yellow/beige for other responses
+              ['#FFFFFF', '#FEE2E2']
+            }
             style={styles.headerContainer}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -661,7 +708,7 @@ const UnifiedFlowCard = ({ flow }) => {
               )}
             </View>
             <View style={styles.timeSection}>
-              {flowTime && (
+              {flowTime && !hasResponse && (
                 <View style={styles.timestampContainer}>
                   <MaterialIcons 
                     name="access-time" 
@@ -696,7 +743,7 @@ const UnifiedFlowCard = ({ flow }) => {
               )}
             </View>
             <View style={styles.timeSection}>
-              {flowTime && (
+              {flowTime && !hasResponse && (
                 <View style={styles.timestampContainer}>
                   <MaterialIcons 
                     name="access-time" 
@@ -841,26 +888,6 @@ const UnifiedFlowCard = ({ flow }) => {
           </View>
         )}
 
-        {/* Streak Display */}
-        {currentStreak > 3 && (isCompleted || isMissed) && !isExpanded && (
-          <View style={styles.streakCard}>
-            <Text style={styles.streakLabel}>⚡ Flow Streak - {currentStreak}</Text>
-            <View style={styles.streakContainer}>
-              {streakDays.slice(-7).map((day, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.streakDay,
-                    day === moment().date() && { backgroundColor: '#EA4335' },
-                    index > 0 && { marginLeft: 4 },
-                  ]}
-                >
-                  <Text style={styles.streakDayText}>{day}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
       </View>
     </TouchableOpacity>
   );
@@ -949,16 +976,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tickButton: {
-    backgroundColor: '#D1FAE5', // Corrected light green from design
+    backgroundColor: hslUtils.tint(120, 40.2, 50.2, 30), // Light green from HSL success color
   },
   crossButton: {
-    backgroundColor: '#FEE2E2', // Corrected light red from design
+    backgroundColor: hslUtils.tint(3, 100, 69.0, 20), // Light red from HSL danger color
   },
   missButton: {
-    backgroundColor: '#FEE2E2', // Corrected light red from design
+    backgroundColor: hslUtils.tint(3, 100, 69.0, 20), // Light red from HSL danger color
   },
   completeButton: {
-    backgroundColor: '#D1FAE5', // Corrected light green from design
+    backgroundColor: hslUtils.tint(120, 40.2, 50.2, 30), // Light green from HSL success color
   },
   circularButtonText: {
     fontSize: 16,
@@ -976,22 +1003,22 @@ const styles = StyleSheet.create({
     minWidth: 60,
   },
   startButton: {
-    backgroundColor: '#D1FAE5', // Light green for start/positive actions
+    backgroundColor: hslUtils.tint(120, 40.2, 50.2, 30), // Light green from HSL success color
   },
   skipButton: {
-    backgroundColor: '#FEE2E2', // Light red for skip/negative actions
+    backgroundColor: hslUtils.tint(3, 100, 69.0, 20), // Light red from HSL danger color
   },
   breakButton: {
-    backgroundColor: '#FEF3C7', // Light yellow/beige for neutral actions
+    backgroundColor: hslUtils.tint(39.2, 96.0, 48.4, 25), // Light yellow from HSL warning color
   },
   stopButton: {
-    backgroundColor: '#FEE2E2', // Light red for stop/negative actions
+    backgroundColor: hslUtils.tint(3, 100, 69.0, 20), // Light red from HSL danger color
   },
   completeButton: {
-    backgroundColor: '#D1FAE5', // Light green for complete/positive actions
+    backgroundColor: hslUtils.tint(120, 40.2, 50.2, 30), // Light green from HSL success color
   },
   missButton: {
-    backgroundColor: '#FEE2E2', // Light red for miss/negative actions
+    backgroundColor: hslUtils.tint(3, 100, 69.0, 20), // Light red from HSL danger color
   },
   timeDetailsRow: {
     flexDirection: 'row',

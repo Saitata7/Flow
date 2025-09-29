@@ -8,10 +8,45 @@ import { FlowsContext } from '../../context/FlowContext';
 import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { colors, layout, typography } from '../../../styles';
-import { LineChart } from 'react-native-chart-kit';
+import { LineChart, PieChart, BarChart } from 'react-native-chart-kit';
+import Svg, { Circle, Path } from 'react-native-svg';
 import Card from '../common/card';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+// Circular Progress Component
+const CircularProgress = ({ size = 120, strokeWidth = 8, progress = 0, color = '#4CAF50', backgroundColor = '#E0E0E0' }) => {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const strokeDasharray = circumference;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+  return (
+    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+      {/* Background Circle */}
+      <Circle
+        stroke={backgroundColor}
+        fill="transparent"
+        strokeWidth={strokeWidth}
+        r={radius}
+        cx={size / 2}
+        cy={size / 2}
+      />
+      {/* Progress Circle */}
+      <Circle
+        stroke={color}
+        fill="transparent"
+        strokeWidth={strokeWidth}
+        strokeDasharray={strokeDasharray}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        r={radius}
+        cx={size / 2}
+        cy={size / 2}
+      />
+    </Svg>
+  );
+};
 
 const FlowStatsDetail = ({ route, navigation }) => {
   const { flowId } = route?.params || {};
@@ -19,6 +54,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
   const { getScoreboard, getActivityStats, getEmotionalActivity } = useContext(ActivityContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
+  const [dateOffset, setDateOffset] = useState(0); // For navigating through date ranges
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
@@ -40,38 +76,54 @@ const FlowStatsDetail = ({ route, navigation }) => {
     color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
     labelColor: (opacity = 1) => `${themeColors.primaryText}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
     style: {
-      borderRadius: layout.borderRadius.lg,
+      borderRadius: layout.radii.large,
     },
     propsForDots: {
-      r: '3',
+      r: '5',
       strokeWidth: '2',
       stroke: themeColors.primaryOrange,
+    },
+    propsForDataPointLabels: {
+      fontSize: 10,
+      fill: themeColors.primaryOrange,
+      fontWeight: 'bold',
     },
     propsForBackgroundLines: {
       strokeDasharray: '',
       stroke: themeColors.progressBackground,
       strokeWidth: 1,
     },
+    propsForVerticalLines: {
+      stroke: themeColors.progressBackground,
+      strokeWidth: 1,
+    },
     propsForLabels: {
-      fontSize: 10,
+      fontSize: 9,
       fill: themeColors.primaryText,
     },
     propsForVerticalLabels: {
-      fontSize: 10,
+      fontSize: 8, // Show Y-axis labels
       fill: themeColors.primaryText,
     },
     propsForHorizontalLabels: {
-      fontSize: 10,
-      fill: themeColors.primaryText,
+      fontSize: 0, // Hide x-axis labels
+      fill: 'transparent',
     },
+    // Center the chart properly - add right padding for gap
+    paddingRight: 10,
+
+    paddingLeft: 10,
+    paddingTop: 20,
+    paddingBottom: 10,
   };
 
-  // Generate heat map data for the last 30 days using ActivityContext
+  // Generate heat map data for the last 3 months using ActivityContext
   const generateHeatMapData = () => {
     const heatMapData = [];
     const today = moment();
     
-    for (let i = 29; i >= 0; i--) {
+    // Generate data for last 3 months (approximately 90 days)
+    for (let i = 89; i >= 0; i--) {
       const date = today.clone().subtract(i, 'days');
       const dayKey = date.format('YYYY-MM-DD');
       
@@ -189,22 +241,6 @@ const FlowStatsDetail = ({ route, navigation }) => {
           <Text style={[styles.chartSubtitle, { color: themeColors.secondaryText }]}>{subtitle}</Text>
         </View>
         
-        {/* Statistics Bar */}
-        <View style={styles.heatMapStats}>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: themeColors.success }]}>{activeDays}</Text>
-            <Text style={[styles.statLabel, { color: themeColors.secondaryText }]}>Active Days</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: themeColors.primaryOrange }]}>{(averageIntensity * 100).toFixed(0)}%</Text>
-            <Text style={[styles.statLabel, { color: themeColors.secondaryText }]}>Avg Intensity</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: themeColors.info }]}>{bestDay.day}</Text>
-            <Text style={[styles.statLabel, { color: themeColors.secondaryText }]}>Best Day</Text>
-          </View>
-        </View>
-        
         <View style={styles.heatMapContainer}>
           {/* Month labels */}
           <View style={styles.monthLabels}>
@@ -314,18 +350,11 @@ const FlowStatsDetail = ({ route, navigation }) => {
             </Animated.View>
           )}
           
-          {/* Enhanced Legend */}
+          {/* Active Days Count */}
           <View style={styles.heatMapLegend}>
-            <Text style={[styles.legendLabel, { color: themeColors.secondaryText }]}>Less</Text>
-            <View style={styles.legendColors}>
-              <View style={[styles.legendColor, { backgroundColor: themeColors.progressBackground + '15' }]} />
-              <View style={[styles.legendColor, { backgroundColor: themeColors.success + '40' }]} />
-              <View style={[styles.legendColor, { backgroundColor: themeColors.success + '60' }]} />
-              <View style={[styles.legendColor, { backgroundColor: themeColors.success + '80' }]} />
-              <View style={[styles.legendColor, { backgroundColor: themeColors.success }]} />
-              <View style={[styles.legendColor, { backgroundColor: themeColors.primaryOrange }]} />
-            </View>
-            <Text style={[styles.legendLabel, { color: themeColors.secondaryText }]}>More</Text>
+            <Text style={[styles.legendLabel, { color: themeColors.secondaryText }]}>
+              Active Days: {analytics.heatMapData.filter(day => day.intensity > 0).length}
+            </Text>
           </View>
         </View>
       </Card>
@@ -336,39 +365,53 @@ const FlowStatsDetail = ({ route, navigation }) => {
   const getFlowTypeAnalytics = () => {
     if (!flowId) return null;
 
-    // Get date range based on selected timeframe
+    // Get date range based on selected timeframe and date offset
     const getDateRange = () => {
       const now = moment();
+      const offsetDays = dateOffset * (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365);
+      
       switch (selectedTimeframe) {
         case 'weekly':
           return {
-            start: now.clone().subtract(7, 'days'),
-            end: now,
-            label: 'Last 7 days'
+            start: now.clone().subtract(7, 'days').add(offsetDays, 'days'),
+            end: now.clone().add(offsetDays, 'days'),
+            label: dateOffset === 0 ? 'Last 7 days' : 
+                   dateOffset > 0 ? `Next ${Math.abs(dateOffset)} week${Math.abs(dateOffset) > 1 ? 's' : ''}` :
+                   `Previous ${Math.abs(dateOffset)} week${Math.abs(dateOffset) > 1 ? 's' : ''}`
           };
         case 'monthly':
           return {
-            start: now.clone().subtract(30, 'days'),
-            end: now,
-            label: 'Last 30 days'
+            start: now.clone().subtract(30, 'days').add(offsetDays, 'days'),
+            end: now.clone().add(offsetDays, 'days'),
+            label: dateOffset === 0 ? 'Last 30 days' : 
+                   dateOffset > 0 ? `Next ${Math.abs(dateOffset)} month${Math.abs(dateOffset) > 1 ? 's' : ''}` :
+                   `Previous ${Math.abs(dateOffset)} month${Math.abs(dateOffset) > 1 ? 's' : ''}`
           };
         case 'yearly':
           return {
-            start: now.clone().subtract(365, 'days'),
-            end: now,
-            label: 'Last year'
+            start: now.clone().subtract(365, 'days').add(offsetDays, 'days'),
+            end: now.clone().add(1, 'month').add(offsetDays, 'days'),
+            label: dateOffset === 0 ? 'Last year + next month' : 
+                   dateOffset > 0 ? `Next ${Math.abs(dateOffset)} year${Math.abs(dateOffset) > 1 ? 's' : ''} + next month` :
+                   `Previous ${Math.abs(dateOffset)} year${Math.abs(dateOffset) > 1 ? 's' : ''} + next month`
           };
         default:
           return {
-            start: now.clone().subtract(7, 'days'),
-            end: now,
-            label: 'Last 7 days'
+            start: now.clone().subtract(7, 'days').add(offsetDays, 'days'),
+            end: now.clone().add(offsetDays, 'days'),
+            label: dateOffset === 0 ? 'Last 7 days' : 
+                   dateOffset > 0 ? `Next ${Math.abs(dateOffset)} week${Math.abs(dateOffset) > 1 ? 's' : ''}` :
+                   `Previous ${Math.abs(dateOffset)} week${Math.abs(dateOffset) > 1 ? 's' : ''}`
           };
       }
     };
 
     const dateRange = getDateRange();
-    const scoreboard = getScoreboard(flowId);
+    const scoreboard = getScoreboard(flowId, { 
+      timeframe: selectedTimeframe,
+      startDate: dateRange.start,
+      endDate: dateRange.end
+    });
     const activityStats = getActivityStats(flowId);
     const emotionalActivity = getEmotionalActivity(flowId);
 
@@ -412,11 +455,14 @@ const FlowStatsDetail = ({ route, navigation }) => {
       const getDataValue = (day) => {
         switch (flow.trackingType) {
           case 'Binary':
+            // Focus on completion: 100 for completed, 0 for not completed
             return day.completed ? 100 : 0;
           case 'Quantitative':
+            // Focus on count: show actual count values
             return day.value || 0;
           case 'Time-based':
-            return Math.floor((day.value || 0) / 60); // Convert seconds to minutes
+            // Focus on duration: show minutes (more granular than hours)
+            return Math.floor((day.value || 0) / 60);
           default:
             return day.completed ? 100 : 0;
         }
@@ -432,6 +478,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
+            dataPointLabels: dailyData.map(d => getDataValue(d).toString()),
           };
           
         case 'monthly':
@@ -456,9 +503,16 @@ const FlowStatsDetail = ({ route, navigation }) => {
             
             let weekValue;
             if (flow.trackingType === 'Binary') {
+              // Focus on completion: calculate completion percentage for the week
               const weekCompleted = weekData.filter(d => d.completed).length;
               const weekTotal = weekData.length;
               weekValue = weekTotal > 0 ? (weekCompleted / weekTotal) * 100 : 0;
+            } else if (flow.trackingType === 'Quantitative') {
+              // Focus on count: sum all counts for the week
+              weekValue = weekData.reduce((sum, d) => sum + (d.value || 0), 0);
+            } else if (flow.trackingType === 'Time-based') {
+              // Focus on duration: sum all durations for the week (in minutes)
+              weekValue = weekData.reduce((sum, d) => sum + Math.floor((d.value || 0) / 60), 0);
             } else {
               weekValue = weekData.reduce((sum, d) => sum + getDataValue(d), 0);
             }
@@ -477,6 +531,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
+            dataPointLabels: weeklyData.map(w => Math.round(w.value).toString()),
           };
           
         case 'yearly':
@@ -498,9 +553,16 @@ const FlowStatsDetail = ({ route, navigation }) => {
             
             let monthValue;
             if (flow.trackingType === 'Binary') {
+              // Focus on completion: calculate completion percentage for the month
               const monthCompleted = monthDays.filter(d => d.completed).length;
               const monthTotal = monthDays.length;
               monthValue = monthTotal > 0 ? (monthCompleted / monthTotal) * 100 : 0;
+            } else if (flow.trackingType === 'Quantitative') {
+              // Focus on count: sum all counts for the month
+              monthValue = monthDays.reduce((sum, d) => sum + (d.value || 0), 0);
+            } else if (flow.trackingType === 'Time-based') {
+              // Focus on duration: sum all durations for the month (in minutes)
+              monthValue = monthDays.reduce((sum, d) => sum + Math.floor((d.value || 0) / 60), 0);
             } else {
               monthValue = monthDays.reduce((sum, d) => sum + getDataValue(d), 0);
             }
@@ -518,6 +580,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
+            dataPointLabels: monthlyData.map(m => Math.round(m.value).toString()),
           };
           
         default:
@@ -528,6 +591,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
               color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
               strokeWidth: 3,
             }],
+            dataPointLabels: dailyData.map(d => getDataValue(d).toString()),
           };
       }
     };
@@ -537,39 +601,31 @@ const FlowStatsDetail = ({ route, navigation }) => {
     switch (flow.trackingType) {
       case 'Binary':
         return {
-          primaryMetric: `${scoreboard.completionRate.toFixed(1)}%`,
-          primaryLabel: 'Success Rate',
+          primaryMetric: '',
+          primaryLabel: '',
           timeframeLabel: dateRange.label,
           secondaryMetrics: [
-            { title: 'Completed Days', value: `${scoreboard.completed}`, icon: 'checkmark-circle', color: themeColors.success },
-            { title: 'Total Days', value: `${scoreboard.completed + scoreboard.failed + scoreboard.skipped + scoreboard.inactive}`, icon: 'calendar', color: themeColors.primaryOrange },
-            { title: 'Success Rate', value: `${scoreboard.completionRate.toFixed(1)}%`, icon: 'trophy', color: themeColors.info },
-            { title: 'Final Score', value: `${scoreboard.finalScore}`, icon: 'star', color: themeColors.warning },
           ],
           chartData: generateChartData(),
-          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Completion Rate' : 
-                     selectedTimeframe === 'monthly' ? 'Weekly Completion Rate' : 
-                     'Monthly Completion Rate',
-          chartSubtitle: `Your daily success rate over ${dateRange.label.toLowerCase()}`,
+          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Completion' : 
+                     selectedTimeframe === 'monthly' ? 'Weekly Completion' : 
+                     'Monthly Completion',
+          chartSubtitle: `Your completion rate over ${dateRange.label.toLowerCase()}`,
           heatMapData: generateHeatMapData(),
         };
       
       case 'Quantitative':
         return {
-          primaryMetric: `${scoreboard.quantitativeStats.totalCount.toLocaleString()}`,
-          primaryLabel: 'Total Count',
+          primaryMetric: '',
+          primaryLabel: '',
           timeframeLabel: dateRange.label,
           secondaryMetrics: [
-            { title: 'Daily Average', value: `${scoreboard.quantitativeStats.averageCount.toFixed(1)}`, icon: 'trending-up', color: themeColors.success },
-            { title: 'Success Rate', value: `${scoreboard.completionRate.toFixed(1)}%`, icon: 'checkmark-circle', color: themeColors.info },
-            { title: 'Completed Days', value: `${scoreboard.completed}`, icon: 'calendar', color: themeColors.primaryOrange },
-            { title: 'Final Score', value: `${scoreboard.finalScore}`, icon: 'star', color: themeColors.warning },
           ],
           chartData: generateChartData(),
-          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Values' : 
-                     selectedTimeframe === 'monthly' ? 'Weekly Values' : 
-                     'Monthly Values',
-          chartSubtitle: `Your daily values over ${dateRange.label.toLowerCase()}`,
+          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Count' : 
+                     selectedTimeframe === 'monthly' ? 'Weekly Count' : 
+                     'Monthly Count',
+          chartSubtitle: `Your daily count progress over ${dateRange.label.toLowerCase()}`,
           heatMapData: generateHeatMapData(),
           // Quantitative specific stats
           quantitativeStats: [
@@ -582,19 +638,15 @@ const FlowStatsDetail = ({ route, navigation }) => {
       
       case 'Time-based':
         return {
-          primaryMetric: `${Math.floor(scoreboard.timeBasedStats.totalDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.totalDuration % 60)}m`,
-          primaryLabel: 'Total Time',
+          primaryMetric: '',
+          primaryLabel: '',
           timeframeLabel: dateRange.label,
           secondaryMetrics: [
-            { title: 'Daily Average', value: `${Math.floor(scoreboard.timeBasedStats.averageDuration / 60)}h ${Math.floor(scoreboard.timeBasedStats.averageDuration % 60)}m`, icon: 'time', color: themeColors.success },
-            { title: 'Success Rate', value: `${scoreboard.completionRate.toFixed(1)}%`, icon: 'checkmark-circle', color: themeColors.info },
-            { title: 'Completed Days', value: `${scoreboard.completed}`, icon: 'calendar', color: themeColors.primaryOrange },
-            { title: 'Total Pauses', value: `${scoreboard.timeBasedStats.totalPauses}`, icon: 'pause', color: themeColors.warning },
           ],
           chartData: generateChartData(),
-          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Time Spent' : 
-                     selectedTimeframe === 'monthly' ? 'Weekly Time Spent' : 
-                     'Monthly Time Spent',
+          chartTitle: selectedTimeframe === 'weekly' ? 'Daily Duration' : 
+                     selectedTimeframe === 'monthly' ? 'Weekly Duration' : 
+                     'Monthly Duration',
           chartSubtitle: `Your daily time investment over ${dateRange.label.toLowerCase()}`,
           heatMapData: generateHeatMapData(),
           // Time-based specific stats
@@ -611,7 +663,49 @@ const FlowStatsDetail = ({ route, navigation }) => {
     }
   };
 
-  const analytics = useMemo(() => getFlowTypeAnalytics(), [flowId, selectedTimeframe, flows]);
+  const analytics = useMemo(() => getFlowTypeAnalytics(), [flowId, selectedTimeframe, flows, dateOffset]);
+
+  // Get scoreboard data for donut charts
+  const scoreboardData = useMemo(() => {
+    if (!flowId) return null;
+    
+    const getDateRange = () => {
+      const now = moment();
+      switch (selectedTimeframe) {
+        case 'weekly':
+          return {
+            start: now.clone().subtract(7, 'days'),
+            end: now,
+            label: 'Last 7 days'
+          };
+        case 'monthly':
+          return {
+            start: now.clone().subtract(30, 'days'),
+            end: now,
+            label: 'Last 30 days'
+          };
+        case 'yearly':
+          return {
+            start: now.clone().subtract(365, 'days'),
+            end: now,
+            label: 'Last year'
+          };
+        default:
+          return {
+            start: now.clone().subtract(7, 'days'),
+            end: now,
+            label: 'Last 7 days'
+          };
+      }
+    };
+
+    const dateRange = getDateRange();
+    return getScoreboard(flowId, { 
+      timeframe: selectedTimeframe,
+      startDate: dateRange.start,
+      endDate: dateRange.end
+    });
+  }, [flowId, selectedTimeframe, getScoreboard]);
 
   if (!analytics) {
     return (
@@ -729,7 +823,146 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Timeframe Selector */}
+
+        {/* Secondary Metrics */}
+        <View style={styles.metricsGrid}>
+          {analytics.secondaryMetrics.map((metric, index) => (
+            <MetricCard
+              key={index}
+              title={metric.title}
+              value={metric.value}
+              icon={metric.icon}
+              color={metric.color}
+            />
+          ))}
+        </View>
+
+        {/* Donut Charts Section */}
+        {analytics && scoreboardData && (
+          <View style={styles.donutChartsContainer}>
+            <View style={styles.donutChartsGrid}>
+            {/* Success Rate Donut Chart */}
+            <View style={styles.donutChartItem}>
+              <View style={styles.donutChartContainer}>
+                <CircularProgress
+                  size={60}
+                  strokeWidth={5}
+                  progress={scoreboardData.completionRate || 0}
+                  color="hsl(120, 60%, 65%)"
+                  backgroundColor="hsl(0, 0%, 90%)"
+                />
+                <View style={styles.donutChartOverlay}>
+                  <Text style={[styles.donutChartValue, { color: 'hsl(120, 60%, 65%)' }]}>
+                    {Math.round(scoreboardData.completionRate || 0)}%
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Success Rate</Text>
+            </View>
+
+            {/* Completed Days Donut Chart */}
+            <View style={styles.donutChartItem}>
+              <View style={styles.donutChartContainer}>
+                <CircularProgress
+                  size={60}
+                  strokeWidth={5}
+                  progress={((scoreboardData.completed || 0) / (scoreboardData.scheduledDays || 30)) * 100}
+                  color="hsl(200, 70%, 65%)"
+                  backgroundColor="hsl(0, 0%, 90%)"
+                />
+                <View style={styles.donutChartOverlay}>
+                  <Text style={[styles.donutChartValue, { color: 'hsl(200, 70%, 65%)' }]}>
+                    {scoreboardData.completed || 0}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Completed Days</Text>
+            </View>
+
+            {/* Final Score Donut Chart */}
+            <View style={styles.donutChartItem}>
+              <View style={styles.donutChartContainer}>
+                <CircularProgress
+                  size={60}
+                  strokeWidth={5}
+                  progress={scoreboardData.finalScore || 0}
+                  color="hsl(30, 80%, 65%)"
+                  backgroundColor="hsl(0, 0%, 90%)"
+                />
+                <View style={styles.donutChartOverlay}>
+                  <Text style={[styles.donutChartValue, { color: 'hsl(30, 80%, 65%)' }]}>
+                    {scoreboardData.finalScore || 0}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Final Score</Text>
+            </View>
+
+            {/* Current Streak Donut Chart */}
+            <View style={styles.donutChartItem}>
+              <View style={styles.donutChartContainer}>
+                <CircularProgress
+                  size={60}
+                  strokeWidth={5}
+                  progress={Math.min(100, (scoreboardData.streak || 0) * 10)}
+                  color="hsl(0, 80%, 65%)"
+                  backgroundColor="hsl(0, 0%, 90%)"
+                />
+                <View style={styles.donutChartOverlay}>
+                  <Text style={[styles.donutChartValue, { color: 'hsl(0, 80%, 65%)' }]}>
+                    {scoreboardData.streak || 0}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Current Streak</Text>
+            </View>
+
+            {/* Total Count Donut Chart - Only for Quantitative flows */}
+            {flow.trackingType === 'Quantitative' && (
+              <View style={styles.donutChartItem}>
+                <View style={styles.donutChartContainer}>
+                  <CircularProgress
+                    size={60}
+                    strokeWidth={5}
+                    progress={Math.min(100, ((scoreboardData.quantitativeStats?.totalCount || 0) / (flow.goal || 100)) * 100)}
+                    color="hsl(280, 70%, 65%)"
+                    backgroundColor="hsl(0, 0%, 90%)"
+                  />
+                  <View style={styles.donutChartOverlay}>
+                    <Text style={[styles.donutChartValue, { color: 'hsl(280, 70%, 65%)' }]}>
+                      {scoreboardData.quantitativeStats?.totalCount || 0}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Total Count</Text>
+              </View>
+            )}
+
+            {/* Total Time Donut Chart - Only for Time-based flows */}
+            {flow.trackingType === 'Time-based' && (
+              <View style={styles.donutChartItem}>
+                <View style={styles.donutChartContainer}>
+                  <CircularProgress
+                    size={60}
+                    strokeWidth={5}
+                    progress={Math.min(100, ((scoreboardData.timeBasedStats?.totalDuration || 0) / ((flow.hours || 0) * 3600 + (flow.minutes || 0) * 60 + (flow.seconds || 0) || 3600)) * 100)}
+                    color="hsl(60, 80%, 65%)"
+                    backgroundColor="hsl(0, 0%, 90%)"
+                  />
+                  <View style={styles.donutChartOverlay}>
+                    <Text style={[styles.donutChartValue, { color: 'hsl(60, 80%, 65%)' }]}>
+                      {Math.floor((scoreboardData.timeBasedStats?.totalDuration || 0) / 60)}h
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[styles.donutChartTitle, { color: themeColors.primaryText }]}>Total Time</Text>
+              </View>
+            )}
+            </View>
+          </View>
+        )}
+
+        {/* Timeframe Selector - positioned directly above chart */}
         <View style={styles.timeframeSelector}>
           {[
             { key: 'weekly', label: 'Weekly' },
@@ -759,58 +992,69 @@ const FlowStatsDetail = ({ route, navigation }) => {
           ))}
         </View>
 
-        {/* Primary Metric */}
-        <Card variant="default" padding="lg" margin="md">
-          <View style={styles.primaryMetricContainer}>
-            <Text style={[styles.primaryMetricValue, { color: themeColors.primaryText }]}>
-              {analytics.primaryMetric}
+        {/* Chart */}
+        <View style={styles.chartHeaderContainer}>
+          <TouchableOpacity 
+            style={styles.navigationArrowLeft}
+            onPress={() => setDateOffset(prev => prev - 1)}
+            disabled={dateOffset <= -10}
+          >
+            <Ionicons 
+              name="chevron-back" 
+              size={24} 
+              color={dateOffset <= -10 ? themeColors.disabled : themeColors.primaryOrange} 
+            />
+          </TouchableOpacity>
+          
+          <View style={styles.chartTitleContainer}>
+            <Text style={[styles.chartTitle, { color: themeColors.primaryText }]}>
+              {analytics.chartTitle}
             </Text>
-            <Text style={[styles.primaryMetricLabel, { color: themeColors.secondaryText }]}>
-              {analytics.primaryLabel}
+            <Text style={[styles.chartSubtitle, { color: themeColors.secondaryText }]}>
+              {analytics.chartSubtitle}
             </Text>
           </View>
-        </Card>
-
-        {/* Secondary Metrics */}
-        <View style={styles.metricsGrid}>
-          {analytics.secondaryMetrics.map((metric, index) => (
-            <MetricCard
-              key={index}
-              title={metric.title}
-              value={metric.value}
-              icon={metric.icon}
-              color={metric.color}
+          
+          <TouchableOpacity 
+            style={styles.navigationArrowRight}
+            onPress={() => setDateOffset(prev => prev + 1)}
+            disabled={dateOffset >= 10}
+          >
+            <Ionicons 
+              name="chevron-forward" 
+              size={24} 
+              color={dateOffset >= 10 ? themeColors.disabled : themeColors.primaryOrange} 
             />
-          ))}
+          </TouchableOpacity>
         </View>
-
-        {/* Chart */}
-        <Card variant="default" padding="lg" margin="md">
-          <Text style={[styles.chartTitle, { color: themeColors.primaryText }]}>
-            {analytics.chartTitle}
-          </Text>
-          <Text style={[styles.chartSubtitle, { color: themeColors.secondaryText }]}>
-            {analytics.chartSubtitle}
-          </Text>
-          <LineChart
+        
+        <View style={styles.chartContainer}>
+          {/* Debug: Log chart data */}
+          {console.log('Chart Data Labels:', analytics.chartData.labels)}
+          {console.log('Chart Data Values:', analytics.chartData.datasets[0].data)}
+          <BarChart
             data={analytics.chartData}
-            width={screenWidth - 64}
-            height={160}
+            width={screenWidth + 20}
+            height={220}
             chartConfig={chartConfig}
-            bezier
-            style={styles.chart}
-            withDots={true}
-            withShadow={false}
+            style={[styles.chart, { marginLeft: -50 }]}
+            withVerticalLabels={true}
+            withHorizontalLabels={false}
+            fromZero={true}
+            showValuesOnTopOfBars={true}
             withInnerLines={false}
-            withOuterLines={false}
+            segments={4}
+            barPercentage={0.6}
+            yLabelsOffset={-10}
+            xLabelsOffset={-10}
           />
-        </Card>
+        </View>
 
         {/* Heat Map */}
         <HeatMap
           data={analytics.heatMapData}
           title="Activity Heat Map"
-          subtitle={`Your ${flow.trackingType.toLowerCase()} activity over the last 30 days`}
+          subtitle={`Your ${flow.trackingType.toLowerCase()} activity over the last 3 months`}
         />
 
         {/* Type-Specific Stats */}
@@ -912,48 +1156,6 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </View>
         </Card>
 
-        {/* Activity Tracking */}
-        <Card variant="default" padding="lg" margin="md">
-          <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Activity Tracking</Text>
-          <View style={styles.activityTracking}>
-            {(() => {
-              const activityData = getActivityStats(flowId);
-              
-              return (
-                <View style={styles.activityGrid}>
-                  <View style={styles.activityStat}>
-                    <Ionicons name="play-circle" size={24} color={themeColors.primaryOrange} />
-                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
-                      {activityData.totalSessions || 0}
-                    </Text>
-                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Sessions</Text>
-                  </View>
-                  <View style={styles.activityStat}>
-                    <Ionicons name="time" size={24} color={themeColors.info} />
-                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
-                      {Math.floor((activityData.totalDuration || 0) / 60)}h
-                    </Text>
-                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Total Time</Text>
-                  </View>
-                  <View style={styles.activityStat}>
-                    <Ionicons name="speedometer" size={24} color={themeColors.success} />
-                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
-                      {Math.floor(activityData.averageDuration || 0)}m
-                    </Text>
-                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Avg Duration</Text>
-                  </View>
-                  <View style={styles.activityStat}>
-                    <Ionicons name="pulse" size={24} color={themeColors.warning} />
-                    <Text style={[styles.activityStatValue, { color: themeColors.primaryText }]}>
-                      {activityData.totalPauses || 0}
-                    </Text>
-                    <Text style={[styles.activityStatLabel, { color: themeColors.secondaryText }]}>Pauses</Text>
-                  </View>
-                </View>
-              );
-            })()}
-          </View>
-        </Card>
 
         {/* Insights */}
         <Card variant="default" padding="lg" margin="md">
@@ -1084,7 +1286,7 @@ const styles = StyleSheet.create({
   headerActionButton: {
     padding: layout.spacing.sm,
     marginLeft: layout.spacing.sm,
-    borderRadius: layout.borderRadius.sm,
+    borderRadius: layout.radii.small,
     backgroundColor: 'rgba(0,0,0,0.05)',
     minWidth: 44,
     alignItems: 'center',
@@ -1095,14 +1297,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: layout.spacing.md,
     backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     padding: layout.spacing.xs,
   },
   timeframeButton: {
     flex: 1,
     paddingVertical: layout.spacing.xs,
     paddingHorizontal: layout.spacing.sm,
-    borderRadius: layout.borderRadius.sm,
+    borderRadius: layout.radii.small,
     alignItems: 'center',
   },
   activeTimeframeButton: {
@@ -1116,19 +1318,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 12,
   },
-  primaryMetricContainer: {
-    alignItems: 'center',
-    padding: layout.spacing.lg,
-  },
-  primaryMetricValue: {
-    ...typography.styles.largeTitle,
-    fontWeight: '700',
-    marginBottom: layout.spacing.xs,
-  },
-  primaryMetricLabel: {
-    ...typography.styles.title2,
-    opacity: 0.8,
-  },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1141,7 +1330,7 @@ const styles = StyleSheet.create({
   },
   metricGradient: {
     padding: layout.spacing.sm,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -1178,9 +1367,43 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     fontSize: 11,
   },
+  chartHeaderContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: layout.spacing.sm,
+    minHeight: 60,
+  },
+  chartTitleContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  navigationArrowLeft: {
+    position: 'absolute',
+    left: 0,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    padding: layout.spacing.sm,
+    borderRadius: layout.radii.medium,
+  },
+  navigationArrowRight: {
+    position: 'absolute',
+    right: 0,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    padding: layout.spacing.sm,
+    borderRadius: layout.radii.medium,
+  },
   chart: {
     marginVertical: layout.spacing.sm,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
+  },
+  chartContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    marginVertical: layout.spacing.md,
+    paddingRight: 0,
   },
   insightsTitle: {
     ...typography.styles.title3,
@@ -1210,55 +1433,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: layout.spacing.xs,
   },
-  heatMapStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: layout.borderRadius.md,
-    padding: layout.spacing.md,
-    marginBottom: layout.spacing.md,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    ...typography.styles.title2,
-    fontWeight: '700',
-    marginBottom: layout.spacing.xs,
-  },
-  statLabel: {
-    ...typography.styles.caption,
-    fontSize: 10,
-    textAlign: 'center',
-  },
   heatMapContainer: {
     alignItems: 'center',
-    marginTop: layout.spacing.sm,
+    marginTop: layout.spacing.xs,
+    paddingHorizontal: 0,
+    paddingVertical: layout.spacing.xs,
   },
   monthLabels: {
     flexDirection: 'row',
     marginBottom: layout.spacing.xs,
-    paddingLeft: layout.spacing.lg,
+    paddingLeft: 0,
   },
   monthLabel: {
     ...typography.styles.caption,
-    fontSize: 9,
-    width: 28,
+    fontSize: 8,
+    width: 24,
     textAlign: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: 1,
     fontWeight: '600',
   },
   dayLabels: {
     flexDirection: 'row',
     marginBottom: layout.spacing.xs,
-    paddingLeft: layout.spacing.lg,
+    paddingLeft: 0,
   },
   dayLabel: {
     ...typography.styles.caption,
-    fontSize: 10,
-    width: 28,
+    fontSize: 8,
+    width: 24,
     textAlign: 'center',
-    marginHorizontal: 2,
+    marginHorizontal: 1,
     fontWeight: '600',
   },
   heatMapGrid: {
@@ -1267,22 +1471,22 @@ const styles = StyleSheet.create({
   },
   heatMapWeek: {
     flexDirection: 'column',
-    marginRight: layout.spacing.xs,
+    marginRight: 1,
   },
   heatMapDayContainer: {
-    marginBottom: 2,
+    marginBottom: 1,
   },
   heatMapDay: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   heatMapDayText: {
     ...typography.styles.caption,
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '700',
   },
   intensityIndicator: {
@@ -1293,7 +1497,7 @@ const styles = StyleSheet.create({
   selectedDayInfo: {
     marginTop: layout.spacing.md,
     padding: layout.spacing.md,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     borderWidth: 1,
     borderColor: 'rgba(255,149,0,0.3)',
   },
@@ -1315,18 +1519,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   heatMapLegend: {
-    flexDirection: 'row',
     alignItems: 'center',
     marginTop: layout.spacing.lg,
     backgroundColor: 'rgba(0,0,0,0.03)',
     padding: layout.spacing.sm,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
   },
   legendLabel: {
     ...typography.styles.caption,
-    fontSize: 10,
-    marginHorizontal: layout.spacing.sm,
+    fontSize: 11,
     fontWeight: '600',
+    textAlign: 'center',
   },
   legendColors: {
     flexDirection: 'row',
@@ -1389,7 +1592,7 @@ const styles = StyleSheet.create({
   emotionCardHorizontal: {
     width: '48%',
     backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     marginBottom: layout.spacing.sm,
     padding: layout.spacing.sm,
   },
@@ -1415,7 +1618,7 @@ const styles = StyleSheet.create({
   },
   emotionCardVertical: {
     backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     marginBottom: layout.spacing.sm,
     padding: layout.spacing.md,
   },
@@ -1503,32 +1706,67 @@ const styles = StyleSheet.create({
     ...typography.styles.caption,
     textAlign: 'center',
   },
-  // Activity Tracking Styles
-  activityTracking: {
-    marginTop: layout.spacing.sm,
+  // Donut Charts Styles
+  donutChartsContainer: {
+    marginVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.md,
   },
-  activityGrid: {
+  sectionTitle: {
+    ...typography.styles.title3,
+    fontWeight: '600',
+    marginBottom: layout.spacing.md,
+    textAlign: 'center',
+  },
+  donutChartsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  activityStat: {
-    width: '48%',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    paddingVertical: layout.spacing.md,
-    marginBottom: layout.spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.03)',
-    borderRadius: layout.borderRadius.md,
+    flexWrap: 'wrap',
   },
-  activityStatValue: {
+  donutChartItem: {
+    alignItems: 'center',
+    marginVertical: layout.spacing.sm,
+    minWidth: 80,
+  },
+  donutChartTitle: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    marginBottom: layout.spacing.xs,
+    textAlign: 'center',
+  },
+  donutChartValue: {
     ...typography.styles.title2,
     fontWeight: '700',
     marginTop: layout.spacing.xs,
-    marginBottom: layout.spacing.xs,
-  },
-  activityStatLabel: {
-    ...typography.styles.caption,
     textAlign: 'center',
+  },
+  donutChartContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  donutChartBackground: {
+    position: 'absolute',
+    backgroundColor: 'transparent',
+  },
+  donutChartProgress: {
+    position: 'absolute',
+    backgroundColor: 'transparent',
+    borderTopColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'transparent',
+  },
+  donutInnerCircle: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  donutChartOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+    height: 60,
   },
 });
 

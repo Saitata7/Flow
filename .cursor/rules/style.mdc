@@ -1,0 +1,161 @@
+---
+description: >
+  Global UI rules & design tokens for the Flow mobile app.
+  These rules must be enforced whenever Cursor or a developer generates or edits UI code.
+  Act as a 15+ year UI/UX designer + frontend engineer: be strict, practical, and implementation-friendly.
+
+globs:
+  - "apps/mobile/src/**"
+  - "styles/**"
+  - "src/components/**"
+alwaysApply: true
+
+rules:
+  - name: "Law of Proximity & Grouping"
+    text: |
+      • Group related controls visually. Use micro-gap = 8px for intra-group spacing.
+      • Separate logical groups by component-gap = 16px and section-gap = 32px.
+      • Label→control gap must be ≤ 8px vertically; if label side-by-side, use 12px horizontal gap.
+      • Do not place unrelated controls closer than 16px.
+
+  - name: "Spacing System (layout tokens)"
+    text: |
+      • Base unit = 4px.
+      • Use only the spacing scale from styles/layout.js:
+        xs: 4, sm: 8, md: 12, base: 16, lg: 20, xl: 24, x2l: 32, x3l: 40, x4l: 48, x5l: 64.
+      • Mobile side gutters: 16px. Tablet gutters: 24–32px.
+      • No ad-hoc px values in components; always import tokens.
+
+  - name: "Geometry & Radii (squircle)"
+    text: |
+      • Global squircle radius: layout.squircle = 18px (cards, major surfaces, FAB).
+      • Small radius: 8px (inputs, small buttons).
+      • Large radius: 28px (banners, hero CTAs).
+      • Maintain consistent family across a screen (avoid mixing square and fully rounded).
+
+  - name: "Type Scale (Tyscale & em guidance)"
+    text: |
+      • Use the typography tokens in styles/typography.js:
+        h1: 34/42/700, h2: 28/36/700, h3: 22/28/600, h4: 18/24/600,
+        body: 16/22/400, sub: 14/20/400, caption: 12/16/400.
+      • 1em = base body (16px). Provide utility pxToEm(px) => px / 16 in comments.
+      • KeyElements (stats, primary CTAs) use weight 600–700. Secondary use 400–500.
+      • Do not create new font sizes beyond the tokens.
+
+  - name: "Color System (HSL-first tokens)"
+    text: |
+      • Define all core colors in styles/colors.js as HSL (store h, s, l separately) and export hex fallbacks.
+      • Base tokens (examples from design):
+        bgStart: hsl(21.2, 96.0%, 90.2%)  // #FEDFCE
+        bgEnd:   hsl(32.0,100.0%, 88.2%)  // #FFE3C3
+        accentStart: hsl(37.7, 91.1%, 64.7%) // #F7BA53
+        accentEnd:   hsl(28.2, 91.1%, 64.7%) // #F7A053
+        textPrimary: hsl(0,0,24.3%) // #3E3E3E
+        textSecondary: hsl(0,0,34.5%) // #585858
+        success: hsl(120,40.2%,50.2%) // #4DB34D
+        danger: hsl(3,100%,69.0%) // #FF6961
+        warning: hsl(39.2,96.0%,48.4%) // #F2A005
+      • Derive tints/shades by adjusting lightness and/or saturation:
+        tint: l + 8..12; shade: l - 8..12; mute: s - 20, l + 8.
+      • Provide utility helpers in comments: tint(h,s,l,amt), shade(h,s,l,amt).
+
+  - name: "Gradients usage"
+    text: |
+      • Main app background: linear-gradient(bgStart → bgEnd) only for the app shell/background.
+      • Quote & AddFlow CTA: linear-gradient(accentStart → accentEnd).
+      • Do not use app shell gradient inside cards; cards use solid or subtle tint.
+
+  - name: "Contrast & Accessibility"
+    text: |
+      • Body text: contrast ratio ≥ 4.5:1 vs background (WCAG AA).
+      • Large text (≥18pt bold or ≥24pt regular): contrast ratio ≥ 3:1.
+      • If computed contrast < threshold, use darker shade (l - 12) or adjust saturation.
+      • All actionable elements must have accessibilityLabel. Announce important state changes.
+
+  - name: "Size, Weight, Color & Gaps — explicit rules"
+    text: |
+      • Sizes use typography tokens only.
+      • Weights: headings/stats 600–700, body/caption 400–500.
+      • Primary accent reserved for CTAs & active states only.
+      • Gaps adhere to spacing tokens; micro-gap = 8, component-gap = 16, section-gap = 32.
+
+  - name: "Shadows & Elevation (where to use)"
+    text: |
+      • Use elevation tokens from styles/layout.js:
+        elevation.low  -> ios: shadowOpacity 0.06 radius 4 / android elevation 2
+        elevation.medium -> ios: 0.09 radius 8 / android elevation 6
+        elevation.high -> ios: 0.14 radius 16 / android elevation 12
+      • Allowed: cards, FABs, modals, floating elements.
+      • Avoid shadows on dense rows, nav bars, inputs. Use 1px strokes for separators.
+
+  - name: "Buttons & Inputs (component rules)"
+    text: |
+      • Primary button: height 48, borderRadius 12, paddingHorizontal 20, iconSize 20, label = body token.
+      • Secondary: 2px outline, text accent color.
+      • Disabled: opacity 0.44, no elevation.
+      • Inputs: height 48, borderRadius 12, padding 12. Label above control with 6–8px gap.
+      • Error state: border 2px danger color, inline error text in caption token.
+
+  - name: "Cards & Layout specifics"
+    text: |
+      • Card padding: base = 16; borderRadius: layout.squircle (18px); elevation: low or medium.
+      • Habit card layout: left flow column width 28%–34%, right date-grid 66%–72%.
+      • Internal grid spacing: use md/base spacing; maintain 6–8px white gap between left column and date grid.
+
+  - name: "Date Grid / Habit Status specifics"
+    text: |
+      • Status circle diameter: 28px.
+      • States:
+        - completed: solid success color with white check icon.
+        - missed: solid danger color with white X icon.
+        - pending (task exists, not done): solid white circle.
+        - no-task: 2px white border circle, transparent centre.
+      • Border width for 'no-task' = 2px. Keep even spacing and align center.
+      • Current day header: highlighted pill (white bg on peach grid) and bold date text.
+      • Keep a thin white separator/gap (6–8px) between flow list column and date grid.
+
+  - name: "Motion & Micro-interactions"
+    text: |
+      • Standard durations:
+        micro (tap) = 120ms
+        small = 200–280ms
+        large = 320–420ms
+      • Use scale-on-press (0.98) and spring for list reorders. Keep animations non-blocking.
+
+  - name: "Accessibility & Touch Targets"
+    text: |
+      • Minimum touch target: 44x44 dp for all interactive items.
+      • Provide accessibilityLabel and accessibilityRole per control.
+      • Respect dynamic font scaling. Avoid fixed pixel-only layouts.
+
+  - name: "Theming & HSL helper rules"
+    text: |
+      • Theme tokens must expose base H, S, L values so tints/shades are computed at runtime.
+      • Example helpers (in comments) must be available:
+        - tint(h,s,l,amt) -> hsl(h, s, l+amt)
+        - shade(h,s,l,amt) -> hsl(h, s, l-amt)
+      • Provide primaryLight, primaryDark, primaryMuted computed from base token.
+
+  - name: "Where to use strokes vs shadows"
+    text: |
+      • Use 1px strokes for list separators and compact UI.
+      • Use shadows for elevation (cards, FAB, modals). Avoid shadow on separators.
+
+  - name: "Testing & Validation checklist"
+    text: |
+      • [ ] All touch targets >= 44x44
+      • [ ] Color contrast >= 4.5:1 for body text
+      • [ ] Spacing uses layout tokens only
+      • [ ] Header & bottom tab respect safe area
+      • [ ] Date-grid circles are 28px and use correct state colors
+      • [ ] Buttons use defined heights and radii
+      • [ ] Shadow usage limited to allowed components
+      • Cursor must fail generation if any rule above is violated in changed files.
+
+  - name: "Developer constraints for Cursor"
+    text: |
+      • Modify only: styles/colors.js, styles/layout.js, styles/typography.js, cursor/rules/ui.mdc.
+      • Do NOT convert files to TypeScript. Do NOT create arbitrary top-level folders.
+      • When generating UI, always reference tokens from styles/*; do not inline hex or px.
+      • Add concise token comments explaining rationale and HSL helpers.
+---

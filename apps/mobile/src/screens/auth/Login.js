@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   welcomeTitle: {
-    fontSize: typography.sizes.largeTitle,
+    fontSize: typography.largeTitle.fontSize,
     fontWeight: typography.weights.bold,
     textAlign: 'center',
     marginBottom: layout.spacing.sm,
@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: layout.squircle.borderRadius,
+    borderRadius: layout.radii.squircle,
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
     paddingHorizontal: layout.spacing.md,

@@ -845,13 +845,13 @@ const styles = StyleSheet.create({
     minHeight: 60, // Ensure consistent header height
   },
   backButton: {
-    width: layout.button.iconSize,
-    height: layout.button.iconSize,
-    borderRadius: layout.squircle.borderRadius,
+    width: layout?.components?.button?.primary?.iconSize || 20,
+    height: layout?.components?.button?.primary?.iconSize || 20,
+    borderRadius: layout.radii.squircle,
     backgroundColor: colors.light.cardBackground,
     alignItems: 'center',
     justifyContent: 'center',
-    ...layout.shadows.buttonShadow,
+    ...layout.elevation.low,
   },
   backButtonText: {
     fontSize: 20,
@@ -863,7 +863,7 @@ const styles = StyleSheet.create({
     color: colors.light.primaryText,
   },
   placeholder: {
-    width: layout.button.iconSize,
+    width: layout?.components?.button?.primary?.iconSize || 20,
   },
   contentWrapper: {
     flex: 1,
@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
   modernInput: {
     borderWidth: 1,
     borderColor: colors.light.border,
-    borderRadius: layout.squircle.borderRadius,
+    borderRadius: layout.radii.squircle,
     paddingHorizontal: layout.spacing.md,
     paddingVertical: layout.spacing.sm,
     fontSize: typography.styles.body.fontSize,
@@ -1042,7 +1042,7 @@ const styles = StyleSheet.create({
   timePickerButton: {
     borderWidth: 1,
     borderColor: colors.light.border,
-    borderRadius: layout.squircle.borderRadius,
+    borderRadius: layout.radii.squircle,
     paddingHorizontal: layout.spacing.md,
     paddingVertical: layout.spacing.sm,
     backgroundColor: colors.light.cardBackground,

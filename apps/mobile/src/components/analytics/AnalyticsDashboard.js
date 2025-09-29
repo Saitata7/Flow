@@ -402,14 +402,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: layout.spacing.lg,
     backgroundColor: colors.light.progressBackground + '30',
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
     padding: layout.spacing.xs,
   },
   timeframeButton: {
     flex: 1,
     paddingVertical: layout.spacing.sm,
     paddingHorizontal: layout.spacing.md,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     alignItems: 'center',
   },
   activeTimeframeButton: {
@@ -435,8 +435,8 @@ const styles = StyleSheet.create({
   },
   metricGradient: {
     padding: layout.spacing.md,
-    borderRadius: layout.borderRadius.lg,
-    ...layout.shadows.small,
+    borderRadius: layout.radii.large,
+    ...layout.elevation.low,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   metricValue: {
-    ...typography.styles.largeTitle,
+    ...typography.largeTitle,
     fontWeight: '700',
     marginBottom: layout.spacing.xs,
   },
@@ -477,9 +477,9 @@ const styles = StyleSheet.create({
   },
   flowCard: {
     padding: layout.spacing.md,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
     marginBottom: layout.spacing.sm,
-    ...layout.shadows.small,
+    ...layout.elevation.low,
   },
   flowCardHeader: {
     flexDirection: 'row',
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   performanceBadge: {
     paddingHorizontal: layout.spacing.sm,
     paddingVertical: layout.spacing.xs,
-    borderRadius: layout.borderRadius.sm,
+    borderRadius: layout.radii.small,
   },
   performanceText: {
     ...typography.styles.caption,
@@ -534,9 +534,9 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     padding: layout.spacing.md,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
     marginVertical: layout.spacing.md,
-    ...layout.shadows.small,
+    ...layout.elevation.low,
   },
   chartTitle: {
     ...typography.styles.title2,
@@ -552,7 +552,7 @@ const styles = StyleSheet.create({
   },
   chart: {
     marginVertical: layout.spacing.sm,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
   },
   chartLegend: {
     flexDirection: 'row',

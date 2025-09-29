@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.light.background,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
     padding: layout.spacing.lg,
     width: '100%',
     maxWidth: 400,
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.light.info,
     paddingVertical: layout.spacing.md,
     paddingHorizontal: layout.spacing.md,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     flex: 1,
     minWidth: '45%',
     alignItems: 'center',
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   noteInput: {
     borderWidth: 1,
     borderColor: colors.light.border,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     padding: layout.spacing.md,
     height: 96,
     textAlignVertical: 'top',
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.light.info,
     paddingVertical: layout.spacing.md,
     paddingHorizontal: layout.spacing.md,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     alignItems: 'center',
   },
   modalButtonText: {

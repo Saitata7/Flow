@@ -217,15 +217,15 @@ const styles = StyleSheet.create({
   },
   chart: {
     marginVertical: layout.spacing.sm,
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.large,
   },
   tooltip: {
     position: 'absolute',
     top: -50,
     paddingHorizontal: layout.spacing.md,
     paddingVertical: layout.spacing.sm,
-    borderRadius: layout.borderRadius.md,
-    ...layout.shadows.medium,
+    borderRadius: layout.radii.base,
+    ...layout.elevation.medium,
     zIndex: 1000,
   },
   tooltipTitle: {

@@ -100,7 +100,7 @@ const HomeInfo = ({ navigation }) => {
         {/* Welcome Section */}
         <View style={[styles.welcomeSection, { backgroundColor: themeColors.cardBackground }]}>
           <LinearGradient
-            colors={[themeColors.primaryOrange, themeColors.primaryOrangeVariants.light]}
+            colors={['#F7BA53', '#F7A053']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.welcomeGradient}
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#E5E7EB',
   },
   actionButton: {
-    borderRadius: layout.button.pillRadius,
+    borderRadius: layout?.radii?.large || 28,
     paddingVertical: layout.spacing.md,
     alignItems: 'center',
     justifyContent: 'center',

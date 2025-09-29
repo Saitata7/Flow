@@ -12,17 +12,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import moment from 'moment';
 import { FlowsContext } from '../../context/FlowContext';
+import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/common/card';
 import Button from '../../components/common/Button';
 import { colors, typography, layout } from '../../../styles';
-import statsService from '../../services/statsService';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const StatsScreen = ({ navigation }) => {
   const { flows, activeFlows } = useContext(FlowsContext);
+  const { getAllStats } = useContext(ActivityContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
@@ -30,9 +31,13 @@ const StatsScreen = ({ navigation }) => {
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
 
-  // Calculate comprehensive stats using the stats service
+  // Calculate comprehensive stats using ActivityContext
   const stats = useMemo(() => {
+    console.log('Stats calculation - flows:', flows);
+    console.log('Stats calculation - flows length:', flows?.length);
+    
     if (!flows || flows.length === 0) {
+      console.log('Stats calculation - No flows found, returning default values');
       return {
         overall: {
           totalCompleted: 0,
@@ -51,13 +56,52 @@ const StatsScreen = ({ navigation }) => {
       };
     }
 
-    return statsService.calculateOverallStats(flows, {
-      timeframe: selectedTimeframe,
+    const allStats = getAllStats({
+      timeframe: 'all',
       currentMonth: currentMonth,
       includeArchived: false,
       includeDeleted: false
     });
-  }, [flows, selectedTimeframe, currentMonth]);
+
+    console.log('Stats calculation - allStats:', allStats);
+
+    // Transform ActivityContext data to match the expected format
+    return {
+      overall: {
+        totalCompleted: allStats.totalCompleted,
+        totalScheduled: allStats.totalScheduledDays,
+        totalPoints: allStats.totalPoints,
+        totalFlows: allStats.totalFlows,
+        activeFlows: flows.filter(f => !f.archived && !f.deletedAt).length,
+        successRate: allStats.successMetrics?.successRate || allStats.averageCompletionRate,
+        pureCompletionRate: allStats.successMetrics?.pureCompletionRate || allStats.pureCompletionRate,
+        avgDailyCompletion: allStats.successMetrics?.successRate || allStats.averageCompletionRate,
+        dailyData: allStats.weeklyTrends || [],
+        // Additional success metrics
+        successMetrics: allStats.successMetrics || {
+          totalSuccessfulDays: allStats.totalCompleted + allStats.totalPartial,
+          totalFailedDays: allStats.totalFailed + allStats.totalSkipped,
+          successRate: allStats.averageCompletionRate,
+          pureCompletionRate: allStats.pureCompletionRate,
+          partialSuccessRate: 0,
+          failureRate: 0,
+          skipRate: 0,
+        }
+      },
+      flowPerformance: allStats.flowSummaries.map(flow => ({
+        id: flow.flowId,
+        name: flow.flowTitle,
+        type: flow.flowType,
+        completed: flow.completed,
+        currentStreak: flow.currentStreak,
+        longestStreak: flow.longestStreak,
+        performance: flow.completionRate
+      })),
+      weeklyTrends: allStats.weeklyTrends || [],
+      achievements: allStats.achievements || [],
+      heatMapData: allStats.heatMapData || { contributionData: [], maxCount: 0 }
+    };
+  }, [flows, currentMonth, getAllStats]);
 
   // Chart configurations
   const chartConfig = {
@@ -68,8 +112,9 @@ const StatsScreen = ({ navigation }) => {
     color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
     labelColor: (opacity = 1) => `${themeColors.primaryText}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
     style: {
-      borderRadius: layout.borderRadius.lg,
+      borderRadius: layout.radii.large,
     },
+    paddingLeft: 0, // Reduce left padding
     propsForDots: {
       r: '3',
       strokeWidth: '2',
@@ -77,7 +122,7 @@ const StatsScreen = ({ navigation }) => {
     },
     propsForBackgroundLines: {
       strokeDasharray: '',
-      stroke: themeColors.progressBackground,
+      stroke: themeColors.surface,
       strokeWidth: 1,
     },
     propsForLabels: {
@@ -97,7 +142,7 @@ const StatsScreen = ({ navigation }) => {
   // Handle empty state
   if (!flows || flows.length === 0) {
     return (
-      <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
+      <SafeAreaWrapper style={{ backgroundColor: themeColors.background }} excludeBottom={true}>
         <View style={styles.emptyState}>
           <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
           <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>No Flows Yet</Text>
@@ -118,23 +163,26 @@ const StatsScreen = ({ navigation }) => {
   }
 
   // Render metric card
-  const MetricCard = ({ title, value, subtitle, icon, color }) => (
-    <View style={styles.metricCard}>
-      <LinearGradient
-        colors={[color + '20', color + '10']}
-        style={styles.metricGradient}
-      >
-        <View style={styles.metricHeader}>
-          <Ionicons name={icon} size={20} color={color} />
-        </View>
-        <Text style={[styles.metricValue, { color: themeColors.primaryText }]}>{value}</Text>
-        <Text style={[styles.metricTitle, { color: themeColors.secondaryText }]}>{title}</Text>
-        {subtitle && (
-          <Text style={[styles.metricSubtitle, { color: themeColors.tertiaryText }]}>{subtitle}</Text>
-        )}
-      </LinearGradient>
-    </View>
-  );
+  const MetricCard = ({ title, value, subtitle, icon, color }) => {
+    const safeColor = color || '#007AFF'; // Fallback color
+    return (
+      <View style={styles.metricCard}>
+        <LinearGradient
+          colors={[safeColor + '20', safeColor + '10']}
+          style={styles.metricGradient}
+        >
+          <View style={styles.metricHeader}>
+            <Ionicons name={icon} size={20} color={safeColor} />
+          </View>
+          <Text style={[styles.metricValue, { color: themeColors.primaryText }]}>{value}</Text>
+          <Text style={[styles.metricTitle, { color: themeColors.secondaryText }]}>{title}</Text>
+          {subtitle && (
+            <Text style={[styles.metricSubtitle, { color: themeColors.secondaryText }]}>{subtitle}</Text>
+          )}
+        </LinearGradient>
+      </View>
+    );
+  };
 
   // Render flow performance card
   const FlowPerformanceCard = ({ flow }) => (
@@ -146,35 +194,31 @@ const StatsScreen = ({ navigation }) => {
       accessibilityHint={`View detailed statistics for ${flow.name}`}
     >
       <View style={styles.flowCardHeader}>
-        <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
-        <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? themeColors.warning : themeColors.error }]}>
+        <View style={styles.flowTitleRow}>
+          <View style={styles.flowNameContainer}>
+            <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+            <Text style={[styles.flowTypeText, { color: themeColors.secondaryText, opacity: 0.7 }]}>{flow.type}</Text>
+          </View>
+          {flow.currentStreak >= 4 && (
+            <View style={styles.streakContainer}>
+              <Ionicons name="flame" size={16} color={themeColors.success} />
+              <Text style={[styles.streakText, { color: themeColors.success }]}>{flow.currentStreak}</Text>
+            </View>
+          )}
+        </View>
+        <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? '#F2A005' : themeColors.error }]}>
           <Text style={styles.performanceText}>{flow.performance.toFixed(0)}%</Text>
         </View>
       </View>
 
       <View style={styles.flowCardBody}>
-        <View style={styles.flowStats}>
-          <View style={styles.flowStat}>
-            <Text style={[styles.flowStatValue, { color: themeColors.primaryText }]}>{flow.completed}</Text>
-            <Text style={[styles.flowStatLabel, { color: themeColors.secondaryText }]}>Completed</Text>
-          </View>
-          <View style={styles.flowStat}>
-            <Text style={[styles.flowStatValue, { color: themeColors.primaryText }]}>{flow.streak}</Text>
-            <Text style={[styles.flowStatLabel, { color: themeColors.secondaryText }]}>Best Streak</Text>
-          </View>
-          <View style={styles.flowStat}>
-            <Text style={[styles.flowStatValue, { color: themeColors.primaryText }]}>{flow.type}</Text>
-            <Text style={[styles.flowStatLabel, { color: themeColors.secondaryText }]}>Type</Text>
-          </View>
-        </View>
-
         <View style={styles.progressBar}>
           <View
             style={[
               styles.progressFill,
               {
                 width: `${flow.performance}%`,
-                backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? themeColors.warning : themeColors.error
+                backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? '#F2A005' : themeColors.error
               }
             ]}
           />
@@ -225,7 +269,7 @@ const StatsScreen = ({ navigation }) => {
   const heatMapData = generateHeatMapData();
 
   const getIntensityColor = (count, maxCount) => {
-    if (count === 0) return themeColors.progressBackground;
+    if (count === 0) return themeColors.surface;
     
     const intensity = count / maxCount;
     if (intensity <= 0.25) return themeColors.success + '40';
@@ -234,13 +278,119 @@ const StatsScreen = ({ navigation }) => {
     return themeColors.success;
   };
 
+  // Process chart data based on timeframe
+  const processChartData = (dailyData, timeframe) => {
+    if (timeframe === 'weekly') {
+      return {
+        labels: dailyData.map(d => d.displayDate).slice(-7),
+        data: dailyData.map(d => d.percentage).slice(-7)
+      };
+    } else if (timeframe === 'monthly') {
+      // Group by actual calendar weeks within months
+      const weeklyData = [];
+      const weekGroups = {};
+      
+      // Group data by month and week
+      dailyData.forEach(day => {
+        const date = moment(day.date);
+        const month = date.format('MMM');
+        const weekOfMonth = Math.ceil(date.date() / 7);
+        const weekKey = `${month}-W${weekOfMonth}`;
+        
+        if (!weekGroups[weekKey]) {
+          weekGroups[weekKey] = {
+            month: month,
+            week: weekOfMonth,
+            percentages: [],
+            label: `${month}(W${weekOfMonth})`
+          };
+        }
+        weekGroups[weekKey].percentages.push(day.percentage);
+      });
+      
+      // Convert to array and calculate averages
+      Object.values(weekGroups).forEach(weekGroup => {
+        const avgPercentage = weekGroup.percentages.reduce((sum, p) => sum + p, 0) / weekGroup.percentages.length;
+        weeklyData.push({
+          label: weekGroup.label,
+          percentage: avgPercentage
+        });
+      });
+      
+      // Sort by date to maintain chronological order
+      weeklyData.sort((a, b) => {
+        const aMatch = a.label.match(/(\w+)\(W(\d+)\)/);
+        const bMatch = b.label.match(/(\w+)\(W(\d+)\)/);
+        if (aMatch && bMatch) {
+          const aMonth = moment(aMatch[1], 'MMM').month();
+          const bMonth = moment(bMatch[1], 'MMM').month();
+          if (aMonth !== bMonth) return aMonth - bMonth;
+          return parseInt(aMatch[2]) - parseInt(bMatch[2]);
+        }
+        return 0;
+      });
+      
+      return {
+        labels: weeklyData.map(w => w.label),
+        data: weeklyData.map(w => w.percentage)
+      };
+    } else if (timeframe === 'yearly') {
+      // Group by actual calendar months
+      const monthlyData = [];
+      const monthGroups = {};
+      
+      // Group data by month
+      dailyData.forEach(day => {
+        const date = moment(day.date);
+        const monthKey = date.format('MMM');
+        
+        if (!monthGroups[monthKey]) {
+          monthGroups[monthKey] = {
+            month: monthKey,
+            percentages: []
+          };
+        }
+        monthGroups[monthKey].percentages.push(day.percentage);
+      });
+      
+      // Convert to array and calculate averages
+      Object.values(monthGroups).forEach(monthGroup => {
+        const avgPercentage = monthGroup.percentages.reduce((sum, p) => sum + p, 0) / monthGroup.percentages.length;
+        monthlyData.push({
+          label: monthGroup.month,
+          percentage: avgPercentage
+        });
+      });
+      
+      // Sort by month order
+      monthlyData.sort((a, b) => {
+        const aMonth = moment(a.label, 'MMM').month();
+        const bMonth = moment(b.label, 'MMM').month();
+        return aMonth - bMonth;
+      });
+      
+      return {
+        labels: monthlyData.map(m => m.label),
+        data: monthlyData.map(m => m.percentage)
+      };
+    }
+    
+    // Default to weekly
+    return {
+      labels: dailyData.map(d => d.displayDate).slice(-7),
+      data: dailyData.map(d => d.percentage).slice(-7)
+    };
+  };
+
+  const chartData = processChartData(stats.overall.dailyData, selectedTimeframe);
+
   const performanceChartData = {
-    labels: stats.overall.dailyData.map(d => d.displayDate).slice(-7),
+    labels: chartData.labels,
     datasets: [
       {
-        data: stats.overall.dailyData.map(d => d.percentage).slice(-7),
+        data: chartData.data,
         color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
-        strokeWidth: 3,
+        strokeWidth: selectedTimeframe === 'yearly' ? 2 : 3,
       },
     ],
   };
@@ -263,7 +413,7 @@ const StatsScreen = ({ navigation }) => {
   ];
 
   return (
-    <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
+    <SafeAreaWrapper style={{ backgroundColor: themeColors.background }} excludeBottom={true}>
       <ScrollView 
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -276,7 +426,28 @@ const StatsScreen = ({ navigation }) => {
           </Text>
         </View>
 
+        {/* Analytics */}
+        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Analytics</Text>
+        <View style={styles.metricsGrid}>
+          <MetricCard
+            title="Success Rate"
+            value={`${stats.overall.successRate.toFixed(1)}%`}
+            subtitle={`${stats.overall.successMetrics?.totalSuccessfulDays || stats.overall.totalCompleted}/${stats.overall.totalScheduled} successful`}
+            icon="checkmark-circle"
+            color={themeColors.success || '#4CAF50'}
+          />
+          <MetricCard
+            title="Total Points"
+            value={stats.overall.totalPoints.toLocaleString()}
+            subtitle="This period"
+            icon="star"
+            color={themeColors.primaryOrange || '#FF9500'}
+          />
+        </View>
 
+        {/* Daily Performance Trend */}
+        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Daily Performance Trend</Text>
+        
         {/* Timeframe Selector */}
         <View style={styles.timeframeSelector}>
           {[
@@ -293,7 +464,7 @@ const StatsScreen = ({ navigation }) => {
               ]}
               onPress={() => setSelectedTimeframe(timeframe.key)}
               accessibilityLabel={`Select ${timeframe.label.toLowerCase()} timeframe`}
-              accessibilityHint={`View statistics for the ${timeframe.label.toLowerCase()} period`}
+              accessibilityHint={`View chart for the ${timeframe.label.toLowerCase()} period`}
             >
               <Text
                 style={[
@@ -306,46 +477,11 @@ const StatsScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Analytics */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Analytics</Text>
-        <View style={styles.metricsGrid}>
-          <MetricCard
-            title="Success Rate"
-            value={`${stats.overall.successRate.toFixed(1)}%`}
-            subtitle={`${stats.overall.totalCompleted}/${stats.overall.totalScheduled} completed`}
-            icon="checkmark-circle"
-            color={colors.light.success}
-          />
-          <MetricCard
-            title="Total Points"
-            value={stats.overall.totalPoints.toLocaleString()}
-            subtitle="This period"
-            icon="star"
-            color={colors.light.primaryOrange}
-          />
-          <MetricCard
-            title="Avg Daily"
-            value={`${stats.overall.avgDailyCompletion.toFixed(1)}%`}
-            subtitle="Completion rate"
-            icon="calendar"
-            color={colors.light.info}
-          />
-          <MetricCard
-            title="Active Flows"
-            value={`${stats.overall.activeFlows}`}
-            subtitle="Currently tracking"
-            icon="list"
-            color={colors.light.warning}
-          />
-        </View>
-
-        {/* Daily Performance Trend */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Daily Performance Trend</Text>
-        <Card variant="default" padding="lg" margin="md">
+        
+        <Card variant="default" padding="sm" margin="sm" backgroundColor={themeColors.cardBackground}>
           <View style={styles.chartHeader}>
             <Text style={[styles.chartSubtitle, { color: themeColors.secondaryText }]}>
-              Your daily completion rate over the last 7 days
+              Your daily completion rate over the last {selectedTimeframe === 'weekly' ? '7 days' : selectedTimeframe === 'monthly' ? '30 days' : '52 weeks'}
             </Text>
             <View style={styles.chartStats}>
               <View style={styles.chartStatItem}>
@@ -361,17 +497,17 @@ const StatsScreen = ({ navigation }) => {
                 <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Best</Text>
               </View>
               <View style={styles.chartStatItem}>
-                <Text style={[styles.chartStatValue, { color: themeColors.error }]}>
-                  {stats.overall.dailyData.length > 0 ? Math.min(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1) : '0.0'}%
+                <Text style={[styles.chartStatValue, { color: themeColors.primaryOrange }]}>
+                  {stats.overall.activeFlows}
                 </Text>
-                <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Lowest</Text>
+                <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Active Flows</Text>
               </View>
             </View>
           </View>
           <LineChart
             data={performanceChartData}
-            width={screenWidth - 64}
-            height={160}
+            width={(screenWidth - 10) * 0.98}
+            height={200}
             chartConfig={chartConfig}
             bezier
             style={styles.chart}
@@ -391,79 +527,130 @@ const StatsScreen = ({ navigation }) => {
         </Card>
 
         {/* Flow Performance */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Flow Performance</Text>
-        <Card variant="default" padding="lg" margin="md">
-          {stats.flowPerformance.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
-              <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>No flows to display</Text>
-            </View>
-          ) : (
-            <View style={styles.flowsList}>
-              {stats.flowPerformance.map((flow, index) => (
-                <FlowPerformanceCard key={index} flow={flow} />
-              ))}
-            </View>
-          )}
-        </Card>
+        <View style={styles.sectionWrapper}>
+          <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Flow Performance ({stats.flowPerformance.length})</Text>
+          <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
+            {stats.flowPerformance.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
+                <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>No flows to display</Text>
+              </View>
+            ) : (
+              <View style={styles.flowsList}>
+                {stats.flowPerformance.map((flow, index) => (
+                  <FlowPerformanceCard key={index} flow={flow} />
+                ))}
+              </View>
+            )}
+          </Card>
+        </View>
 
         {/* Achievements */}
-        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Achievements</Text>
-        <Card variant="default" padding="lg" margin="md">
-          <View style={styles.achievementGrid}>
-            {stats.achievements.map((achievement, index) => (
-              <View key={index} style={[styles.achievementCard, { backgroundColor: achievement.color + '20' }]}>
-                <Text style={styles.achievementIcon}>{achievement.icon}</Text>
-                <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>{achievement.title}</Text>
-                <Text style={[styles.achievementDescription, { color: themeColors.secondaryText }]}>
-                  {achievement.description}
-                </Text>
-                <Text style={[styles.achievementProgress, { color: achievement.color }]}>
-                  {achievement.progress}/{achievement.target}
+        <View style={styles.sectionWrapper}>
+          <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Achievements</Text>
+          <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
+            {stats.achievements.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>🏆</Text>
+                <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>No achievements yet</Text>
+                <Text style={[styles.emptySubtitle, { color: themeColors.secondaryText }]}>
+                  Complete activities to unlock achievements!
                 </Text>
               </View>
-            ))}
-          </View>
-        </Card>
+            ) : (
+              <View style={styles.achievementGrid}>
+                {stats.achievements.map((achievement, index) => (
+                  <View key={index} style={[styles.achievementCard, { backgroundColor: achievement.color + '20' }]}>
+                    <Text style={styles.achievementIcon}>{achievement.icon}</Text>
+                    <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>{achievement.title}</Text>
+                    <Text style={[styles.achievementDescription, { color: themeColors.secondaryText }]}>
+                      {achievement.description}
+                    </Text>
+                    <Text style={[styles.achievementProgress, { color: achievement.color }]}>
+                      {achievement.progress}/{achievement.target}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </Card>
+        </View>
+
+        {/* Success Rate Breakdown */}
+        <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Success Rate Breakdown</Text>
+        <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
+            <View style={styles.successBreakdown}>
+              <View style={styles.successRow}>
+                <Text style={[styles.successLabel, { color: themeColors.primaryText }]}>Overall Success Rate</Text>
+                <Text style={[styles.successValue, { color: themeColors.success }]}>
+                  {stats.overall.successRate.toFixed(1)}%
+                </Text>
+              </View>
+              <View style={styles.successRow}>
+                <Text style={[styles.successLabel, { color: themeColors.primaryText }]}>Pure Completion Rate</Text>
+                <Text style={[styles.successValue, { color: themeColors.primaryOrange }]}>
+                  {stats.overall.pureCompletionRate?.toFixed(1) || '0.0'}%
+                </Text>
+              </View>
+              <View style={styles.successRow}>
+                <Text style={[styles.successLabel, { color: themeColors.primaryText }]}>Partial Success Rate</Text>
+                <Text style={[styles.successValue, { color: '#F2A005' }]}>
+                  {stats.overall.successMetrics?.partialSuccessRate?.toFixed(1) || '0.0'}%
+                </Text>
+              </View>
+              <View style={styles.successRow}>
+                <Text style={[styles.successLabel, { color: themeColors.primaryText }]}>Failure Rate</Text>
+                <Text style={[styles.successValue, { color: themeColors.error }]}>
+                  {stats.overall.successMetrics?.failureRate?.toFixed(1) || '0.0'}%
+                </Text>
+              </View>
+              <View style={styles.successRow}>
+                <Text style={[styles.successLabel, { color: themeColors.primaryText }]}>Skip Rate</Text>
+                <Text style={[styles.successValue, { color: themeColors.secondaryText }]}>
+                  {stats.overall.successMetrics?.skipRate?.toFixed(1) || '0.0'}%
+                </Text>
+              </View>
+            </View>
+          </Card>
 
         {/* Overall Insights */}
         <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Overall Insights</Text>
-        <Card variant="default" padding="lg" margin="md">
-          <View style={styles.insightsContainer}>
-            {stats.overall.successRate >= 80 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="trophy" size={20} color={themeColors.success} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  Excellent consistency! You're maintaining a {stats.overall.successRate.toFixed(1)}% success rate.
-                </Text>
-              </View>
-            )}
-            {stats.overall.avgDailyCompletion < 50 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="trending-up" size={20} color={themeColors.warning} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  Consider focusing on consistency. Your daily average is {stats.overall.avgDailyCompletion.toFixed(1)}%.
-                </Text>
-              </View>
-            )}
-            {stats.overall.activeFlows >= 5 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="star" size={20} color={themeColors.primaryOrange} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  You're tracking {stats.overall.activeFlows} flows! Keep up the great work.
-                </Text>
-              </View>
-            )}
-            {stats.overall.totalPoints >= 1000 && (
-              <View style={styles.insightItem}>
-                <Ionicons name="medal" size={20} color={themeColors.info} />
-                <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                  Amazing! You've earned {stats.overall.totalPoints.toLocaleString()} points this period.
-                </Text>
-              </View>
-            )}
-          </View>
-        </Card>
+        <Card variant="default" padding="xs" margin="xs" backgroundColor={themeColors.cardBackground}>
+            <View style={styles.insightsContainer}>
+              {stats.overall.successRate >= 80 && (
+                <View style={styles.insightItem}>
+                  <Ionicons name="trophy" size={20} color={themeColors.success} />
+                  <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                    Excellent consistency! You're maintaining a {stats.overall.successRate.toFixed(1)}% success rate.
+                  </Text>
+                </View>
+              )}
+              {stats.overall.avgDailyCompletion < 50 && (
+                <View style={styles.insightItem}>
+                  <Ionicons name="trending-up" size={20} color="#F2A005" />
+                  <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                    Consider focusing on consistency. Your daily average is {stats.overall.avgDailyCompletion.toFixed(1)}%.
+                  </Text>
+                </View>
+              )}
+              {stats.overall.activeFlows >= 5 && (
+                <View style={styles.insightItem}>
+                  <Ionicons name="star" size={20} color={themeColors.primaryOrange} />
+                  <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                    You're tracking {stats.overall.activeFlows} flows! Keep up the great work.
+                  </Text>
+                </View>
+              )}
+              {stats.overall.totalPoints >= 1000 && (
+                <View style={styles.insightItem}>
+                  <Ionicons name="medal" size={20} color={themeColors.primaryOrange} />
+                  <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
+                    Amazing! You've earned {stats.overall.totalPoints.toLocaleString()} points this period.
+                  </Text>
+                </View>
+              )}
+            </View>
+          </Card>
       </ScrollView>
     </SafeAreaWrapper>
   );
@@ -475,7 +662,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: layout.spacing.sm,
-    paddingBottom: layout.spacing.xl + 80, // Extra bottom padding to prevent tab bar overlap
+    paddingBottom: layout.spacing.x5l + 80, // Extra padding for bottom tab + safe area
   },
   header: {
     alignItems: 'center',
@@ -495,14 +682,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: layout.spacing.md,
     backgroundColor: 'rgba(0,0,0,0.05)',
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     padding: layout.spacing.xs,
   },
   timeframeButton: {
     flex: 1,
     paddingVertical: layout.spacing.xs,
     paddingHorizontal: layout.spacing.sm,
-    borderRadius: layout.borderRadius.sm,
+    borderRadius: layout.radii.small,
     alignItems: 'center',
   },
   activeTimeframeButton: {
@@ -522,13 +709,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: layout.spacing.md,
   },
+  sectionWrapper: {
+    marginBottom: layout.spacing.md,
+  },
   metricCard: {
     width: '48%',
     marginBottom: layout.spacing.sm,
   },
   metricGradient: {
     padding: layout.spacing.sm,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
   },
   metricHeader: {
     flexDirection: 'row',
@@ -589,7 +779,8 @@ const styles = StyleSheet.create({
   },
   chart: {
     marginVertical: layout.spacing.sm,
-    borderRadius: layout.borderRadius.lg,
+    marginLeft: -10, // Reduce left spacing
+    borderRadius: layout.radii.large,
   },
   chartLegend: {
     flexDirection: 'row',
@@ -624,7 +815,7 @@ const styles = StyleSheet.create({
   },
   heatMapSquare: {
     margin: 2,
-    borderRadius: layout.borderRadius.sm,
+    borderRadius: layout.radii.small,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -656,7 +847,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.styles.title3,
     fontWeight: '600',
-    marginBottom: layout.spacing.sm,
+    marginBottom: layout.spacing.xs, // Reduced from sm to xs to minimize gap with card
     marginTop: layout.spacing.md,
   },
   achievementGrid: {
@@ -667,7 +858,7 @@ const styles = StyleSheet.create({
   achievementCard: {
     width: '48%',
     padding: layout.spacing.sm,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     marginBottom: layout.spacing.sm,
     alignItems: 'center',
   },
@@ -713,25 +904,44 @@ const styles = StyleSheet.create({
   },
   flowCard: {
     padding: layout.spacing.sm,
-    borderRadius: layout.borderRadius.md,
+    borderRadius: layout.radii.base,
     marginBottom: layout.spacing.sm,
   },
   flowCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: layout.spacing.sm,
+  },
+  flowTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: layout.spacing.sm,
+  },
+  flowNameContainer: {
+    flex: 1,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: layout.spacing.sm,
+  },
+  streakText: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    marginLeft: 4,
+    fontSize: 12,
   },
   flowCardTitle: {
     ...typography.styles.body,
     fontWeight: '600',
-    flex: 1,
-    fontSize: 14,
+    fontSize: 16,
   },
   performanceBadge: {
     paddingHorizontal: layout.spacing.sm,
     paddingVertical: layout.spacing.xs,
-    borderRadius: layout.borderRadius.sm,
+    borderRadius: layout.radii.small,
   },
   performanceText: {
     ...typography.styles.caption,
@@ -739,7 +949,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   flowCardBody: {
-    marginTop: layout.spacing.sm,
+    marginTop: 0,
+  },
+  flowTypeRow: {
+    marginBottom: layout.spacing.sm,
+  },
+  flowTypeText: {
+    ...typography.styles.caption,
+    fontWeight: '500',
+    fontSize: 11,
+    marginTop: 2,
+    opacity: 0.7,
   },
   flowStats: {
     flexDirection: 'row',
@@ -804,6 +1024,27 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     marginTop: layout.spacing.md,
+  },
+  successBreakdown: {
+    marginTop: layout.spacing.sm,
+  },
+  successRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
+  successLabel: {
+    ...typography.styles.body,
+    fontSize: 14,
+    flex: 1,
+  },
+  successValue: {
+    ...typography.styles.title3,
+    fontWeight: '700',
+    fontSize: 16,
   },
 });
 

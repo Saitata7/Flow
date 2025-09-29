@@ -19,7 +19,7 @@ const SafeAreaWrapper = ({ children, style, excludeTop = false, excludeBottom = 
     styles.container,
     {
       paddingTop: topSafeArea,
-      paddingBottom: bottomSafeArea + layout.tabSpacing + layout.spacing.lg, // Extra spacing above tab bar as per cursor rules
+      paddingBottom: excludeBottom ? 0 : bottomSafeArea + layout.spacing.base + layout.spacing.lg,
     },
     style,
   ];

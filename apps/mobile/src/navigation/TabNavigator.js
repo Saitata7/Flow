@@ -15,6 +15,10 @@ import EditFlowScreen from '../screens/flow/EditFlow';
 import { colors, layout, typography } from '../../styles';
 import { ThemeContext } from '../context/ThemeContext';
 
+// Import SVG icons
+import HomeIcon from '../../assets/icons/HomeIcon';
+import StatsIcon from '../../assets/icons/StatsIcon';
+
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const Tab = createBottomTabNavigator();
@@ -50,12 +54,12 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     }, {})
   );
 
-  const getIconName = (routeName, focused) => {
+  const getIconComponent = (routeName, focused) => {
     const iconMap = {
-      Home: focused ? "home" : "home-outline",
-      Stats: focused ? "bar-chart" : "bar-chart-outline",
+      Home: <HomeIcon size={iconSize} color={focused ? '#F7BA53' : '#999999'} filled={focused} />,
+      Stats: <StatsIcon size={iconSize} color={focused ? '#F7BA53' : '#999999'} filled={focused} />,
     };
-    return iconMap[routeName] || "home-outline";
+    return iconMap[routeName] || <HomeIcon size={iconSize} color="#999999" filled={false} />;
   };
 
   const handleTabPress = (route, index) => {
@@ -169,18 +173,14 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                       justifyContent: 'center',
                       marginBottom: 4,
                     }}>
-                      <Ionicons 
-                        name={getIconName(route.name, isFocused)} 
-                        color={color} 
-                        size={iconSize}
-                      />
+                      {getIconComponent(route.name, isFocused)}
                     </View>
                     
                     {/* Label */}
                     <Animated.Text style={{
                       fontSize: labelFontSize,
                       fontWeight: isFocused ? typography.weights.bold : typography.weights.medium,
-                      fontFamily: typography.fonts.family.medium,
+                      fontFamily: typography?.fontFamilies?.medium || 'Roboto-Medium',
                       textAlign: 'center',
                       color: color,
                       lineHeight: labelFontSize * 1.2,

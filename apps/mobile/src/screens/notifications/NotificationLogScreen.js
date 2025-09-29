@@ -103,7 +103,7 @@ const NotificationLogScreen = () => {
       case 'achievement':
         return '#FFD700';
       case 'report':
-        return '#4CAF50';
+        return colors.light.success; // Use HSL success color #4DB34D
       case 'community':
         return '#2196F3';
       default:
@@ -168,7 +168,7 @@ const NotificationLogScreen = () => {
           <Ionicons 
             name="checkmark-circle" 
             size={16} 
-            color={item.successCount > 0 ? '#4CAF50' : '#FF5722'} 
+            color={item.successCount > 0 ? colors.light.success : colors.light.danger} 
           />
           <Text style={[styles.statusText, { color: themeColors.secondaryText }]}>
             {item.successCount} sent
@@ -180,9 +180,9 @@ const NotificationLogScreen = () => {
             <Ionicons 
               name="close-circle" 
               size={16} 
-              color="#FF5722" 
+              color={colors.light.danger} // Use HSL danger color #FF6961 
             />
-            <Text style={[styles.statusText, { color: '#FF5722' }]}>
+            <Text style={[styles.statusText, { color: colors.light.danger }]}>
               {item.failureCount} failed
             </Text>
           </View>

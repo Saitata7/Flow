@@ -45,10 +45,10 @@ const ResponsiveTest = ({ flows, theme = 'light' }) => {
         padding: layout.spacing.md,
         alignItems: 'center',
         backgroundColor: themeColors.cardBackground,
-        ...layout.shadows.small,
+        ...layout.elevation.low,
       },
       headerTitle: {
-        ...typography.styles.largeTitle,
+        ...typography.largeTitle,
         fontWeight: '700',
         color: themeColors.primaryText,
         marginBottom: layout.spacing.xs,
@@ -62,8 +62,8 @@ const ResponsiveTest = ({ flows, theme = 'light' }) => {
         padding: layout.spacing.md,
         backgroundColor: themeColors.cardBackground,
         margin: layout.spacing.md,
-        borderRadius: layout.borderRadius.lg,
-        ...layout.shadows.small,
+        borderRadius: layout.radii.large,
+        ...layout.elevation.low,
       },
       infoText: {
         ...typography.styles.body,

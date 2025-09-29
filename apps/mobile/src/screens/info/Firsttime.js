@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
     padding: layout.spacing.lg,
   },
   title: {
-    ...typography.styles.largeTitle,
+    ...typography.largeTitle,
     color: colors.light.primaryText,
     marginBottom: layout.spacing.md,
   },

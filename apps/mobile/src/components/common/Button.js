@@ -110,21 +110,21 @@ const Button = ({
     switch (size) {
       case 'small':
         return { 
-          height: 32, 
-          paddingHorizontal: layout.spacing.sm, 
-          fontSize: 13 
+          height: 36, // components.button.small.height
+          paddingHorizontal: layout.spacing.base, 
+          fontSize: typography.caption.size 
         };
       case 'large':
         return { 
-          height: 56, 
+          height: 48, // components.button.primary.height
           paddingHorizontal: layout.spacing.lg, 
-          fontSize: 20 
+          fontSize: typography.body.size 
         };
       default: // medium
         return { 
-          height: 44, 
-          paddingHorizontal: layout.spacing.md, 
-          fontSize: 17 
+          height: 48, // components.button.primary.height
+          paddingHorizontal: layout.spacing.lg, 
+          fontSize: typography.body.size 
         };
     }
   };
@@ -147,7 +147,7 @@ const Button = ({
         alignItems: 'center',
         paddingHorizontal: layout.spacing.sm,
         paddingVertical: layout.spacing.xs,
-        borderRadius: layout.borderRadius.md,
+        borderRadius: layout.radii.small,
         gap: layout.spacing.xs,
         justifyContent: 'center',
         ...(Platform.OS === 'ios' ? { borderCurve: 'continuous' } : {}),
@@ -170,7 +170,7 @@ const Button = ({
     },
   ];
 
-  const IconComponent = icon ? <Text style={[textStyle, { marginHorizontal: layout.spacing.xs }]}>{icon}</Text> : null;
+  const IconComponent = icon ? <Text style={[textStyle, { marginHorizontal: layout?.spacing?.xs || 4 }]}>{icon}</Text> : null;
 
   return (
     <TouchableOpacity
@@ -215,9 +215,9 @@ const styles = StyleSheet.create({
   button: {
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: layout.borderRadius.lg,
+    borderRadius: layout.radii.base, // Use radii tokens instead of old borderRadius
     ...(Platform.OS === 'ios' ? { borderCurve: 'continuous' } : {}),
-    ...layout.shadows.small,
+    ...layout.elevation.low, // Use elevation tokens instead of shadows
   },
   content: {
     flexDirection: 'row',

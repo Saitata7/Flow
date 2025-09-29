@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.light.background,
   },
   logo: {
-    ...typography.styles.largeTitle,
+    ...typography.largeTitle,
     color: colors.light.primaryText,
     marginBottom: layout.spacing.lg,
   },

@@ -8,6 +8,7 @@ import NotificationSettings from '../screens/settings/NotificationSettings';
 import NotificationLogScreen from '../screens/notifications/NotificationLogScreen';
 import PrivacySettings from '../screens/settings/PrivacySettings';
 import LocationSettings from '../screens/settings/LocationSettings';
+import ImportExportSettings from '../screens/settings/ImportExportSettings';
 import CheatModeSettings from '../screens/settings/CheatModeSettings';
 import HelpAbout from '../screens/settings/HelpAbout';
 
@@ -67,6 +68,13 @@ const SettingsStack = () => {
         component={LocationSettings}
         options={{
           title: 'Location',
+        }}
+      />
+      <Stack.Screen 
+        name="ImportExportSettings" 
+        component={ImportExportSettings}
+        options={{
+          title: 'Import & Export',
         }}
       />
       <Stack.Screen 
