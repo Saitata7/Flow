@@ -4,11 +4,11 @@ import { ThemeContext } from '../../../context/ThemeContext';
 import { colors, layout, typography } from '../../../../styles';
 
 const emotions = [
-  { label: 'Happy', emoji: '😊' },
-  { label: 'Sad', emoji: '😢' },
-  { label: 'Angry', emoji: '😠' },
-  { label: 'Excited', emoji: '🎉' },
-  { label: 'Calm', emoji: '😌' },
+  { label: 'Sad', emoji: '😞' },
+  { label: 'Slightly worried', emoji: '😟' },
+  { label: 'Neutral', emoji: '😐' },
+  { label: 'Slightly smiling', emoji: '🙂' },
+  { label: 'Big smile', emoji: '😃' },
 ];
 
 const ResponseModal = ({

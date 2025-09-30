@@ -135,26 +135,25 @@ const styles = StyleSheet.create({
   },
   formCard: {
     borderRadius: layout.radii.squircle,
-    ...layout.elevation.low,
-    padding: layout.spacing.lg,
+    padding: layout.spacing.md,
     marginHorizontal: layout?.components?.card?.marginHorizontal || 16,
     marginVertical: layout?.components?.card?.marginVertical || 8,
   },
   title: {
     ...typography.largeTitle,
     textAlign: 'center',
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.sm,
   },
   infoText: {
     ...typography.styles.body,
     textAlign: 'center',
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.sm,
   },
   input: {
     ...typography.styles.body,
     borderRadius: 12,
-    padding: layout.spacing.md,
-    marginBottom: layout.spacing.sm,
+    padding: layout.spacing.sm,
+    marginBottom: layout.spacing.xs,
   },
   inputError: {
     borderColor: colors.light?.error || fallbackColors.error,
@@ -162,10 +161,10 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...typography.styles.caption1,
-    marginBottom: layout.spacing.sm,
+    marginBottom: layout.spacing.xs,
   },
   button: {
-    marginTop: layout.spacing.sm,
+    marginTop: layout.spacing.xs,
   },
   linkButton: {
     marginTop: layout.spacing.xs,

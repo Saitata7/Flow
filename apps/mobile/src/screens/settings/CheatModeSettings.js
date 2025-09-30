@@ -20,10 +20,13 @@ import { useSettings } from '../../hooks/useSettings';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
-const CheatModeSettings = () => {
+const CheatModeSettings = ({ route }) => {
   const navigation = useNavigation();
   const { theme } = useContext(ThemeContext) || { theme: 'light' };
   const themeColors = colors[theme] || colors.light;
+  
+  // Get highlight flow from navigation params
+  const highlightFlow = route?.params?.highlightFlow;
   
   const { 
     settings, 
@@ -247,6 +250,21 @@ const CheatModeSettings = () => {
       marginLeft: 3,
       fontWeight: typography.weights.medium,
     },
+    highlightBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: themeColors.warningBackground || '#FFF7ED',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      alignSelf: 'flex-start',
+      marginTop: 4,
+    },
+    highlightText: {
+      fontSize: typography.sizes.caption2,
+      marginLeft: 3,
+      fontWeight: typography.weights.medium,
+    },
     flowControls: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -334,30 +352,48 @@ const CheatModeSettings = () => {
               data={flows.filter(flow => !flow.deletedAt)}
               keyExtractor={(item) => item.id}
               scrollEnabled={false}
-              renderItem={({ item: flow }) => (
-                <View style={dynamicStyles.flowItem}>
-                  <View style={dynamicStyles.flowInfo}>
-                    <Text style={dynamicStyles.flowTitle}>{flow.title}</Text>
-                    <Text style={dynamicStyles.flowDescription}>
-                      {flow.description || 'No description available'}
-                    </Text>
-                    {flow.cheatMode && (
-                      <View style={dynamicStyles.cheatModeBadge}>
-                        <Ionicons name="bulb" size={12} color="#fff" />
-                        <Text style={dynamicStyles.cheatModeText}>Cheat Mode Enabled</Text>
-                      </View>
-                    )}
+              renderItem={({ item: flow }) => {
+                const isHighlighted = highlightFlow && flow.title === highlightFlow;
+                return (
+                  <View style={[
+                    dynamicStyles.flowItem,
+                    isHighlighted && {
+                      borderColor: themeColors.warning,
+                      borderWidth: 2,
+                      backgroundColor: themeColors.warningBackground || '#FFF7ED',
+                    }
+                  ]}>
+                    <View style={dynamicStyles.flowInfo}>
+                      <Text style={dynamicStyles.flowTitle}>{flow.title}</Text>
+                      <Text style={dynamicStyles.flowDescription}>
+                        {flow.description || 'No description available'}
+                      </Text>
+                      {flow.cheatMode && (
+                        <View style={dynamicStyles.cheatModeBadge}>
+                          <Ionicons name="bulb" size={12} color="#fff" />
+                          <Text style={dynamicStyles.cheatModeText}>Cheat Mode Enabled</Text>
+                        </View>
+                      )}
+                      {isHighlighted && (
+                        <View style={dynamicStyles.highlightBadge}>
+                          <Ionicons name="star" size={12} color={themeColors.warning} />
+                          <Text style={[dynamicStyles.highlightText, { color: themeColors.warning }]}>
+                            Click to enable cheat mode
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={dynamicStyles.flowControls}>
+                      <Switch
+                        value={flow.cheatMode || false}
+                        onValueChange={(value) => handleFlowCheatModeToggle(flow.id, value)}
+                        trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
+                        thumbColor={(flow.cheatMode || false) ? '#fff' : '#f4f3f4'}
+                      />
+                    </View>
                   </View>
-                  <View style={dynamicStyles.flowControls}>
-                    <Switch
-                      value={flow.cheatMode || false}
-                      onValueChange={(value) => handleFlowCheatModeToggle(flow.id, value)}
-                      trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                      thumbColor={(flow.cheatMode || false) ? '#fff' : '#f4f3f4'}
-                    />
-                  </View>
-                </View>
-              )}
+                );
+              }}
             />
           )}
         </View>

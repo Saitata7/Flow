@@ -736,7 +736,7 @@ export const ActivityProvider = ({ children }) => {
     const startDate = moment(flow.startDate || flow.createdAt);
     if (!startDate.isValid()) {
       console.warn('Invalid startDate for flow:', flow.id, flow.title, 'startDate:', flow.startDate, 'createdAt:', flow.createdAt);
-      return { totalEmotions: 0, byEmotion: { Happy: 0, Sad: 0, Angry: 0, Excited: 0, Calm: 0 } };
+      return { totalEmotions: 0, byEmotion: { Sad: 0, 'Slightly worried': 0, Neutral: 0, 'Slightly smiling': 0, 'Big smile': 0 } };
     }
     const endDate = moment();
     const diffDays = endDate.diff(startDate, 'days') + 1;
@@ -769,7 +769,7 @@ export const ActivityProvider = ({ children }) => {
       byEmotion: emotions.reduce((acc, { emotion }) => {
         acc[emotion] = (acc[emotion] || 0) + 1;
         return acc;
-      }, { Happy: 0, Sad: 0, Angry: 0, Excited: 0, Calm: 0 }),
+      }, { Sad: 0, 'Slightly worried': 0, Neutral: 0, 'Slightly smiling': 0, 'Big smile': 0 }),
     };
   };
 

@@ -79,11 +79,11 @@ const Quantitative = ({ flow }) => {
   const isMissed = count === 0 && status === '-';
 
   const emotions = [
-    { label: 'Happy', emoji: '😊' },
-    { label: 'Neutral', emoji: '😐' },
     { label: 'Sad', emoji: '😞' },
-    { label: 'Excited', emoji: '🎉' },
-    { label: 'Stressed', emoji: '😓' },
+    { label: 'Slightly worried', emoji: '😟' },
+    { label: 'Neutral', emoji: '😐' },
+    { label: 'Slightly smiling', emoji: '🙂' },
+    { label: 'Big smile', emoji: '😃' },
   ];
 
   const triggerHaptic = useCallback(() => {

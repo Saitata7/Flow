@@ -196,15 +196,17 @@ const StatsScreen = ({ navigation }) => {
       <View style={styles.flowCardHeader}>
         <View style={styles.flowTitleRow}>
           <View style={styles.flowNameContainer}>
-            <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+            <View style={styles.titleRow}>
+              <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+              {flow.currentStreak > 3 && (
+                <View style={styles.streakContainer}>
+                  <Ionicons name="flame" size={16} color="#F59E0B" />
+                  <Text style={[styles.streakText, { color: "#F59E0B" }]}>{flow.currentStreak}</Text>
+                </View>
+              )}
+            </View>
             <Text style={[styles.flowTypeText, { color: themeColors.secondaryText, opacity: 0.7 }]}>{flow.type}</Text>
           </View>
-          {flow.currentStreak >= 4 && (
-            <View style={styles.streakContainer}>
-              <Ionicons name="flame" size={16} color={themeColors.success} />
-              <Text style={[styles.streakText, { color: themeColors.success }]}>{flow.currentStreak}</Text>
-            </View>
-          )}
         </View>
         <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? '#F2A005' : themeColors.error }]}>
           <Text style={styles.performanceText}>{flow.performance.toFixed(0)}%</Text>
@@ -921,6 +923,11 @@ const styles = StyleSheet.create({
   },
   flowNameContainer: {
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   streakContainer: {
     flexDirection: 'row',

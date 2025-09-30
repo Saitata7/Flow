@@ -5,13 +5,14 @@ import { ThemeContext } from '../../context/ThemeContext';
 import ResponseModal from './todayResponse/Response';
 import moment from 'moment';
 import { colors, layout, typography } from '../../../styles';
+import CheatModePopup from '../common/CheatModePopup';
 
 const emotions = [
-  { label: 'Happy', emoji: '😊' },
-  { label: 'Sad', emoji: '😢' },
-  { label: 'Angry', emoji: '😠' },
-  { label: 'Excited', emoji: '🎉' },
-  { label: 'Calm', emoji: '😌' },
+  { label: 'Sad', emoji: '😞' },
+  { label: 'Slightly worried', emoji: '😟' },
+  { label: 'Neutral', emoji: '😐' },
+  { label: 'Slightly smiling', emoji: '🙂' },
+  { label: 'Big smile', emoji: '😃' },
 ];
 
 console.log('Available emotions for mapping:', emotions);
@@ -30,6 +31,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
     quantitativeCount: '',
     timeDuration: { hours: '', minutes: '', seconds: '' },
   });
+  const [showCheatModePopup, setShowCheatModePopup] = useState(false);
   
 
   useEffect(() => {
@@ -65,8 +67,12 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
     isUpdating.current = true;
 
     const dateKey = day.dateString;
-    if (!cheatMode && moment(dateKey).isAfter(moment(), 'day')) {
-      Alert.alert('Error', 'Cannot set status for future dates unless cheat mode is enabled');
+    const isToday = moment(dateKey).isSame(moment(), 'day');
+    const isPastDay = moment(dateKey).isBefore(moment(), 'day');
+    
+    // Check cheat mode restrictions
+    if (!flow.cheatMode && (isPastDay || !isToday)) {
+      setShowCheatModePopup(true);
       isUpdating.current = false;
       return;
     }
@@ -703,6 +709,13 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
           </View>
         )}
       </ResponseModal>
+      
+      {/* Cheat Mode Popup */}
+      <CheatModePopup
+        visible={showCheatModePopup}
+        onClose={() => setShowCheatModePopup(false)}
+        flowTitle={flow.title}
+      />
     </>
   );
 };

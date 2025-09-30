@@ -1251,13 +1251,13 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 });
               }
               
-              const emotions = ['Happy', 'Sad', 'Angry', 'Excited', 'Calm'];
+              const emotions = ['Sad', 'Slightly worried', 'Neutral', 'Slightly smiling', 'Big smile'];
               const emotionIcons = {
-                'Happy': '😊',
-                'Sad': '😢', 
-                'Angry': '😠',
-                'Excited': '🎉',
-                'Calm': '😌'
+                'Sad': '😞',
+                'Slightly worried': '😟', 
+                'Neutral': '😐',
+                'Slightly smiling': '🙂',
+                'Big smile': '😃'
               };
               
               return emotions.map((emotion) => {

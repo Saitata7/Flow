@@ -7,14 +7,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { FlowsContext } from '../../../context/FlowContext';
 import { useNavigation } from '@react-navigation/native';
 import { colors, hslUtils } from '../../../../styles';
+import CheatModePopup from '../../common/CheatModePopup';
 
 // Define emotions array
 const emotions = [
-  { label: 'Happy', emoji: '😊' },
-  { label: 'Neutral', emoji: '😐' },
   { label: 'Sad', emoji: '😞' },
-  { label: 'Excited', emoji: '🎉' },
-  { label: 'Stressed', emoji: '😓' },
+  { label: 'Slightly worried', emoji: '😟' },
+  { label: 'Neutral', emoji: '😐' },
+  { label: 'Slightly smiling', emoji: '🙂' },
+  { label: 'Big smile', emoji: '😃' },
 ];
 
 const getTimeVariation = (flow) => {
@@ -125,6 +126,7 @@ const UnifiedFlowCard = ({ flow }) => {
   const [tempEmotion, setTempEmotion] = useState(emotion);
   const [tempNote, setTempNote] = useState(note);
   const [tempStatus, setTempStatus] = useState(status);
+  const [showCheatModePopup, setShowCheatModePopup] = useState(false);
   
   // Tracking type specific state
   const [count, setCount] = useState(flow.status?.[todayKey]?.quantitative?.count || 0);
@@ -337,6 +339,12 @@ const UnifiedFlowCard = ({ flow }) => {
   }, [flow.id, todayKey, safeTimebased, isPaused, currentTime, updateTimeBased, updateFlowStatus, triggerHaptic]);
 
   const handleSkip = useCallback(() => {
+    // Check if cheat mode is enabled for this flow
+    if (!flow.cheatMode) {
+      setShowCheatModePopup(true);
+      return;
+    }
+
     triggerHaptic();
     const now = new Date().toISOString();
     const resetTimebased = {
@@ -347,7 +355,7 @@ const UnifiedFlowCard = ({ flow }) => {
       pausesCount: 0
     };
     updateFlowStatus(flow.id, todayKey, { symbol: '/', timebased: resetTimebased });
-  }, [flow.id, todayKey, updateFlowStatus, triggerHaptic]);
+  }, [flow.id, todayKey, updateFlowStatus, triggerHaptic, flow.cheatMode]);
 
   // Common handlers
   const handleSaveEdits = useCallback(async () => {
@@ -386,6 +394,12 @@ const UnifiedFlowCard = ({ flow }) => {
   };
 
   const handleReset = useCallback(async () => {
+    // Check if cheat mode is enabled for this flow
+    if (!flow.cheatMode) {
+      setShowCheatModePopup(true);
+      return;
+    }
+
     triggerHaptic();
     try {
       // Reset based on tracking type
@@ -697,12 +711,15 @@ const UnifiedFlowCard = ({ flow }) => {
             end={{ x: 1, y: 0 }}
           >
             <View style={styles.headerLeft}>
-              <Text style={styles.flowTitle}>
-                {flow.title}
+              <View style={styles.titleRow}>
+                <Text style={styles.flowTitle}>{flow.title}</Text>
                 {isCompleted && currentStreak > 3 && (
-                  <Text style={styles.streakText}> {currentStreak}</Text>
+                  <View style={styles.streakContainer}>
+                    <MaterialIcons name="local-fire-department" size={16} color="#F59E0B" style={styles.streakIcon} />
+                    <Text style={styles.streakText}>{currentStreak}</Text>
+                  </View>
                 )}
-              </Text>
+              </View>
               {flow.trackingType === 'Quantitative' && count > 1 && flow.goalCount && (
                 <Text style={styles.goalText}>Goal: {flow.goalCount}</Text>
               )}
@@ -732,12 +749,15 @@ const UnifiedFlowCard = ({ flow }) => {
         ) : (
           <View style={styles.headerContainer}>
             <View style={styles.headerLeft}>
-              <Text style={styles.flowTitle}>
-                {flow.title}
+              <View style={styles.titleRow}>
+                <Text style={styles.flowTitle}>{flow.title}</Text>
                 {isCompleted && currentStreak > 3 && (
-                  <Text style={styles.streakText}> {currentStreak}</Text>
+                  <View style={styles.streakContainer}>
+                    <MaterialIcons name="local-fire-department" size={16} color="#F59E0B" style={styles.streakIcon} />
+                    <Text style={styles.streakText}>{currentStreak}</Text>
+                  </View>
                 )}
-              </Text>
+              </View>
               {flow.trackingType === 'Quantitative' && count > 1 && flow.goalCount && (
                 <Text style={styles.goalText}>Goal: {flow.goalCount}</Text>
               )}
@@ -889,6 +909,13 @@ const UnifiedFlowCard = ({ flow }) => {
         )}
 
       </View>
+      
+      {/* Cheat Mode Popup */}
+      <CheatModePopup
+        visible={showCheatModePopup}
+        onClose={() => setShowCheatModePopup(false)}
+        flowTitle={flow.title}
+      />
     </TouchableOpacity>
   );
 };
@@ -898,11 +925,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 22, // Squircle formula
     backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
     overflow: 'hidden',
   },
   headerContainer: {
@@ -914,6 +936,11 @@ const styles = StyleSheet.create({
   },
   headerLeft: {
     flex: 3, // Flow name section (3/10)
+    flexWrap: 'wrap',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flexWrap: 'wrap',
   },
   timeSection: {
@@ -938,6 +965,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#F59E0B',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    marginLeft: 4,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  streakIcon: {
+    marginRight: 2,
   },
   timestampContainer: {
     flexDirection: 'row',

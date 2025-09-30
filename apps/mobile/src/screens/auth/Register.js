@@ -421,17 +421,17 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: layout.spacing.lg,
-    paddingTop: layout.spacing.xl,
-    paddingBottom: layout.spacing.xl,
+    paddingTop: layout.spacing.lg,
+    paddingBottom: layout.spacing.sm,
   },
   
   // Header Section
   headerSection: {
     alignItems: 'center',
-    marginBottom: layout.spacing.xl,
+    marginBottom: layout.spacing.lg,
   },
   logoContainer: {
-    marginBottom: layout.spacing.lg,
+    marginBottom: layout.spacing.md,
   },
   logoGradient: {
     width: 80,
@@ -439,11 +439,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 8,
   },
   welcomeTitle: {
     fontSize: typography.largeTitle.fontSize,
@@ -463,7 +458,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputContainer: {
-    marginBottom: layout.spacing.lg,
+    marginBottom: layout.spacing.md,
   },
   inputLabel: {
     fontSize: typography.sizes.caption1,

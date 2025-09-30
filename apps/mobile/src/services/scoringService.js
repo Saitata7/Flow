@@ -37,8 +37,8 @@ const SCORING_CONFIG = {
   
   // Emotion definitions
   EMOTIONS: {
-    POSITIVE: ['happy', 'proud', 'motivated', 'excited', 'calm'],
-    NEGATIVE: ['sad', 'tired', 'angry', 'frustrated', 'anxious'],
+    POSITIVE: ['slightly smiling', 'big smile'],
+    NEGATIVE: ['sad', 'slightly worried'],
   },
   
   // Partial completion thresholds
@@ -591,7 +591,7 @@ export const calculateEmotionDistribution = (flow) => {
   if (!startDate.isValid()) {
     return {
       totalEmotions: 0,
-      byEmotion: { Happy: 0, Sad: 0, Angry: 0, Excited: 0, Calm: 0 },
+      byEmotion: { Sad: 0, 'Slightly worried': 0, Neutral: 0, 'Slightly smiling': 0, 'Big smile': 0 },
       positiveCount: 0,
       negativeCount: 0,
     };
@@ -632,7 +632,7 @@ export const calculateEmotionDistribution = (flow) => {
     byEmotion: emotions.reduce((acc, { emotion }) => {
       acc[emotion] = (acc[emotion] || 0) + 1;
       return acc;
-    }, { Happy: 0, Sad: 0, Angry: 0, Excited: 0, Calm: 0 }),
+    }, { Sad: 0, 'Slightly worried': 0, Neutral: 0, 'Slightly smiling': 0, 'Big smile': 0 }),
     positiveCount,
     negativeCount,
   };

@@ -83,12 +83,8 @@ const SettingsMenu = ({ visible, onClose }) => {
   const handleCategoryPress = (category) => {
     console.log('SettingsMenu: Navigating to:', category.screen);
     onClose();
-    // First navigate to SettingsStack, then to the specific screen
-    navigation.navigate('SettingsStack');
-    // Use a small delay to ensure the navigation completes
-    setTimeout(() => {
-      navigation.navigate(category.screen);
-    }, 50);
+    // Navigate to SettingsStack first, then to the specific screen
+    navigation.navigate('SettingsStack', { screen: category.screen });
   };
 
   const handleSignOut = () => {

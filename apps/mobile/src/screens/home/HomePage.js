@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -9,6 +9,8 @@ import {
   StatusBar,
   ScrollView,
   FlatList,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -37,6 +39,11 @@ export default function HomePage({ navigation }) {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const insets = useSafeAreaInsets(); // Get safe area insets for proper positioning
   
+  // Animation for FAB subtle attention effect
+  const gentlePulse = useRef(new Animated.Value(1)).current;
+  const subtleGlow = useRef(new Animated.Value(0)).current;
+  const borderRotate = useRef(new Animated.Value(0)).current;
+  
   // FTUE (First-Time User Experience)
   const { showFTUE, completeFTUE, startFTUE } = useFTUE();
 
@@ -64,6 +71,70 @@ export default function HomePage({ navigation }) {
       }
     }, [loadData, flows.length])
   );
+
+  // Start the subtle attention animation
+  useEffect(() => {
+    // Gentle pulse - very subtle scaling
+    const startGentlePulse = () => {
+      gentlePulse.setValue(1);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(gentlePulse, {
+            toValue: 1.08,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(gentlePulse, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.delay(1000), // Pause between pulses
+        ])
+      ).start();
+    };
+
+    // Subtle glow - soft opacity change
+    const startSubtleGlow = () => {
+      subtleGlow.setValue(0);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(subtleGlow, {
+            toValue: 0.3,
+            duration: 1500,
+            easing: Easing.out(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(subtleGlow, {
+            toValue: 0,
+            duration: 1500,
+            easing: Easing.in(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.delay(2000), // Longer pause between glows
+        ])
+      ).start();
+    };
+
+    // Circular border rotation
+    const startBorderRotation = () => {
+      borderRotate.setValue(0);
+      Animated.loop(
+        Animated.timing(borderRotate, {
+          toValue: 1,
+          duration: 3000, // 3 seconds per rotation
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+    };
+
+    startGentlePulse();
+    startSubtleGlow();
+    startBorderRotation();
+  }, [gentlePulse, subtleGlow, borderRotate]);
 
   const now = moment();
   const today = moment().format('ddd'); // e.g., 'Mon'
@@ -268,24 +339,68 @@ export default function HomePage({ navigation }) {
         </ScrollView>
       
       {/* Floating Action Button - Add Flow */}
-      <TouchableOpacity
-        style={[styles.fabContainer, { bottom: 60 + insets.bottom + layout.spacing.lg }]} // Tab bar height (60) + safe area + padding
-        onPress={() => navigation.navigate('AddFlow')}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#F7BA53', '#F7A053']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.fabGradient}
+      <View style={[styles.fabContainer, { bottom: 60 + insets.bottom + layout.spacing.lg }]}>
+        {/* Circular Shining Border */}
+        <Animated.View
+          style={[
+            styles.circularBorder,
+            {
+              transform: [
+                {
+                  rotate: borderRotate.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0deg', '360deg'],
+                  }),
+                },
+              ],
+            },
+          ]}
         >
-          <Ionicons 
-            name="add" 
-            size={28} 
-            color="#FFFFFF" 
+          <LinearGradient
+            colors={['#F7BA53', '#FFD700', '#FFA500', '#F7BA53']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.borderGradient}
           />
-        </LinearGradient>
-      </TouchableOpacity>
+        </Animated.View>
+        
+        {/* Subtle Glow Effect */}
+        <Animated.View
+          style={[
+            styles.subtleGlow,
+            {
+              opacity: subtleGlow,
+              transform: [{ scale: gentlePulse }],
+            },
+          ]}
+        />
+        
+        {/* Main FAB Button */}
+        <Animated.View
+          style={{
+            transform: [{ scale: gentlePulse }],
+          }}
+        >
+          <TouchableOpacity
+            style={styles.fabButton}
+            onPress={() => navigation.navigate('AddFlow')}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={['#F7BA53', '#F7A053']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.fabGradient}
+            >
+              <Ionicons 
+                name="add" 
+                size={28} 
+                color="#FFFFFF" 
+              />
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
       
       {/* FTUE Overlay */}
       <FTUEOverlay
@@ -386,11 +501,45 @@ const styles = StyleSheet.create({
     position: 'absolute',
     // bottom: calculated dynamically with safe area
     right: layout.spacing.lg, // Right corner positioning using spacing token
+    width: 68, // Larger to accommodate circular border
+    height: 68,
+    zIndex: 999, // Above content, below tab bar
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circularBorder: {
+    position: 'absolute',
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    padding: 2, // Border thickness
+  },
+  borderGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+  },
+  subtleGlow: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(247, 186, 83, 0.2)', // Very subtle orange glow
+    // Soft shadow
+    shadowColor: '#F7BA53',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  fabButton: {
     width: 56, // Standard FAB size (components.fab.size)
     height: 56,
     borderRadius: 28, // Perfect circle (components.fab.borderRadius)
-    zIndex: 999, // Above content, below tab bar
-    // Shadow for floating effect - using elevation tokens
+    // Standard shadow for floating effect
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

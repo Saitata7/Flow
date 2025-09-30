@@ -178,7 +178,15 @@ const AnalyticsDashboard = ({ flows, theme = 'light', navigation }) => {
       onPress={() => navigation?.navigate('FlowStatsDetail', { flowId: flow.id })}
     >
       <View style={styles.flowCardHeader}>
-        <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+          {flow.streak > 3 && (
+            <View style={styles.streakContainer}>
+              <Ionicons name="flame" size={16} color="#F59E0B" style={styles.streakIcon} />
+              <Text style={styles.streakText}>{flow.streak}</Text>
+            </View>
+          )}
+        </View>
         <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? colors.light.success : flow.performance >= 60 ? colors.light.warning : colors.light.error }]}>
           <Text style={styles.performanceText}>{flow.performance.toFixed(0)}%</Text>
         </View>
@@ -491,6 +499,25 @@ const styles = StyleSheet.create({
     ...typography.styles.title3,
     fontWeight: '600',
     flex: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    flex: 1,
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: layout.spacing.sm,
+  },
+  streakIcon: {
+    marginRight: 2,
+  },
+  streakText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#F59E0B',
   },
   performanceBadge: {
     paddingHorizontal: layout.spacing.sm,
