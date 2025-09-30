@@ -171,8 +171,8 @@ const TodaysFlows = ({ visibleFlows }) => {
 
   const sortedFlows = [...visibleFlows].sort((a, b) => {
     const todayKey = moment().format('YYYY-MM-DD');
-    const statusA = a.status?.[todayKey]?.symbol || '-';
-    const statusB = b.status?.[todayKey]?.symbol || '-';
+    const statusA = a.status?.[todayKey]?.symbol || '/';
+    const statusB = b.status?.[todayKey]?.symbol || '/';
     
     // Check if tasks are completed (any completion status)
     const isCompletedA = ['+', '✓'].includes(statusA);
@@ -229,7 +229,7 @@ const TodaysFlows = ({ visibleFlows }) => {
   return (
     <View >
       {sortedFlows.map((flow) => {
-        const key = `${flow.id}-${flow.status?.[moment().format('YYYY-MM-DD')]?.symbol || '-'}-${refreshKey}`;
+        const key = `${flow.id}-${flow.status?.[moment().format('YYYY-MM-DD')]?.symbol || '/'}-${refreshKey}`;
         return (
           <UnifiedFlowCard
             key={key}

@@ -12,10 +12,8 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
   const [dateOffset, setDateOffset] = useState(0);
   const [animating, setAnimating] = useState(false);
 
-  // Get active flows (daily flows) - same logic as HomePage
+  // Get active flows - show flows that are scheduled for any date in the current range
   const activeFlows = useMemo(() => {
-    const today = moment().format('ddd'); // e.g., 'Mon'
-    const todayDate = moment().format('D'); // e.g., '21'
     const now = moment();
     
     const filteredFlows = flows.filter((flow) => {
@@ -24,24 +22,35 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
         return false;
       }
       
-      // Normalize frequency/repeatType
-      const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
-      const isTodayScheduled =
-        frequency === 'Daily'
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(today))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(todayDate);
-
-      if (!isTodayScheduled) return false;
-
-      // Include flows regardless of time/reminderTime unless time-based filtering is explicitly required
-      // Optionally, check startDate if present
+      // Check if flow has started
       const startDate = flow.startDate ? moment(flow.startDate) : null;
       const isStarted = !startDate || now.isSameOrAfter(startDate, 'day');
-
-      return isStarted;
+      
+      if (!isStarted) return false;
+      
+      // Check if flow is scheduled for any date in the current range (yesterday, today, tomorrow)
+      const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
+      
+      // Check if scheduled for any of the 3 days we're showing
+      const today = moment().add(dateOffset, 'days');
+      for (let i = -1; i <= 1; i++) {
+        const checkDate = today.clone().add(i, 'days');
+        const dayOfWeek = checkDate.format('ddd');
+        const dayOfMonth = checkDate.format('D');
+        
+        const isScheduledForThisDate = frequency === 'Daily'
+          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(dayOfWeek))
+          : flow.selectedMonthDays && flow.selectedMonthDays.includes(dayOfMonth);
+          
+        if (isScheduledForThisDate) {
+          return true; // Flow is scheduled for at least one day in the range
+        }
+      }
+      
+      return false; // Flow is not scheduled for any day in the range
     });
     
-    console.log('FlowGrid: Active flows:', filteredFlows.map(f => ({ 
+    console.log('FlowGrid: Active flows for dateOffset', dateOffset, ':', filteredFlows.map(f => ({ 
       id: f.id, 
       title: f.title, 
       frequency: f.frequency,
@@ -52,7 +61,7 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
       startDate: f.startDate
     })));
     return filteredFlows;
-  }, [flows]);
+  }, [flows, dateOffset]);
 
   // Generate date range centered on today + offset
   const dateRange = useMemo(() => {
@@ -71,30 +80,53 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
   // Get flow status for a specific date
   const getFlowStatus = (flow, date) => {
     const dateStr = date.format('YYYY-MM-DD');
+    const dayOfWeek = date.format('ddd'); // e.g., 'Mon'
+    const dayOfMonth = date.format('D'); // e.g., '21'
+    const today = moment().format('YYYY-MM-DD');
+    const isFutureDate = dateStr > today;
+    
+    // Check if this flow is actually scheduled for this specific date
+    const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
+    const isScheduledForThisDate = frequency === 'Daily'
+      ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(dayOfWeek))
+      : flow.selectedMonthDays && flow.selectedMonthDays.includes(dayOfMonth);
+    
+    // If not scheduled for this date, don't show anything
+    if (!isScheduledForThisDate) {
+      console.log(`FlowGrid: Flow "${flow.title}" not scheduled for ${dateStr} (${dayOfWeek}) - frequency: ${frequency}, everyDay: ${flow.everyDay}, daysOfWeek: ${JSON.stringify(flow.daysOfWeek)}`);
+      return 'none';
+    }
+    
+    // Check if flow has started (for future dates)
+    if (isFutureDate) {
+      const startDate = flow.startDate ? moment(flow.startDate) : null;
+      const isStarted = !startDate || date.isSameOrAfter(startDate, 'day');
+      if (!isStarted) {
+        return 'none';
+      }
+    }
+    
     const status = flow.status?.[dateStr];
     
     if (!status) {
       return 'none'; // Not scheduled
     }
     
-    // Check if this is a future date (tomorrow or later)
-    const today = moment().format('YYYY-MM-DD');
-    const isFutureDate = dateStr > today;
-    
-    // For future dates, don't show any status unless explicitly set
-    if (isFutureDate && !status.symbol) {
-      return 'none'; // Future dates with no symbol should show as not scheduled
+    // For future dates, don't show anything (no circles)
+    if (isFutureDate) {
+      console.log(`FlowGrid: Future date ${dateStr} for flow "${flow.title}" - not showing circle`);
+      return 'none'; // Future dates show nothing
     }
     
     // Check the symbol field which is used in the existing system
-    if (status.symbol === '+') {
+    if (status.symbol === '+' || status.symbol === '✓') {
       return 'done';
     } else if (status.symbol === '-') {
       return 'missed';
-    } else if (status.symbol === '~' || status.symbol === '≈' || status.symbol === 'p' || status.symbol === '/') {
-      return 'partial'; // Partial completion or incomplete
-    } else if (status.symbol === 's' || status.symbol === 'skip') {
-      return 'skip'; // Skipped
+    } else if (status.symbol === '*' || status.symbol === '~' || status.symbol === '≈' || status.symbol === 'p') {
+      return 'partial'; // Partial completion
+    } else if (status.symbol === '/' || status.symbol === 's' || status.symbol === 'skip') {
+      return 'skip'; // Incomplete/pending or skipped
     } else {
       return 'available'; // Scheduled but not completed
     }
@@ -123,6 +155,8 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
   const renderStatusCircle = (flow, date, flowIndex, dateIndex) => {
     const status = getFlowStatus(flow, date);
     const isToday = date.isSame(moment(), 'day');
+    
+    console.log(`FlowGrid: renderStatusCircle - Flow: ${flow.title}, Date: ${date.format('ddd D')}, Status: ${status}`);
 
     const getCircleStyle = () => {
       const baseStyle = {

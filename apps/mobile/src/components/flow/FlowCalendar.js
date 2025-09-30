@@ -20,7 +20,6 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
   const { theme = 'light', textSize = 'medium', highContrast = false, accentColor = '#007AFF', cheatMode = false } = useContext(ThemeContext) || {};
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isUpdating = useRef(false);
-  const [showEmotions, setShowEmotions] = useState(true); // Toggle for showing emotions
   const [modalState, setModalState] = useState({
     selectedDate: null,
     pendingStatus: null,
@@ -32,9 +31,6 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
     timeDuration: { hours: '', minutes: '', seconds: '' },
   });
   
-  // DEBUG: Force show emotions
-  console.log('FlowCalendar: showEmotions =', showEmotions);
-  console.log('FlowCalendar: toggle state debug - showEmotions:', showEmotions, 'type:', typeof showEmotions);
 
   useEffect(() => {
     console.log('Flow status updated:', flow.status);
@@ -332,13 +328,39 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
         const duration = status.timebased?.totalDuration || status.timeUpdate?.totalDuration || 0;
         displaySymbol = duration > 0 ? '+' : '/';
       }
+      // Define colors for different status types
+      let backgroundColor;
+      let textColor;
+      
+      if (displaySymbol === '+' || displaySymbol === '✅') {
+        // Completed - Green
+        backgroundColor = themeColors.success;
+        textColor = themeColors.background;
+      } else if (displaySymbol === '-' || displaySymbol === '❌') {
+        // Missed/Failed - Red
+        backgroundColor = themeColors.error;
+        textColor = themeColors.background;
+      } else if (displaySymbol === '*' || displaySymbol === '~' || displaySymbol === '🔄') {
+        // Partial - Orange/Yellow
+        backgroundColor = themeColors.warning || '#FFA500';
+        textColor = themeColors.background;
+      } else if (displaySymbol === '/' || displaySymbol === '⏭️') {
+        // Skip/Inactive - Gray
+        backgroundColor = themeColors.progressBackground;
+        textColor = themeColors.secondaryText;
+      } else {
+        // Default - Gray
+        backgroundColor = themeColors.progressBackground;
+        textColor = themeColors.secondaryText;
+      }
+      
       dates[date] = {
         customStyles: {
           container: {
-            backgroundColor: displaySymbol === '+' ? themeColors.success : displaySymbol === '-' ? themeColors.error : themeColors.progressBackground,
+            backgroundColor: backgroundColor,
           },
           text: {
-            color: displaySymbol === '/' ? themeColors.secondaryText : themeColors.background,
+            color: textColor,
             fontWeight: highContrast ? '700' : 'bold',
           },
         },
@@ -387,7 +409,7 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
 
     // Debug logging
     if (status?.emotion) {
-      console.log(`Date ${dateKey}: emotion=${status.emotion}, emoji=${emotion}, showEmotions=${showEmotions}`);
+      console.log(`Date ${dateKey}: emotion=${status.emotion}, emoji=${emotion}`);
     }
     
     // Specific debug for September 23rd
@@ -396,7 +418,6 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
       console.log('- Status:', status);
       console.log('- Emotion:', status?.emotion);
       console.log('- Emotion emoji:', emotion);
-      console.log('- Show emotions:', showEmotions);
       console.log('- Available emotions:', emotions);
     }
 
@@ -435,8 +456,9 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
               styles.statusSymbol,
               {
                 fontSize: textSize === 'small' ? 12 : textSize === 'large' ? 16 : 14,
-                color: statusSymbol === '+' ? themeColors.success : 
-                       statusSymbol === '-' ? themeColors.error : 
+                color: statusSymbol === '+' || statusSymbol === '✅' ? themeColors.success : 
+                       statusSymbol === '-' || statusSymbol === '❌' ? themeColors.error : 
+                       statusSymbol === '*' || statusSymbol === '~' || statusSymbol === '🔄' ? (themeColors.warning || '#FFA500') :
                        themeColors.secondaryText,
               },
             ]}
@@ -445,8 +467,8 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
           </Text>
         )}
         
-        {/* Mood/Emotion Indicator - FORCE SHOW FOR DEBUGGING */}
-        {(showEmotions || true) && emotion && (
+        {/* Mood/Emotion Indicator */}
+        {emotion && (
           <Text
             style={[
               styles.moodIndicator,
@@ -579,37 +601,6 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
 
   return (
     <>
-      {/* Emotion Toggle Button */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[
-            styles.toggleButton,
-            {
-              backgroundColor: showEmotions ? themeColors.primaryOrange : themeColors.cardBackground,
-              borderColor: themeColors.border,
-            },
-          ]}
-          onPress={() => {
-            console.log('Toggling emotions from', showEmotions, 'to', !showEmotions);
-            setShowEmotions(!showEmotions);
-          }}
-          accessibilityLabel={showEmotions ? "Hide emotions" : "Show emotions"}
-          accessibilityHint="Toggle emotion display in calendar"
-        >
-          <Text style={styles.toggleEmoji}>😊</Text>
-          <Text
-            style={[
-              styles.toggleText,
-              {
-                color: showEmotions ? '#FFFFFF' : themeColors.primaryText,
-              },
-            ]}
-          >
-            {showEmotions ? 'Hide Emotions' : 'Show Emotions'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      
       <Calendar
         current={currentMonth.format('YYYY-MM-DD')}
         markedDates={markedDates}
@@ -723,28 +714,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: layout.spacing.sm,
-  },
-  toggleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: layout.spacing.md,
-    paddingVertical: layout.spacing.sm,
-    borderRadius: layout.radii.base,
-    borderWidth: 1,
-    ...layout.elevation.low,
-  },
-  toggleEmoji: {
-    fontSize: 16,
-    marginRight: layout.spacing.xs,
-  },
-  toggleText: {
-    ...typography.styles.caption,
-    fontWeight: '600',
   },
   dayContainer: {
     alignItems: 'center',

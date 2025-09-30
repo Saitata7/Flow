@@ -57,6 +57,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
   const [dateOffset, setDateOffset] = useState(0); // For navigating through date ranges
   const [showCalculationModal, setShowCalculationModal] = useState(false);
   const [selectedChart, setSelectedChart] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
@@ -234,7 +235,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
     const bestDay = data.reduce((best, day) => day.intensity > best.intensity ? day : best, data[0]);
 
     return (
-      <Card variant="default" padding="lg" margin="md">
+      <Card variant="default" padding="lg" margin="xs">
         <View style={styles.heatMapHeader}>
           <View style={styles.heatMapTitleContainer}>
             <Ionicons name="calendar" size={24} color={themeColors.primaryOrange} />
@@ -854,7 +855,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
   }
 
   return (
-    <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
+    <SafeAreaWrapper style={{ backgroundColor: themeColors.background }} excludeBottom={true}>
       <ScrollView
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
@@ -877,7 +878,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </View>
           <View style={styles.headerActions}>
             <TouchableOpacity
-              style={styles.headerActionButton}
+              style={styles.calendarButton}
               onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
               accessibilityLabel="Open flow calendar"
               accessibilityHint="View and manage flow entries in calendar view"
@@ -885,41 +886,12 @@ const FlowStatsDetail = ({ route, navigation }) => {
               <Ionicons name="calendar-outline" size={24} color={themeColors.primaryText} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={() => navigation.navigate('EditFlow', { flowId: flow.id })}
-              accessibilityLabel="Edit flow"
-              accessibilityHint="Modify flow settings and configuration"
+              style={styles.menuButton}
+              onPress={() => setShowMenu(true)}
+              accessibilityLabel="Flow options"
+              accessibilityHint="Show edit and delete options"
             >
-              <Ionicons name="create-outline" size={24} color={themeColors.primaryText} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerActionButton}
-              onPress={() => {
-                Alert.alert(
-                  'Delete Flow',
-                  `Are you sure you want to delete "${flow.title}"? This action cannot be undone.`,
-                  [
-                    {
-                      text: 'Cancel',
-                      style: 'cancel',
-                    },
-                    {
-                      text: 'Delete',
-                      style: 'destructive',
-                      onPress: () => {
-                        if (deleteFlow) {
-                          deleteFlow(flow.id);
-                          navigation.goBack();
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-              accessibilityLabel="Delete flow"
-              accessibilityHint="Permanently delete this flow"
-            >
-              <Ionicons name="trash-outline" size={24} color={themeColors.error} />
+              <Ionicons name="ellipsis-vertical" size={24} color={themeColors.primaryText} />
             </TouchableOpacity>
           </View>
         </View>
@@ -1161,15 +1133,24 @@ const FlowStatsDetail = ({ route, navigation }) => {
         </View>
 
         {/* Heat Map */}
-        <HeatMap
-          data={analytics.heatMapData}
-          title="Activity Heat Map"
-          subtitle={`Your ${flow.trackingType.toLowerCase()} activity over the last 3 months`}
-        />
+        <View style={styles.sectionContainer}>
+          <HeatMap
+            data={analytics.heatMapData}
+            title="Activity Heat Map"
+            subtitle={`Your ${flow.trackingType.toLowerCase()} activity over the last 3 months`}
+          />
+          <TouchableOpacity
+            style={styles.viewCalendarButton}
+            onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
+          >
+            <Ionicons name="calendar-outline" size={16} color={themeColors.primaryOrange} />
+            <Text style={[styles.viewCalendarText, { color: themeColors.primaryOrange }]}>View Calendar</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Type-Specific Stats */}
         {flow.trackingType === 'Quantitative' && analytics.quantitativeStats && (
-          <Card variant="default" padding="lg" margin="md">
+          <Card variant="default" padding="lg" margin="xs">
             <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Quantitative Analysis</Text>
             <View style={styles.metricsGrid}>
               {analytics.quantitativeStats.map((stat, index) => (
@@ -1186,7 +1167,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
         )}
 
         {flow.trackingType === 'Time-based' && analytics.timeBasedStats && (
-          <Card variant="default" padding="lg" margin="md">
+          <Card variant="default" padding="lg" margin="xs">
             <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Time Analysis</Text>
             <View style={styles.metricsGrid}>
               {analytics.timeBasedStats.map((stat, index) => (
@@ -1203,8 +1184,17 @@ const FlowStatsDetail = ({ route, navigation }) => {
         )}
 
         {/* Notes Tracking */}
-        <Card variant="default" padding="lg" margin="md">
-          <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Notes & Reflections</Text>
+        <Card variant="default" padding="lg" margin="xs">
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Notes & Reflections</Text>
+            <TouchableOpacity
+              style={styles.viewNotesButton}
+              onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
+            >
+              <Ionicons name="document-text-outline" size={16} color={themeColors.primaryOrange} />
+              <Text style={[styles.viewNotesText, { color: themeColors.primaryOrange }]}>View Notes</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.notesTracking}>
             {(() => {
               const scoreboard = getScoreboard(flowId);
@@ -1235,11 +1225,32 @@ const FlowStatsDetail = ({ route, navigation }) => {
         </Card>
 
         {/* Emotional Tracking */}
-        <Card variant="default" padding="lg" margin="md">
-          <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Emotional Tracking</Text>
+        <Card variant="default" padding="lg" margin="xs">
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Emotional Tracking</Text>
+            <TouchableOpacity
+              style={styles.viewEmotionsButton}
+              onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
+            >
+              <Ionicons name="heart-outline" size={16} color={themeColors.primaryOrange} />
+              <Text style={[styles.viewEmotionsText, { color: themeColors.primaryOrange }]}>View</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.emotionalTrackingSingleLine}>
             {(() => {
               const emotionalData = getEmotionalActivity(flowId);
+              console.log('FlowStatsDetail: Emotional data for flowId', flowId, ':', emotionalData);
+              console.log('FlowStatsDetail: Flow object:', { id: flow?.id, title: flow?.title, statusKeys: Object.keys(flow?.status || {}) });
+              
+              // Debug: Check specific status entries
+              if (flow?.status) {
+                Object.entries(flow.status).forEach(([date, status]) => {
+                  if (status.emotion) {
+                    console.log(`FlowStatsDetail: Found emotion on ${date}:`, status.emotion);
+                  }
+                });
+              }
+              
               const emotions = ['Happy', 'Sad', 'Angry', 'Excited', 'Calm'];
               const emotionIcons = {
                 'Happy': '😊',
@@ -1257,8 +1268,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
                   <View key={emotion} style={styles.emotionItemSingleLine}>
                     <Text style={[styles.emotionEmoji, { fontSize: 16 }]}>{emotionIcons[emotion]}</Text>
                     <Text style={[styles.emotionLabelSingleLine, { color: themeColors.primaryText }]}>{emotion}</Text>
-                    <Text style={[styles.emotionCountSingleLine, { color: themeColors.primaryOrange }]}>{count}</Text>
-                    <Text style={[styles.emotionPercentageSingleLine, { color: themeColors.secondaryText }]}>{percentage}%</Text>
+                    {/* Only show percentage with color */}
+                    <Text style={[styles.emotionPercentageSingleLine, { color: themeColors.primaryOrange }]}>{percentage}%</Text>
                   </View>
                 );
               });
@@ -1334,6 +1345,9 @@ const FlowStatsDetail = ({ route, navigation }) => {
             })()}
           </View>
         </Card>
+
+        {/* Bottom spacing */}
+        <View style={styles.bottomSpacing} />
       </ScrollView>
 
       {/* Calculation Modal */}
@@ -1492,6 +1506,65 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* Options Menu Modal */}
+      <Modal
+        visible={showMenu}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowMenu(false)}
+        >
+          <View style={[styles.menuContainer, { backgroundColor: themeColors.cardBackground }]}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                navigation.navigate('EditFlow', { flowId: flow.id });
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color={themeColors.primaryText} />
+              <Text style={[styles.menuItemText, { color: themeColors.primaryText }]}>Edit</Text>
+            </TouchableOpacity>
+            
+            <View style={[styles.menuDivider, { backgroundColor: themeColors.border }]} />
+            
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setShowMenu(false);
+                Alert.alert(
+                  'Delete Flow',
+                  `Are you sure you want to delete "${flow.title}"? This action cannot be undone.`,
+                  [
+                    {
+                      text: 'Cancel',
+                      style: 'cancel',
+                    },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => {
+                        if (deleteFlow) {
+                          deleteFlow(flow.id);
+                          navigation.goBack();
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="trash-outline" size={20} color={themeColors.error} />
+              <Text style={[styles.menuItemText, { color: themeColors.error }]}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaWrapper>
   );
 };
@@ -1502,7 +1575,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: layout.spacing.sm,
-    paddingBottom: layout.spacing.xl + 80,
+    paddingBottom: layout.spacing.lg,
   },
   emptyState: {
     alignItems: 'center',
@@ -1550,14 +1623,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
-  headerActionButton: {
+  calendarButton: {
     padding: layout.spacing.sm,
-    marginLeft: layout.spacing.sm,
-    borderRadius: layout.radii.small,
-    backgroundColor: 'rgba(0,0,0,0.05)',
-    minWidth: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginRight: layout.spacing.sm,
+  },
+  menuButton: {
+    padding: layout.spacing.sm,
   },
   timeframeSelector: {
     flexDirection: 'row',
@@ -1589,7 +1660,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.xs,
   },
   metricCard: {
     width: '48%',
@@ -1675,7 +1746,7 @@ const styles = StyleSheet.create({
   insightsTitle: {
     ...typography.styles.title3,
     fontWeight: '600',
-    marginBottom: layout.spacing.sm,
+    marginBottom: layout.spacing.xs,
   },
   insightsList: {
     // Container for insights
@@ -1693,7 +1764,7 @@ const styles = StyleSheet.create({
   },
   // Impressive Heat Map Styles
   heatMapHeader: {
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.xs,
   },
   heatMapTitleContainer: {
     flexDirection: 'row',
@@ -1824,7 +1895,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   emotionalTrackingSingleLine: {
-    marginTop: layout.spacing.sm,
+    marginTop: layout.spacing.xs,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
@@ -2088,6 +2159,101 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     minWidth: 60,
     textAlign: 'right',
+  },
+  // Menu styles
+  menuContainer: {
+    borderRadius: layout.radii.md,
+    padding: layout.spacing.sm,
+    minWidth: 150,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.sm,
+  },
+  menuItemText: {
+    ...typography.styles.body,
+    marginLeft: layout.spacing.sm,
+    fontWeight: '500',
+  },
+  menuDivider: {
+    height: 1,
+    marginVertical: layout.spacing.xs,
+  },
+  // Section navigation styles
+  sectionContainer: {
+    position: 'relative',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: layout.spacing.md,
+  },
+  viewCalendarButton: {
+    position: 'absolute',
+    top: layout.spacing.md,
+    right: layout.spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
+    borderRadius: layout.radii.sm,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  viewCalendarText: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    marginLeft: layout.spacing.xs,
+    fontSize: 12,
+  },
+  viewNotesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,149,0,0.1)',
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
+    borderRadius: layout.radii.sm,
+  },
+  viewNotesText: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    marginLeft: layout.spacing.xs,
+    fontSize: 12,
+  },
+  viewEmotionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,149,0,0.1)',
+    paddingHorizontal: layout.spacing.sm,
+    paddingVertical: layout.spacing.xs,
+    borderRadius: layout.radii.sm,
+  },
+  viewEmotionsText: {
+    ...typography.styles.caption,
+    fontWeight: '600',
+    marginLeft: layout.spacing.xs,
+    fontSize: 12,
+  },
+  bottomSpacing: {
+    height: layout.spacing.xl * 2,
   },
   totalRow: {
     borderTopWidth: 1,

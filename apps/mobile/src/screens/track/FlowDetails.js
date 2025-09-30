@@ -1,5 +1,5 @@
 import React, { useState, useContext, useMemo, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Dimensions, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ThemeContext } from '../../context/ThemeContext';
@@ -10,258 +10,17 @@ import moment from 'moment';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
 import { colors, layout, typography } from '../../../styles';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const FlowDetail = ({ route, navigation }) => {
   const { flowId, initialTab = 'calendar' } = route.params || {};
-  const { flows = [], updateFlow = () => {} } = useContext(FlowsContext) || {};
-  const { getScoreboard, getActivityStats, getEmotionalActivity, getFlowSummary } = useContext(ActivityContext) || {};
+  const { flows = [], updateFlow = () => {}, deleteFlow = () => {} } = useContext(FlowsContext) || {};
+  const { getFlowSummary } = useContext(ActivityContext) || {};
   const { theme = 'light', accentColor = '#007AFF', textSize = 'medium', highContrast = false } = useContext(ThemeContext) || {};
   const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
-  const [selectedView, setSelectedView] = useState(initialTab === 'calendar' ? 'scoreboard' : initialTab);
-  const [chartTimeframe, setChartTimeframe] = useState('weekly'); // Chart-specific timeframe
-
-  // Add scoreboard view
-  const renderScoreboardView = () => {
-    console.log('FlowDetails: renderScoreboardView - flowId:', flowId);
-    console.log('FlowDetails: chartTimeframe:', chartTimeframe);
-    const scoreboardData = getScoreboard(flowId);
-    console.log('FlowDetails: scoreboardData:', scoreboardData);
-    
-    return (
-      <View>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.title, dynamicStyles.title]}>Scoreboard</Text>
-            <Text style={[styles.detail, dynamicStyles.detail]}>
-              Track your scoring and achievements
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.scoreboardStats}>
-          <Text style={[styles.statsTitle, dynamicStyles.statsTitle]}>Score Summary</Text>
-          <View style={styles.scoreboardGrid}>
-            <View style={styles.scoreboardItem}>
-              <Text style={[styles.scoreboardValue, { color: themeColors.primaryOrange }]}>
-                {scoreboardData.finalScore || 0}
-              </Text>
-              <Text style={[styles.scoreboardLabel, dynamicStyles.statLabel]}>Final Score</Text>
-            </View>
-            <View style={styles.scoreboardItem}>
-              <Text style={[styles.scoreboardValue, { color: themeColors.success }]}>
-                {Math.round(scoreboardData.completionRate || 0)}%
-              </Text>
-              <Text style={[styles.scoreboardLabel, dynamicStyles.statLabel]}>Completion Rate</Text>
-            </View>
-            <View style={styles.scoreboardItem}>
-              <Text style={[styles.scoreboardValue, { color: themeColors.primaryText }]}>
-                {scoreboardData.longestStreak || 0}
-              </Text>
-              <Text style={[styles.scoreboardLabel, dynamicStyles.statLabel]}>Longest Streak</Text>
-            </View>
-            <View style={styles.scoreboardItem}>
-              <Text style={[styles.scoreboardValue, { color: themeColors.primaryText }]}>
-                {scoreboardData.currentStreak || 0}
-              </Text>
-              <Text style={[styles.scoreboardLabel, dynamicStyles.statLabel]}>Current Streak</Text>
-            </View>
-            <View style={styles.scoreboardItem}>
-              <Text style={[styles.scoreboardValue, { color: themeColors.secondaryText }]}>
-                {scoreboardData.emotionBonus || 0}
-              </Text>
-              <Text style={[styles.scoreboardLabel, dynamicStyles.statLabel]}>Emotion Bonus</Text>
-            </View>
-            <View style={styles.scoreboardItem}>
-              <Text style={[styles.scoreboardValue, { color: themeColors.secondaryText }]}>
-                {scoreboardData.notesCount || 0}
-              </Text>
-              <Text style={[styles.scoreboardLabel, dynamicStyles.statLabel]}>Notes Count</Text>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.scoreboardBreakdown}>
-          <Text style={[styles.statsTitle, dynamicStyles.statsTitle]}>Success Rate Analysis</Text>
-          {(() => {
-            // Use scheduledDays directly from scoreboard data
-            const scheduledDays = scoreboardData.scheduledDays || 0;
-            const overallSuccessRate = scheduledDays > 0 ? ((scoreboardData.completed || 0) + (scoreboardData.partial || 0)) / scheduledDays * 100 : 0;
-            const pureCompletionRate = scheduledDays > 0 ? (scoreboardData.completed || 0) / scheduledDays * 100 : 0;
-            const partialSuccessRate = scheduledDays > 0 ? (scoreboardData.partial || 0) / scheduledDays * 100 : 0;
-            const failureRate = scheduledDays > 0 ? (scoreboardData.failed || 0) / scheduledDays * 100 : 0;
-            const skipRate = scheduledDays > 0 ? (scoreboardData.skipped || 0) / scheduledDays * 100 : 0;
-            
-            return (
-              <>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Overall Success Rate</Text>
-                  <Text style={[styles.statValue, { color: '#4CAF50' }]}>
-                    {overallSuccessRate.toFixed(1)}%
-                  </Text>
-                </View>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Pure Completion Rate</Text>
-                  <Text style={[styles.statValue, { color: '#FF9500' }]}>
-                    {pureCompletionRate.toFixed(1)}%
-                  </Text>
-                </View>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Partial Success Rate</Text>
-                  <Text style={[styles.statValue, { color: '#F2A005' }]}>
-                    {partialSuccessRate.toFixed(1)}%
-                  </Text>
-                </View>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Failure Rate</Text>
-                  <Text style={[styles.statValue, { color: '#FF4D4D' }]}>
-                    {failureRate.toFixed(1)}%
-                  </Text>
-                </View>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Skip Rate</Text>
-                  <Text style={[styles.statValue, { color: '#999999' }]}>
-                    {skipRate.toFixed(1)}%
-                  </Text>
-                </View>
-                <View style={styles.statRow}>
-                  <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Scheduled Days</Text>
-                  <Text style={[styles.statValue, dynamicStyles.statValue]}>
-                    {scheduledDays}
-                  </Text>
-                </View>
-              </>
-            );
-          })()}
-        </View>
-        
-        <View style={styles.scoreboardBreakdown}>
-          <Text style={[styles.statsTitle, dynamicStyles.statsTitle]}>Status Breakdown</Text>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Completed</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {scoreboardData.completed || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Partial</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {scoreboardData.partial || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Failed</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {scoreboardData.failed || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Skipped</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {scoreboardData.skipped || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Inactive</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {scoreboardData.inactive || 0}
-            </Text>
-          </View>
-        </View>
-        
-        {/* Chart-specific timeframe selector - positioned at top of chart */}
-        <View style={styles.chartTimeframeSelector}>
-          <Text style={[styles.statsTitle, dynamicStyles.statsTitle]}>Chart Timeframe</Text>
-          {[
-            { key: 'weekly', label: 'Weekly' },
-            { key: 'monthly', label: 'Monthly' },
-            { key: 'yearly', label: 'Yearly' }
-          ].map((timeframe) => (
-            <TouchableOpacity
-              key={timeframe.key}
-              style={[
-                styles.chartTimeframeButton,
-                chartTimeframe === timeframe.key && styles.activeChartTimeframeButton,
-                { backgroundColor: chartTimeframe === timeframe.key ? themeColors.primaryOrange : themeColors.cardBackground }
-              ]}
-              onPress={() => setChartTimeframe(timeframe.key)}
-              accessibilityLabel={`Select ${timeframe.label.toLowerCase()} chart timeframe`}
-            >
-              <Text
-                style={[
-                  styles.chartTimeframeText,
-                  { color: chartTimeframe === timeframe.key ? '#FFFFFF' : themeColors.primaryText }
-                ]}
-              >
-                {timeframe.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-        
-        {/* Performance Chart */}
-        <View style={styles.chartSection}>
-          {/* Chart container */}
-          <View style={styles.chartContainer}>
-            <LineChart
-              data={{
-                labels: chartTimeframe === 'weekly' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] :
-                       chartTimeframe === 'monthly' ? ['W1', 'W2', 'W3', 'W4'] :
-                       ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                datasets: [{
-                  data: chartTimeframe === 'weekly' ? [85, 92, 78, 88, 95, 82, 90] :
-                        chartTimeframe === 'monthly' ? [88, 85, 92, 89] :
-                        [87, 89, 85, 92, 88, 90],
-                  color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
-                  strokeWidth: 2
-                }]
-              }}
-              width={screenWidth - 40}
-              height={200}
-              chartConfig={{
-                backgroundColor: themeColors.background,
-                backgroundGradientFrom: themeColors.background,
-                backgroundGradientTo: themeColors.background,
-                decimalPlaces: 0,
-                color: (opacity = 1) => `${themeColors.primaryOrange}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
-                labelColor: (opacity = 1) => `${themeColors.primaryText}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`,
-                style: {
-                  borderRadius: layout.radii.large,
-                },
-                paddingLeft: 0,
-                propsForDots: {
-                  r: '3',
-                  strokeWidth: '2',
-                  stroke: themeColors.primaryOrange,
-                },
-                propsForBackgroundLines: {
-                  strokeDasharray: '',
-                  stroke: themeColors.surface,
-                  strokeWidth: 1,
-                },
-              }}
-              bezier
-              style={styles.chart}
-              withDots={true}
-              withShadow={false}
-              withInnerLines={false}
-              withOuterLines={false}
-            />
-          </View>
-        </View>
-        
-        <FlowCalendar
-          flow={flow}
-          onUpdateStatus={handleUpdateStatus}
-          onMonthChange={setCurrentMonth}
-          currentMonth={currentMonth}
-        />
-      </View>
-    );
-  };
+  const [showMenu, setShowMenu] = useState(false);
 
   const themeColors = colors[theme] || colors.light;
 
@@ -286,9 +45,10 @@ const FlowDetail = ({ route, navigation }) => {
     }
 
     const trimmedNote = note && typeof note === 'string' && note.trim() ? note.trim() : null;
+    const currentTime = new Date().toISOString();
     const updatedStatus = {
       ...currentStatus,
-      [dateKey]: { symbol: statusSymbol, emotion, note: trimmedNote },
+      [dateKey]: { symbol: statusSymbol, emotion, note: trimmedNote, timestamp: currentTime },
     };
 
     console.log('FlowDetail updating:', { flowId, dateKey, statusSymbol, emotion, note: trimmedNote });
@@ -310,8 +70,18 @@ const FlowDetail = ({ route, navigation }) => {
   const notes = useMemo(() => {
     console.log('Filtering notes for flow:', { flowId, month: moment(currentMonth).format('MMMM YYYY'), status: flow.status });
     return Object.entries(flow.status || {})
-      .filter(([date, status]) => status.note && moment(date).isSame(currentMonth, 'month'))
-      .map(([date, status]) => ({ date, note: status.note, symbol: status.symbol, emotion: status.emotion }))
+      .filter(([date, status]) => {
+        const hasNote = status.note && typeof status.note === 'string' && status.note.trim();
+        const hasEmotion = status.emotion && typeof status.emotion === 'string' && status.emotion.trim();
+        return (hasNote || hasEmotion) && moment(date).isSame(currentMonth, 'month');
+      })
+      .map(([date, status]) => ({ 
+        date, 
+        note: status.note, 
+        symbol: status.symbol, 
+        emotion: status.emotion,
+        timestamp: status.timestamp || date // Use timestamp or fallback to date
+      }))
       .sort((a, b) => moment(b.date).valueOf() - moment(a.date).valueOf()); // Sort by date descending
   }, [flow.status, currentMonth]);
 
@@ -410,13 +180,17 @@ const FlowDetail = ({ route, navigation }) => {
     const badgeBackground = isCompleted ? '#E6F4EA' : '#FCECEC';
     const badgeTextColor = isCompleted ? '#006400' : '#FF4D4D';
     const badgeIcon = isCompleted ? 'check' : 'alert';
-    const updatedTime = moment(item.date).format('MMMM D - hh:mm A');
+    
+    // Use actual timestamp if available, otherwise use current time for the date
+    const creationTime = item.timestamp && item.timestamp !== item.date 
+      ? moment(item.timestamp).format('MMMM D - hh:mm A')
+      : moment(item.date).format('MMMM D - hh:mm A');
 
     return (
       <View style={dynamicStyles.noteCard}>
         <View style={dynamicStyles.noteHeader}>
           <Text style={[dynamicStyles.noteDate, !isCompleted && dynamicStyles.noteMissedDate]}>
-            {updatedTime} {item.emotion ? `- ${item.emotion}` : ''}
+            {creationTime} {item.emotion ? `- ${item.emotion}` : ''}
           </Text>
           <View style={[dynamicStyles.noteBadge, { backgroundColor: badgeBackground }]}>
             <MaterialCommunityIcons name={badgeIcon} size={16} color={badgeTextColor} />
@@ -425,175 +199,11 @@ const FlowDetail = ({ route, navigation }) => {
             </Text>
           </View>
         </View>
-        <Text style={dynamicStyles.noteText}>{item.note}</Text>
+        {item.note && <Text style={dynamicStyles.noteText}>{item.note}</Text>}
         {index < notes.length - 1 && <View style={dynamicStyles.divider} />}
       </View>
     );
   }, [dynamicStyles, notes.length]);
-
-  // Emotional tracking view
-  const renderEmotionalView = () => {
-    console.log('FlowDetails: renderEmotionalView - flowId:', flowId);
-    const emotionalData = getEmotionalActivity(flowId);
-    console.log('FlowDetails: emotionalData:', emotionalData);
-    const emotions = ['Happy', 'Sad', 'Angry', 'Excited', 'Calm'];
-    
-    return (
-      <View>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.title, dynamicStyles.title]}>Emotional Tracking</Text>
-            <Text style={[styles.detail, dynamicStyles.detail]}>
-              Track your emotional responses to this flow
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.emotionalStats}>
-          <Text style={[styles.statsTitle, dynamicStyles.statsTitle]}>Emotion Summary</Text>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Total Emotions</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {emotionalData.totalEmotions || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Positive</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {emotionalData.positiveCount || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Negative</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {emotionalData.negativeCount || 0}
-            </Text>
-          </View>
-          {emotions.map((emotion) => (
-            <View key={emotion} style={styles.emotionRow}>
-              <Text style={[styles.emotionLabel, dynamicStyles.emotionLabel]}>{emotion}</Text>
-              <Text style={[styles.emotionCount, dynamicStyles.emotionCount]}>
-                {emotionalData.byEmotion?.[emotion] || 0}
-              </Text>
-            </View>
-          ))}
-        </View>
-        
-        <FlowCalendar
-          flow={flow}
-          onUpdateStatus={handleUpdateStatus}
-          onMonthChange={setCurrentMonth}
-          currentMonth={currentMonth}
-        />
-      </View>
-    );
-  };
-
-  // Activity tracking view
-  const renderActivityView = () => {
-    console.log('FlowDetails: renderActivityView - flowId:', flowId);
-    const activityData = getActivityStats(flowId);
-    console.log('FlowDetails: activityData:', activityData);
-    
-    return (
-      <View>
-        <View style={styles.headerRow}>
-          <View>
-            <Text style={[styles.title, dynamicStyles.title]}>Activity Tracking</Text>
-            <Text style={[styles.detail, dynamicStyles.detail]}>
-              Monitor your activity patterns and progress
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.activityStats}>
-          <Text style={[styles.statsTitle, dynamicStyles.statsTitle]}>Activity Summary</Text>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Total Days</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {activityData.total || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Completed</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {activityData.byStatus?.Completed || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Partial</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {activityData.byStatus?.Partial || 0}
-            </Text>
-          </View>
-          <View style={styles.statRow}>
-            <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Missed</Text>
-            <Text style={[styles.statValue, dynamicStyles.statValue]}>
-              {activityData.byStatus?.Missed || 0}
-            </Text>
-          </View>
-          {(() => {
-            // Use total as the denominator since activityData.total represents scheduled days
-            const scheduledDays = activityData.total || 0;
-            const successRate = scheduledDays > 0 ? ((activityData.byStatus?.Completed || 0) + (activityData.byStatus?.Partial || 0)) / scheduledDays * 100 : 0;
-            return (
-              <View style={styles.statRow}>
-                <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Success Rate</Text>
-                <Text style={[styles.statValue, { color: '#4CAF50' }]}>
-                  {successRate.toFixed(1)}%
-                </Text>
-              </View>
-            );
-          })()}
-          {flow.trackingType === 'Time-based' && (
-            <>
-              <View style={styles.statRow}>
-                <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Total Duration</Text>
-                <Text style={[styles.statValue, dynamicStyles.statValue]}>
-                  {activityData.timeBased?.totalDuration || 0} min
-                </Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Average Duration</Text>
-                <Text style={[styles.statValue, dynamicStyles.statValue]}>
-                  {activityData.timeBased?.averageDuration || 0} min
-                </Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Total Pauses</Text>
-                <Text style={[styles.statValue, dynamicStyles.statValue]}>
-                  {activityData.timeBased?.totalPauses || 0}
-                </Text>
-              </View>
-            </>
-          )}
-          {flow.trackingType === 'Quantitative' && (
-            <>
-              <View style={styles.statRow}>
-                <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Total Count</Text>
-                <Text style={[styles.statValue, dynamicStyles.statValue]}>
-                  {activityData.quantitative?.totalCount || 0} {activityData.quantitative?.unitText || ''}
-                </Text>
-              </View>
-              <View style={styles.statRow}>
-                <Text style={[styles.statLabel, dynamicStyles.statLabel]}>Average Count</Text>
-                <Text style={[styles.statValue, dynamicStyles.statValue]}>
-                  {activityData.quantitative?.averageCount || 0} {activityData.quantitative?.unitText || ''}
-                </Text>
-              </View>
-            </>
-          )}
-        </View>
-        
-        <FlowCalendar
-          flow={flow}
-          onUpdateStatus={handleUpdateStatus}
-          onMonthChange={setCurrentMonth}
-          currentMonth={currentMonth}
-        />
-      </View>
-    );
-  };
 
   const renderHeader = () => (
     <View>
@@ -664,99 +274,100 @@ const FlowDetail = ({ route, navigation }) => {
             </Text>
           </View>
           <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => flow.id && navigation.navigate('EditFlow', { flowId: flow.id })}
-            accessibilityLabel="Edit flow"
-            accessibilityHint="Modify flow settings and configuration"
+            style={styles.statsButton}
+            onPress={() => navigation.navigate('Stats', { 
+              screen: 'FlowStatsDetail', 
+              params: { flowId: flow.id } 
+            })}
+            accessibilityLabel="View flow statistics"
+            accessibilityHint="Navigate to detailed statistics page"
             disabled={!flow.id}
           >
-            <Ionicons name="create-outline" size={24} color={themeColors.primaryText} />
+            <Ionicons name="bar-chart-outline" size={24} color={themeColors.primaryText} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => setShowMenu(true)}
+            accessibilityLabel="Flow options"
+            accessibilityHint="Show edit and delete options"
+            disabled={!flow.id}
+          >
+            <Ionicons name="ellipsis-vertical" size={24} color={themeColors.primaryText} />
           </TouchableOpacity>
         </View>
 
-        {/* Tab Navigation */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tabButton, selectedView === 'scoreboard' && styles.activeTabButton]}
-            onPress={() => setSelectedView('scoreboard')}
-          >
-            <Text style={[styles.tabText, selectedView === 'scoreboard' && styles.activeTabText]}>
-              Scoreboard
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, selectedView === 'activity' && styles.activeTabButton]}
-            onPress={() => setSelectedView('activity')}
-          >
-            <Text style={[styles.tabText, selectedView === 'activity' && styles.activeTabText]}>
-              Activity
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, selectedView === 'emotional' && styles.activeTabButton]}
-            onPress={() => setSelectedView('emotional')}
-          >
-            <Text style={[styles.tabText, selectedView === 'emotional' && styles.activeTabText]}>
-              Emotional
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, selectedView === 'calendar' && styles.activeTabButton]}
-            onPress={() => setSelectedView('calendar')}
-          >
-            <Text style={[styles.tabText, selectedView === 'calendar' && styles.activeTabText]}>
-              Calendar
-            </Text>
-          </TouchableOpacity>
-        </View>
 
-        {selectedView === 'emotional' ? (
-          <FlatList
-            data={[]}
-            renderItem={() => null}
-            keyExtractor={() => 'empty'}
-            ListHeaderComponent={renderEmotionalView}
-            ListEmptyComponent={
-              <Text style={[styles.noNotes, dynamicStyles.noNotes]}>No emotional data available</Text>
-            }
-            contentContainerStyle={styles.contentContainer}
-          />
-        ) : selectedView === 'activity' ? (
-          <FlatList
-            data={[]}
-            renderItem={() => null}
-            keyExtractor={() => 'empty'}
-            ListHeaderComponent={renderActivityView}
-            ListEmptyComponent={
-              <Text style={[styles.noNotes, dynamicStyles.noNotes]}>No activity data available</Text>
-            }
-            contentContainerStyle={styles.contentContainer}
-          />
-        ) : selectedView === 'scoreboard' ? (
-          <FlatList
-            data={[]}
-            renderItem={() => null}
-            keyExtractor={() => 'empty'}
-            ListHeaderComponent={renderScoreboardView}
-            ListEmptyComponent={
-              <Text style={[styles.noNotes, dynamicStyles.noNotes]}>No scoreboard data available</Text>
-            }
-            contentContainerStyle={styles.contentContainer}
-          />
-        ) : (
-          <FlatList
-            data={notes}
-            renderItem={renderNote}
-            keyExtractor={(item) => item.date}
-            ListHeaderComponent={renderHeader}
-            ListEmptyComponent={
-              notes.length === 0 ? (
-                <Text style={[styles.noNotes, dynamicStyles.noNotes]}>No notes for this month</Text>
-              ) : null
-            }
-            contentContainerStyle={styles.contentContainer}
-          />
-        )}
+        <FlatList
+          data={notes}
+          renderItem={renderNote}
+          keyExtractor={(item) => item.date}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            notes.length === 0 ? (
+              <Text style={[styles.noNotes, dynamicStyles.noNotes]}>No notes for this month</Text>
+            ) : null
+          }
+          contentContainerStyle={styles.contentContainer}
+        />
+
+        {/* Options Menu Modal */}
+        <Modal
+          visible={showMenu}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowMenu(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowMenu(false)}
+          >
+            <View style={[styles.menuContainer, { backgroundColor: themeColors.cardBackground }]}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  navigation.navigate('EditFlow', { flowId: flow.id });
+                }}
+              >
+                <Ionicons name="create-outline" size={20} color={themeColors.primaryText} />
+                <Text style={[styles.menuItemText, { color: themeColors.primaryText }]}>Edit</Text>
+              </TouchableOpacity>
+              
+              <View style={[styles.menuDivider, { backgroundColor: themeColors.border }]} />
+              
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setShowMenu(false);
+                  Alert.alert(
+                    'Delete Flow',
+                    `Are you sure you want to delete "${flow.title}"? This action cannot be undone.`,
+                    [
+                      {
+                        text: 'Cancel',
+                        style: 'cancel',
+                      },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          if (deleteFlow) {
+                            deleteFlow(flow.id);
+                            navigation.goBack();
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="trash-outline" size={20} color={themeColors.error} />
+                <Text style={[styles.menuItemText, { color: themeColors.error }]}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -794,14 +405,46 @@ const styles = StyleSheet.create({
     ...typography.styles.caption,
     opacity: 0.8,
   },
-  editButton: {
+  menuButton: {
     padding: layout.spacing.sm,
-    borderRadius: layout.radii.small,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  statsButton: {
+    padding: layout.spacing.sm,
+    marginRight: layout.spacing.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  menuContainer: {
+    borderRadius: layout.radii.base,
+    paddingVertical: layout.spacing.sm,
+    minWidth: 150,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
+  },
+  menuItemText: {
+    ...typography.styles.body,
+    marginLeft: layout.spacing.sm,
+    fontWeight: '500',
+  },
+  menuDivider: {
+    height: 1,
+    marginVertical: layout.spacing.xs,
   },
   contentContainer: {
     padding: 16,
-    paddingBottom: 20,
+    paddingBottom: 100, // Increased bottom padding for tab navigation
   },
   headerRow: {
     flexDirection: 'row',

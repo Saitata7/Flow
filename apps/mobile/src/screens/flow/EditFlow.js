@@ -18,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { FlowsContext } from '../../context/FlowContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { validateNumericInput } from '../../utils/validation';
 import Card from '../../components/common/card';
 import Button from '../../components/common/Button';
@@ -49,7 +50,7 @@ const EditFlowScreen = ({ route, navigation }) => {
             accessibilityLabel="Go back"
             accessibilityHint="Returns to the previous screen"
           >
-            <Text style={[styles.backButtonText, { color: themeColors.primaryText }]}>← Go Back</Text>
+            <Ionicons name="chevron-back" size={20} color={themeColors.primaryText} />
           </TouchableOpacity>
         </View>
       </SafeAreaWrapper>
@@ -288,7 +289,7 @@ const EditFlowScreen = ({ route, navigation }) => {
             accessibilityLabel="Go back"
             accessibilityHint="Returns to the previous screen"
           >
-            <Text style={[styles.backButtonText, { color: themeColors.primaryText }]}>←</Text>
+            <Ionicons name="chevron-back" size={20} color={themeColors.primaryText} />
           </TouchableOpacity>
           <Text style={[styles.headerTitle, { color: themeColors.primaryText }]}>Edit Flow</Text>
           <TouchableOpacity
@@ -301,7 +302,7 @@ const EditFlowScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
 
-        <SafeAreaWrapper style={styles.contentWrapper}>
+        <SafeAreaWrapper style={styles.contentWrapper} excludeTop={true} excludeBottom={true}>
           <ScrollView 
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -309,7 +310,7 @@ const EditFlowScreen = ({ route, navigation }) => {
             showsVerticalScrollIndicator={false}
           >
           {/* Title Card */}
-          <Card variant="elevated" padding="md" margin="sm">
+          <Card variant="elevated" padding="md" margin="none">
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Flow Title</Text>
             <View style={styles.titleInputContainer}>
               <TextInput
@@ -341,7 +342,7 @@ const EditFlowScreen = ({ route, navigation }) => {
           </Card>
 
           {/* Description Card */}
-          <Card variant="elevated" padding="md" margin="sm">
+          <Card variant="elevated" padding="md" margin="none">
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Description</Text>
             <TextInput
               style={[
@@ -818,12 +819,11 @@ const EditFlowScreen = ({ route, navigation }) => {
             )}
           </View>
 
-          {/* Advanced Settings Card */}
+          {/* Cheat Mode Card */}
           <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
-            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Advanced Settings</Text>
-            
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Cheat Mode</Text>
             <View style={styles.toggleRow}>
-              <Text style={[styles.toggleLabel, { color: themeColors.primaryText }]}>Cheat Mode</Text>
+              <Text style={[styles.toggleLabel, { color: themeColors.primaryText }]}>Enable Cheat Mode</Text>
               <Switch
                 style={styles.toggleSwitch}
                 value={cheatMode}
@@ -833,105 +833,6 @@ const EditFlowScreen = ({ route, navigation }) => {
                 accessibilityLabel="Toggle cheat mode"
                 accessibilityHint="Enable or disable cheat mode for this flow"
               />
-            </View>
-            
-            <View style={styles.toggleRow}>
-              <Text style={[styles.toggleLabel, { color: themeColors.primaryText }]}>Archived</Text>
-              <Switch
-                style={styles.toggleSwitch}
-                value={archived}
-                onValueChange={setArchived}
-                trackColor={{ false: themeColors.border, true: themeColors.warning }}
-                thumbColor={themeColors.cardBackground}
-                accessibilityLabel="Toggle archived"
-                accessibilityHint="Archive or unarchive this flow"
-              />
-            </View>
-
-            <View style={styles.inputRow}>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Visibility</Text>
-                <View style={styles.visibilityContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.visibilityButton,
-                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
-                      visibility === 'private' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
-                    ]}
-                    onPress={() => setVisibility('private')}
-                    accessibilityLabel="Set private visibility"
-                    accessibilityHint="Make this flow private"
-                  >
-                    <Text style={[
-                      styles.visibilityText,
-                      { color: themeColors.secondaryText },
-                      visibility === 'private' && { color: themeColors.warning }
-                    ]}>
-                      Private
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.visibilityButton,
-                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
-                      visibility === 'public' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
-                    ]}
-                    onPress={() => setVisibility('public')}
-                    accessibilityLabel="Set public visibility"
-                    accessibilityHint="Make this flow public"
-                  >
-                    <Text style={[
-                      styles.visibilityText,
-                      { color: themeColors.secondaryText },
-                      visibility === 'public' && { color: themeColors.warning }
-                    ]}>
-                      Public
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: themeColors.primaryText }]}>Progress Mode</Text>
-                <View style={styles.progressModeContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.progressModeButton,
-                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
-                      progressMode === 'sum' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
-                    ]}
-                    onPress={() => setProgressMode('sum')}
-                    accessibilityLabel="Set sum progress mode"
-                    accessibilityHint="Use sum for progress calculation"
-                  >
-                    <Text style={[
-                      styles.progressModeText,
-                      { color: themeColors.secondaryText },
-                      progressMode === 'sum' && { color: themeColors.warning }
-                    ]}>
-                      Sum
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.progressModeButton,
-                      { backgroundColor: themeColors.cardBackground, borderColor: themeColors.border },
-                      progressMode === 'average' && { backgroundColor: themeColors.warningBackground, borderColor: themeColors.warning }
-                    ]}
-                    onPress={() => setProgressMode('average')}
-                    accessibilityLabel="Set average progress mode"
-                    accessibilityHint="Use average for progress calculation"
-                  >
-                    <Text style={[
-                      styles.progressModeText,
-                      { color: themeColors.secondaryText },
-                      progressMode === 'average' && { color: themeColors.warning }
-                    ]}>
-                      Average
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
             </View>
           </View>
 
@@ -948,27 +849,23 @@ const EditFlowScreen = ({ route, navigation }) => {
               }}
             />
           )}
-          </ScrollView>
 
-          {/* Update Button - Inside SafeAreaWrapper to be above tab bar */}
-          <View style={[styles.saveButtonContainer, { backgroundColor: themeColors.background, borderTopColor: themeColors.border }]}>
-            <TouchableOpacity
-              style={[
-                styles.updateButton,
-                { backgroundColor: themeColors.primary },
-                (!!titleError || isCheckingTitle) && { backgroundColor: themeColors.disabled, opacity: 0.6 }
-              ]}
+          {/* Update Button - After reminder section */}
+          <View style={styles.saveButtonContainer}>
+            <Button
+              variant="primary"
+              size="large"
+              title={isCheckingTitle ? 'Checking...' : 'Update Flow'}
               onPress={handleSave}
               disabled={!!titleError || isCheckingTitle}
+              fullWidth={true}
               testID="update-flow-button"
               accessibilityLabel="Update flow"
               accessibilityHint="Updates the current flow with new settings"
-            >
-              <Text style={[styles.updateButtonText, { color: themeColors.onPrimary }]}>
-                {isCheckingTitle ? 'Checking...' : 'Update Flow'}
-              </Text>
-            </TouchableOpacity>
+            />
           </View>
+
+          </ScrollView>
         </SafeAreaWrapper>
       </KeyboardAvoidingView>
     </SafeAreaWrapper>
@@ -1000,17 +897,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...layout.elevation.low,
   },
-  backButtonText: {
-    ...typography.styles.title2,
-    fontWeight: 'bold',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: layout.spacing.md,
     paddingTop: layout.spacing.md,
-    paddingBottom: layout.spacing.md,
+    paddingBottom: 0, // Remove bottom padding to eliminate unwanted space
     minHeight: 60, // Ensure consistent header height
   },
   headerTitle: {
@@ -1034,11 +927,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: layout.spacing.md,
-    paddingBottom: layout.spacing.lg, // Extra padding at bottom of scroll
+    paddingTop: 0, // Remove top padding to eliminate unwanted space above first card
+    paddingBottom: 0, // Remove bottom padding since we're excluding bottom safe area
+    gap: layout.spacing.xs, // Minimal spacing between cards (4px)
   },
   cardTitle: {
     ...typography.styles.title3,
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.xs, // Reduced from sm (8px) to xs (4px)
   },
   titleInputContainer: {
     position: 'relative',
@@ -1056,8 +951,8 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: layout.radii.large,
-    padding: layout.spacing.lg,
-    marginBottom: layout.spacing.md,
+    padding: layout.spacing.md, // Reduced from lg (20px) to md (12px)
+    // Removed marginBottom to use gap spacing instead
     ...layout.elevation.low,
   },
   modernInput: {
@@ -1144,7 +1039,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: layout.spacing.md,
+    // Removed marginBottom to eliminate extra bottom spacing
   },
   toggleLabel: {
     ...typography.styles.body,
@@ -1155,7 +1050,7 @@ const styles = StyleSheet.create({
     transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
   },
   daysContainer: {
-    marginTop: layout.spacing.md,
+    marginTop: layout.spacing.xs, // Reduced from md (12px) to xs (4px)
   },
   daysGrid: {
     flexDirection: 'row',
@@ -1193,59 +1088,9 @@ const styles = StyleSheet.create({
   },
   saveButtonContainer: {
     paddingHorizontal: layout.spacing.md,
-    paddingTop: layout.spacing.md,
-    paddingBottom: layout.spacing.md,
-    borderTopWidth: 1,
-    // SafeAreaWrapper handles the bottom spacing
-  },
-  updateButton: {
-    borderRadius: layout.radii.squircle,
-    paddingVertical: layout.spacing.md,
-    paddingHorizontal: layout.spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: layout?.components?.button?.primary?.height || 48,
-    ...layout.elevation.low,
-  },
-  updateButtonText: {
-    ...typography.styles.button,
-    fontWeight: '600',
-  },
-  visibilityContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  visibilityButton: {
-    flex: 1,
-    paddingVertical: layout.spacing.sm,
-    paddingHorizontal: layout.spacing.sm,
-    marginHorizontal: layout.spacing.xs,
-    borderRadius: layout.radii.small,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  visibilityText: {
-    ...typography.styles.caption1,
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  progressModeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressModeButton: {
-    flex: 1,
-    paddingVertical: layout.spacing.sm,
-    paddingHorizontal: layout.spacing.sm,
-    marginHorizontal: layout.spacing.xs,
-    borderRadius: layout.radii.small,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  progressModeText: {
-    ...typography.styles.caption1,
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    paddingTop: layout.spacing.xs, // Reduced to minimal spacing (4px)
+    paddingBottom: layout.spacing.xs, // Reduced to minimal spacing (4px)
+    marginTop: 0, // Remove margin completely
   },
   reminderLevelSection: {
     marginTop: layout.spacing.md,

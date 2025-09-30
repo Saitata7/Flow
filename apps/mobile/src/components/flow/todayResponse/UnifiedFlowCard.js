@@ -115,7 +115,7 @@ const UnifiedFlowCard = ({ flow }) => {
   const navigation = useNavigation();
   const { updateFlowStatus, updateCount, updateTimeBased } = useContext(FlowsContext);
   const todayKey = moment().format('YYYY-MM-DD');
-  const status = flow.status?.[todayKey]?.symbol || '-';
+  const status = flow.status?.[todayKey]?.symbol || '/';
   const emotion = flow.status?.[todayKey]?.emotion || '';
   const note = flow.status?.[todayKey]?.note || '';
   
@@ -170,7 +170,7 @@ const UnifiedFlowCard = ({ flow }) => {
   const isPending = status === '/';
   const isCompleted = status === '+' || status === '✓';
   const isMissed = status === '-';
-  const hasResponse = status === '+' || status === '-' || status === '*' || status === '/' || status === '✓';
+  const hasResponse = status === '+' || status === '-' || status === '*' || status === '✓';
   
   // Debug logging
   console.log('UnifiedFlowCard Debug:', {
@@ -346,7 +346,7 @@ const UnifiedFlowCard = ({ flow }) => {
       totalDuration: 0,
       pausesCount: 0
     };
-    updateFlowStatus(flow.id, todayKey, { symbol: '-', timebased: resetTimebased });
+    updateFlowStatus(flow.id, todayKey, { symbol: '/', timebased: resetTimebased });
   }, [flow.id, todayKey, updateFlowStatus, triggerHaptic]);
 
   // Common handlers
@@ -391,14 +391,14 @@ const UnifiedFlowCard = ({ flow }) => {
       // Reset based on tracking type
       if (flow.trackingType === 'Binary') {
         await updateFlowStatus(flow.id, todayKey, {
-          symbol: '-',
+          symbol: '/',
           emotion: '',
           note: '',
           timestamp: null
         });
       } else if (flow.trackingType === 'Quantitative') {
         await updateFlowStatus(flow.id, todayKey, {
-          symbol: '-',
+          symbol: '/',
           emotion: '',
           note: '',
           quantitative: { count: 0, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' },
@@ -414,7 +414,7 @@ const UnifiedFlowCard = ({ flow }) => {
           pausesCount: 0
         };
         await updateFlowStatus(flow.id, todayKey, {
-          symbol: '-',
+          symbol: '/',
           emotion: '',
           note: '',
           timebased: resetTimebased,

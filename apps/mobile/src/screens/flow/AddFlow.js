@@ -20,6 +20,7 @@ import { FlowsContext } from '../../context/FlowContext';
 import { useRoute } from '@react-navigation/native';
 import useAuth from '../../hooks/useAuth';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { validateNumericInput } from '../../utils/validation';
 import Card from '../../components/common/card';
 import Button from '../../components/common/Button';
@@ -450,7 +451,7 @@ export default function AddFlow({ navigation }) {
             accessibilityLabel="Go back"
             accessibilityHint="Returns to the previous screen"
           >
-            <Text style={styles.backButtonText}>←</Text>
+            <Ionicons name="chevron-back" size={20} color={colors.light.primaryText} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Create New Flow</Text>
           <View style={styles.placeholder} />
@@ -464,7 +465,7 @@ export default function AddFlow({ navigation }) {
             showsVerticalScrollIndicator={false}
           >
           {/* Title Card */}
-          <Card variant="elevated" padding="md" margin="sm">
+          <Card variant="elevated" padding="md" margin="none">
             <Text style={styles.cardTitle}>Flow Title</Text>
             <View style={styles.titleInputContainer}>
               <TextInput
@@ -491,7 +492,7 @@ export default function AddFlow({ navigation }) {
           </Card>
 
           {/* Description Card */}
-          <Card variant="elevated" padding="md" margin="sm">
+          <Card variant="elevated" padding="md" margin="none">
             <Text style={styles.cardTitle}>Description</Text>
             <TextInput
               style={[styles.modernInput, styles.textArea]}
@@ -507,7 +508,7 @@ export default function AddFlow({ navigation }) {
           </Card>
 
           {/* Tracking Type Card */}
-          <Card variant="elevated" padding="md" margin="sm">
+          <Card variant="elevated" padding="md" margin="none">
             <Text style={styles.cardTitle}>Tracking Type</Text>
             <View style={styles.trackingTypeContainer}>
               <TouchableOpacity
@@ -556,7 +557,7 @@ export default function AddFlow({ navigation }) {
 
           {/* Quantitative Settings */}
           {trackingType === 'Quantitative' && (
-            <Card variant="elevated" padding="md" margin="sm" style={{ overflow: 'visible' }}>
+            <Card variant="elevated" padding="md" margin="none" style={{ overflow: 'visible' }}>
               <Text style={styles.cardTitle}>Quantitative Settings</Text>
               <View style={styles.inputRow}>
                 <View style={styles.inputGroup}>
@@ -603,7 +604,7 @@ export default function AddFlow({ navigation }) {
 
           {/* Time-based Settings */}
           {trackingType === 'Time-based' && (
-            <Card variant="elevated" padding="md" margin="sm">
+            <Card variant="elevated" padding="md" margin="none">
               <Text style={styles.cardTitle}>Time Duration (Goal)</Text>
               <TimePicker
                 initialHours={hours}
@@ -645,7 +646,7 @@ export default function AddFlow({ navigation }) {
 
           {/* Days Selection Card */}
           {frequency === 'Daily' && (
-            <Card variant="elevated" padding="md" margin="sm">
+            <Card variant="elevated" padding="md" margin="none">
               <Text style={styles.cardTitle}>Schedule</Text>
               <View style={styles.toggleRow}>
                 <Text style={styles.toggleLabel}>Every Day</Text>
@@ -692,7 +693,7 @@ export default function AddFlow({ navigation }) {
           )}
 
           {frequency === 'Monthly' && (
-            <Card variant="elevated" padding="md" margin="sm">
+            <Card variant="elevated" padding="md" margin="none">
               <Text style={styles.cardTitle}>Days of Month</Text>
               <View style={styles.monthDaysGrid}>
                 {daysInMonth.map((day) => (
@@ -807,22 +808,22 @@ export default function AddFlow({ navigation }) {
             />
           )}
 
-          </ScrollView>
-        </View>
+          {/* Save Button - After reminder section */}
+          <View style={styles.saveButtonContainer}>
+            <Button
+              variant="primary"
+              size="large"
+              title={isCheckingTitle ? 'Checking...' : (flowToEdit ? 'Update Flow' : 'Save Flow')}
+              onPress={handleSave}
+              disabled={!!titleError || isCheckingTitle}
+              fullWidth={true}
+              testID="save-flow-button"
+              accessibilityLabel={flowToEdit ? 'Update flow' : 'Save flow'}
+              accessibilityHint={flowToEdit ? 'Updates the current flow with new settings' : 'Creates a new flow with the current settings'}
+            />
+          </View>
 
-        {/* Save Button - Fixed at bottom above tab bar */}
-        <View style={styles.saveButtonContainer}>
-          <Button
-            variant="primary"
-            size="large"
-            title={isCheckingTitle ? 'Checking...' : (flowToEdit ? 'Update Flow' : 'Save Flow')}
-            onPress={handleSave}
-            disabled={!!titleError || isCheckingTitle}
-            fullWidth={true}
-            testID="save-flow-button"
-            accessibilityLabel={flowToEdit ? 'Update flow' : 'Save flow'}
-            accessibilityHint={flowToEdit ? 'Updates the current flow with new settings' : 'Creates a new flow with the current settings'}
-          />
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaWrapper>
@@ -853,11 +854,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...layout.elevation.low,
   },
-  backButtonText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.light.primaryText,
-  },
   headerTitle: {
     ...typography.styles.title2,
     color: colors.light.primaryText,
@@ -873,12 +869,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: layout.spacing.md,
-    paddingBottom: layout.spacing.lg, // Extra padding at bottom of scroll
+    paddingTop: 0, // Remove top padding to eliminate unwanted space above first card
+    paddingBottom: layout.spacing.md,
+    gap: layout.spacing.xs, // Minimal spacing between cards (4px)
   },
   cardTitle: {
     ...typography.styles.title3,
     color: colors.light.primaryText,
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.xs, // Reduced from sm (8px) to xs (4px)
   },
   modernInput: {
     borderWidth: 1,
@@ -1055,12 +1053,9 @@ const styles = StyleSheet.create({
   },
   saveButtonContainer: {
     paddingHorizontal: layout.spacing.md,
-    paddingTop: layout.spacing.md,
-    paddingBottom: layout.spacing.md,
-    backgroundColor: colors.light.background,
-    borderTopWidth: 1,
-    borderTopColor: colors.light.border,
-    // SafeAreaWrapper will handle the bottom safe area automatically
+    paddingTop: layout.spacing.lg,
+    paddingBottom: layout.spacing.xl,
+    marginTop: layout.spacing.md,
   },
   saveButtonGradient: {
     borderRadius: 18,
