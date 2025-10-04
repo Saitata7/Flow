@@ -42,7 +42,7 @@ class NotificationService {
     try {
       // Get user's device tokens
       const userTokens = await this.getUserDeviceTokens(userId);
-      
+
       if (!userTokens || userTokens.length === 0) {
         console.log(`No device tokens found for user ${userId}`);
         return { success: false, message: 'No device tokens found' };
@@ -50,7 +50,7 @@ class NotificationService {
 
       // Get user's notification settings
       const userSettings = await this.getUserNotificationSettings(userId);
-      
+
       // Check if notification type is enabled
       if (!this.isNotificationTypeEnabled(payload.category, userSettings)) {
         console.log(`Notification type ${payload.category} is disabled for user ${userId}`);
@@ -96,7 +96,7 @@ class NotificationService {
 
       // Send notification
       const response = await admin.messaging().sendMulticast(message);
-      
+
       // Log notification
       await this.logNotification(userId, payload, response);
 
@@ -121,7 +121,7 @@ class NotificationService {
   async scheduleDailyReminder(userId, time) {
     try {
       const userSettings = await this.getUserNotificationSettings(userId);
-      
+
       if (!userSettings.dailyReminders) {
         console.log(`Daily reminders disabled for user ${userId}`);
         return { success: false, message: 'Daily reminders disabled' };
@@ -129,7 +129,7 @@ class NotificationService {
 
       // Parse time
       const [hours, minutes] = time.split(':').map(Number);
-      
+
       // Create reminder payload
       const payload = {
         title: 'Daily Flow Reminder',
@@ -146,7 +146,7 @@ class NotificationService {
       const now = new Date();
       const reminderTime = new Date();
       reminderTime.setHours(hours, minutes, 0, 0);
-      
+
       // If reminder time has passed today, schedule for tomorrow
       if (reminderTime <= now) {
         reminderTime.setDate(reminderTime.getDate() + 1);
@@ -154,7 +154,7 @@ class NotificationService {
 
       // Schedule the reminder (simplified - in production use proper job scheduling)
       console.log(`Scheduled daily reminder for user ${userId} at ${reminderTime.toISOString()}`);
-      
+
       return {
         success: true,
         message: 'Daily reminder scheduled',
@@ -173,7 +173,7 @@ class NotificationService {
   async sendWeeklyReport(userId) {
     try {
       const userSettings = await this.getUserNotificationSettings(userId);
-      
+
       if (!userSettings.weeklyReports) {
         console.log(`Weekly reports disabled for user ${userId}`);
         return { success: false, message: 'Weekly reports disabled' };
@@ -207,7 +207,7 @@ class NotificationService {
   async sendAchievementNotification(userId, achievement) {
     try {
       const userSettings = await this.getUserNotificationSettings(userId);
-      
+
       if (!userSettings.achievementAlerts) {
         console.log(`Achievement alerts disabled for user ${userId}`);
         return { success: false, message: 'Achievement alerts disabled' };
@@ -250,7 +250,7 @@ class NotificationService {
 
       // Store in database (you'd implement this based on your DB structure)
       await this.storeDeviceToken(deviceData);
-      
+
       console.log(`Device token registered for user ${userId}`);
       return { success: true, message: 'Device token registered successfully' };
     } catch (error) {
@@ -311,7 +311,7 @@ class NotificationService {
         WHERE user_id = ? AND deleted_at IS NULL
       `;
       const result = await db.query(query, [userId]);
-      
+
       if (result.rows.length === 0) {
         // Return default settings
         return {
@@ -360,10 +360,10 @@ class NotificationService {
 
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
-    
+
     const [startHour, startMinute] = userSettings.quietHours.start.split(':').map(Number);
     const [endHour, endMinute] = userSettings.quietHours.end.split(':').map(Number);
-    
+
     const quietStart = startHour * 60 + startMinute;
     const quietEnd = endHour * 60 + endMinute;
 
@@ -407,7 +407,7 @@ class NotificationService {
         last_used_at = EXCLUDED.last_used_at,
         is_active = EXCLUDED.is_active
     `;
-    
+
     await db.query(query, [
       deviceData.userId,
       deviceData.deviceToken,
@@ -424,7 +424,7 @@ class NotificationService {
       INSERT INTO notification_logs (user_id, title, body, category, sent_at, success_count, failure_count, data)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    
+
     await db.query(query, [
       logData.userId,
       logData.title,
@@ -446,7 +446,7 @@ class NotificationService {
       ORDER BY sent_at DESC
       LIMIT ? OFFSET ?
     `;
-    
+
     const result = await db.query(query, [userId, limit, offset]);
     return result.rows.map(row => ({
       id: row.id,

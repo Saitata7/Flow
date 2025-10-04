@@ -80,7 +80,7 @@ const openApiSpec = {
           id: { type: 'string' },
           flowId: { type: 'string' },
           date: { type: 'string', format: 'date' },
-          symbol: { type: 'string', enum: ['✓', '✗', '+'] },
+          symbol: { type: 'string', enum: ['+', '-', '*', '/'] },
           emotion: { type: 'string' },
           moodScore: { type: 'integer', minimum: 1, maximum: 5 },
           note: { type: 'string', maxLength: 1000 },

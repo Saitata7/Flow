@@ -51,7 +51,7 @@ const AchievementsPanel = ({ flows, theme = 'light' }) => {
           flowScheduled++;
           totalScheduled++;
           const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
+          if (status?.symbol === '+') {
             flowCompleted++;
             totalCompleted++;
             flowStreak++;

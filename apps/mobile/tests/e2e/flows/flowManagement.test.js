@@ -278,7 +278,7 @@ describe('Flow Management E2E', () => {
           {
             id: '1',
             content: 'Completed morning routine',
-            symbol: '✓',
+            symbol: '+',
             date: '2024-01-15',
           },
         ],
@@ -320,7 +320,7 @@ describe('Flow Management E2E', () => {
           {
             id: '1',
             content: 'Completed morning routine',
-            symbol: '✓',
+            symbol: '+',
             date: '2024-01-15',
           },
         ],

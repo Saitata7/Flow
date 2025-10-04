@@ -15,6 +15,8 @@ import useFirstTime from '../hooks/useFirstTime';
 import { FlowsProvider } from '../context/FlowContext';
 import { ThemeProvider } from '../context/ThemeContext';
 import { ActivityProvider } from '../context/ActivityContext';
+import { SettingsProvider } from '../context/SettingsContext';
+import backgroundSyncService from '../services/backgroundSyncService';
 import { colors } from '../../styles';
 
 const screenOptions = {
@@ -46,6 +48,10 @@ const AppNavigatorContent = () => {
 
   useEffect(() => {
     Haptics.selectionAsync();
+    
+    // Initialize background sync service
+    console.log('🔄 Initializing background sync service...');
+    backgroundSyncService.init();
   }, []);
 
   // Show loading while checking auth and first time status
@@ -75,8 +81,9 @@ const AppNavigatorContent = () => {
 
   return (
     <ThemeProvider>
-      <FlowsProvider>
-        <ActivityProvider>
+      <SettingsProvider>
+        <FlowsProvider>
+          <ActivityProvider>
             <SafeAreaProvider>
             <StatusBar
               translucent
@@ -106,7 +113,8 @@ const AppNavigatorContent = () => {
             </NavigationContainer>
             </SafeAreaProvider>
           </ActivityProvider>
-      </FlowsProvider>
+        </FlowsProvider>
+      </SettingsProvider>
     </ThemeProvider>
   );
 };

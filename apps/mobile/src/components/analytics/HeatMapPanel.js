@@ -36,7 +36,7 @@ const HeatMapPanel = ({ flows, theme = 'light' }) => {
         
         if (isScheduled) {
           const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') count++;
+          if (status?.symbol === '+') count++;
         }
       });
       

@@ -1,11 +1,12 @@
 // config/api.js
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import auth from '@react-native-firebase/auth';
 
 // Base API configuration
 const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:4000/v1'  // Development
-  : 'https://api.flow.app/v1';   // Production
+  ? 'http://10.0.10.94:4000/v1'  // Local development server
+  : 'https://flow-api-c57f3te5va-uc.a.run.app/v1';   // Production Cloud Run URL
 
 // Create axios instance
 const apiClient = axios.create({
@@ -13,6 +14,8 @@ const apiClient = axios.create({
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
+    'X-Client-Version': '1.0.0',
+    'X-Platform': 'mobile',
   },
 });
 
@@ -20,7 +23,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     try {
-      // Get auth token from storage (you'll need to implement this based on your auth system)
+      // Get auth token from storage (Firebase token)
       const token = await getAuthToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -56,10 +59,15 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Helper function to get auth token
+// Helper function to get auth token from Firebase
 const getAuthToken = async () => {
   try {
-    return await AsyncStorage.getItem('authToken');
+    const user = auth().currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return token;
+    }
+    return null;
   } catch (error) {
     console.error('Error getting auth token:', error);
     return null;

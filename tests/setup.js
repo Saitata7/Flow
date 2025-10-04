@@ -49,7 +49,7 @@ global.testUtils = {
     id: '1',
     flow_id: '1',
     content: 'Test entry',
-    symbol: '✓',
+    symbol: '+',
     date: '2024-01-15',
     mood_score: 5,
     created_at: '2024-01-15T10:00:00Z',

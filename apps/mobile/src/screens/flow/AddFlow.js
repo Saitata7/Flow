@@ -152,7 +152,8 @@ export default function AddFlow({ navigation }) {
 
   // Function to check for duplicate titles
   const checkTitleAvailability = useCallback(async (titleToCheck) => {
-    if (!titleToCheck || titleToCheck.trim().length < 3) {
+    if (!titleToCheck || typeof titleToCheck !== 'string' || titleToCheck.trim().length < 3) {
+      console.log('AddFlow: Invalid titleToCheck:', titleToCheck, typeof titleToCheck);
       setTitleError('');
       return;
     }
@@ -164,9 +165,15 @@ export default function AddFlow({ navigation }) {
     }
 
     // Skip check if editing the same flow
-    if (flowToEdit && flowToEdit.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim()) {
-      setTitleError('');
-      return;
+    if (flowToEdit && flowToEdit.title && typeof flowToEdit.title === 'string') {
+      try {
+        if (flowToEdit.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim()) {
+          setTitleError('');
+          return;
+        }
+      } catch (error) {
+        console.log('AddFlow: Error comparing flowToEdit title:', error, 'flowToEdit.title:', flowToEdit.title, 'titleToCheck:', titleToCheck);
+      }
     }
 
     // Check if flows context is available
@@ -185,16 +192,31 @@ export default function AddFlow({ navigation }) {
       console.log('AddFlow: All flows in context:', flows.map(f => ({ 
         id: f.id, 
         title: f.title, 
+        titleType: typeof f.title,
         deletedAt: f.deletedAt, 
         archived: f.archived 
       })));
       
       // Check against existing flows
-      const existingFlow = flows.find(existingFlow => 
-        !existingFlow.deletedAt && 
-        !existingFlow.archived &&
-        existingFlow.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim()
-      );
+      const existingFlow = flows.find(existingFlow => {
+        // Add comprehensive null checks
+        if (!existingFlow || existingFlow.deletedAt || existingFlow.archived) {
+          return false;
+        }
+        
+        // Check if title exists and is a string
+        if (!existingFlow.title || typeof existingFlow.title !== 'string') {
+          return false;
+        }
+        
+        // Now safely compare titles
+        try {
+          return existingFlow.title.toLowerCase().trim() === titleToCheck.toLowerCase().trim();
+        } catch (error) {
+          console.log('AddFlow: Error comparing titles:', error, 'existingFlow.title:', existingFlow.title, 'titleToCheck:', titleToCheck);
+          return false;
+        }
+      });
 
       console.log('AddFlow: Found existing flow:', existingFlow);
 
@@ -518,7 +540,7 @@ export default function AddFlow({ navigation }) {
                 accessibilityHint="Select binary yes/no tracking for your flow"
                 accessibilityRole="button"
               >
-                <Text style={styles.trackingTypeIcon}>✓</Text>
+                <Text style={styles.trackingTypeIcon}>+</Text>
                 <Text style={[styles.trackingTypeText, trackingType === 'Binary' && styles.trackingTypeTextSelected]}>
                   Binary
                 </Text>

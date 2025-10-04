@@ -1,6 +1,6 @@
 // hooks/useSettings.js
 import { useState, useEffect, useCallback } from 'react';
-import settingsService from '../services/settingsServiceMock';
+import settingsService from '../services/settingsService';
 import { useAuthSimple as useAuth } from './useAuthSimple';
 
 export const useSettings = () => {

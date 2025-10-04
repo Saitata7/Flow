@@ -1888,6 +1888,7 @@
     "@react-native-async-storage/async-storage" "^2.2.0"
     "@react-native-clipboard/clipboard" "^1.16.2"
     "@react-native-community/datetimepicker" "^8.4.4"
+    "@react-native-community/netinfo" "^11.3.1"
     "@react-native-firebase/app" "^23.3.1"
     "@react-native-firebase/auth" "^23.3.1"
     "@react-native-google-signin/google-signin" "^16.0.0"
@@ -1910,6 +1911,7 @@
     expo-modules-core "~3.0.15"
     expo-notifications "^0.32.11"
     expo-secure-store "^15.0.7"
+    expo-sharing "^14.0.7"
     expo-status-bar "~3.0.8"
     expo-updates "~29.0.10"
     lucide-react "^0.525.0"
@@ -1922,7 +1924,6 @@
     react-native-chart-kit "^6.12.0"
     react-native-encrypted-storage "^4.0.3"
     react-native-figma-squircle "^0.4.0"
-    react-native-fingerprint-scanner "^6.0.0"
     react-native-gesture-handler "~2.28.0"
     react-native-get-random-values "^1.11.0"
     react-native-gifted-charts "^1.4.63"
@@ -2700,6 +2701,11 @@
   integrity sha512-vvVOJAHjU8TFBzTUjQzANCL6C3pZSE2zjfutCATk790uz7ASEc2tOBD+EIG4BTelWtP2G9jqvXp2L7XGdhEBRg==
   dependencies:
     invariant "^2.2.4"
+
+"@react-native-community/netinfo@^11.3.1":
+  version "11.4.1"
+  resolved "https://registry.npmjs.org/@react-native-community/netinfo/-/netinfo-11.4.1.tgz"
+  integrity sha512-B0BYAkghz3Q2V09BF88RA601XursIEA111tnc2JOaN7axJWmNefmfjZqw/KdSxKZp7CZUuPpjBmz/WCR9uaHYg==
 
 "@react-native-firebase/app@^23.3.1", "@react-native-firebase/app@23.3.1":
   version "23.3.1"
@@ -9926,11 +9932,6 @@ react-native-figma-squircle@^0.4.0:
   dependencies:
     figma-squircle "^1.1.0"
 
-react-native-fingerprint-scanner@^6.0.0:
-  version "6.0.0"
-  resolved "https://registry.npmjs.org/react-native-fingerprint-scanner/-/react-native-fingerprint-scanner-6.0.0.tgz"
-  integrity sha512-8VoKSA0Z0kWnIni96yABZfUUzfmWFXQEXcELwWr1CNLloPt3WoPptYb/6pGsBcH0YxSsW3X4+C8tl0clgyBsvA==
-
 "react-native-gesture-handler@>= 2.0.0", react-native-gesture-handler@>=2.0.0, react-native-gesture-handler@~2.28.0:
   version "2.28.0"
   resolved "https://registry.npmjs.org/react-native-gesture-handler/-/react-native-gesture-handler-2.28.0.tgz"
@@ -10084,7 +10085,7 @@ react-native-worklets@^0.5.1, react-native-worklets@>=0.5.0:
     convert-source-map "^2.0.0"
     semver "7.7.2"
 
-react-native@*, "react-native@^0.0.0-0 || >=0.60 <1.0", "react-native@^0.0.0-0 || >=0.65 <1.0", react-native@^0.81.4, "react-native@>= 0.30.0", "react-native@>= 0.50.0", "react-native@>= 0.61.5", react-native@>=0.33, react-native@>=0.42.0, react-native@>=0.56, react-native@>=0.59, react-native@>=0.59.0, "react-native@>=0.60 <1.0.0", react-native@>=0.70.0, react-native@>=0.73.0:
+react-native@*, "react-native@^0.0.0-0 || >=0.60 <1.0", "react-native@^0.0.0-0 || >=0.65 <1.0", react-native@^0.81.4, "react-native@>= 0.30.0", "react-native@>= 0.50.0", "react-native@>= 0.61.5", react-native@>=0.33, react-native@>=0.42.0, react-native@>=0.56, react-native@>=0.59, react-native@>=0.59.0, react-native@>=0.70.0, react-native@>=0.73.0:
   version "0.81.4"
   resolved "https://registry.npmjs.org/react-native/-/react-native-0.81.4.tgz"
   integrity sha512-bt5bz3A/+Cv46KcjV0VQa+fo7MKxs17RCcpzjftINlen4ZDUl0I6Ut+brQ2FToa5oD0IB0xvQHfmsg2EDqsZdQ==

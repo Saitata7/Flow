@@ -6,14 +6,11 @@
 const baseConfig = require('../../jest.config.base.js');
 
 module.exports = {
-  ...baseConfig,
-  
   // API-specific test environment
   testEnvironment: 'node',
   
   // API-specific setup
   setupFilesAfterEnv: [
-    '<rootDir>/tests/setup.js',
     '<rootDir>/tests/api-setup.js',
   ],
   
@@ -28,8 +25,8 @@ module.exports = {
   ],
   
   // API-specific module mapping
-  moduleNameMapping: {
-    ...baseConfig.moduleNameMapping,
+  moduleNameMapper: {
+    ...baseConfig.moduleNameMapper,
     '^@api/(.*)$': '<rootDir>/src/$1',
     '^@controllers/(.*)$': '<rootDir>/src/controllers/$1',
     '^@services/(.*)$': '<rootDir>/src/services/$1',

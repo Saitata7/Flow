@@ -18,7 +18,7 @@
     },
     "symbol": {
       "type": "string",
-      "enum": ["✓", "✗", "+"],
+      "enum": ["+", "-", "*", "/"],
       "description": "Status symbol for the flow entry"
     },
     "emotion": {

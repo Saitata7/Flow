@@ -12,339 +12,318 @@ const {
 const { requireAuth, requireOwnership } = require('../middleware/auth');
 const { validateFlowData } = require('../middleware/errorHandler');
 
-const flowsRoutes = async (fastify) => {
-  // Create a new flow
-  fastify.post('/', {
-    preHandler: [requireAuth, validateFlowData],
-    schema: {
-      description: 'Create a new flow',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      body: {
-        type: 'object',
-        required: ['title', 'trackingType', 'frequency'],
-        properties: {
-          title: { type: 'string', minLength: 1, maxLength: 100 },
-          description: { type: 'string', maxLength: 500 },
-          trackingType: { type: 'string', enum: ['Binary', 'Quantitative', 'Time-based'] },
-          frequency: { type: 'string', enum: ['Daily', 'Weekly', 'Monthly'] },
-          everyDay: { type: 'boolean' },
-          daysOfWeek: {
-            type: 'array',
-            items: { type: 'string', enum: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] }
-          },
-          reminderTime: { type: 'string', format: 'date-time' },
-          reminderLevel: { type: 'string', enum: ['1', '2', '3'] },
-          cheatMode: { type: 'boolean' },
-          planId: { type: 'string' },
-          goal: {
-            type: 'object',
-            properties: {
-              type: { type: 'string', enum: ['number', 'duration', 'count'] },
-              value: { type: 'number' },
-              unit: { type: 'string' }
+const flowsRoutes = async fastify => {
+  // Debug endpoint to check mobile app connectivity (no auth required)
+  fastify.get('/debug', async (request, reply) => {
+    const { FlowModel } = require('../db/models');
+    try {
+      const flows = await FlowModel.findByUserIdWithStatus('550e8400-e29b-41d4-a716-446655440000');
+
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
+        totalFlows: flows.length,
+        flowsWithStatus: flows.filter(f => f.status && Object.keys(f.status).length > 0).length,
+        sampleFlow: flows[0]
+          ? {
+              id: flows[0].id,
+              title: flows[0].title,
+              statusKeys: flows[0].status ? Object.keys(flows[0].status) : [],
+              statusCount: flows[0].status ? Object.keys(flows[0].status).length : 0,
+              statusSample: flows[0].status ? Object.entries(flows[0].status)[0] : null,
             }
-          },
-          progressMode: { type: 'string', enum: ['sum', 'average', 'latest'] },
-          tags: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 10 },
-          visibility: { type: 'string', enum: ['private', 'friends', 'public'] }
-        }
-      },
-      response: {
-        201: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            data: { type: 'object' },
-            message: { type: 'string' }
-          }
-        },
-        400: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            error: { type: 'string' },
-            message: { type: 'string' },
-            errors: { type: 'array', items: { type: 'string' } }
-          }
-        },
-        401: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            error: { type: 'string' },
-            message: { type: 'string' }
-          }
-        }
-      }
+          : null,
+        allFlowsStatus: flows.map(f => ({
+          id: f.id,
+          title: f.title,
+          statusCount: f.status ? Object.keys(f.status).length : 0,
+          statusKeys: f.status ? Object.keys(f.status) : [],
+        })),
+      };
+
+      return reply.send({
+        success: true,
+        data: debugInfo,
+        message: 'Debug endpoint - mobile app connectivity check',
+      });
+    } catch (error) {
+      console.error('Debug endpoint error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
     }
-  }, createFlow);
+  });
+
+  // Create a new flow
+  fastify.post(
+    '/',
+    {
+      preHandler: [requireAuth],
+    },
+    createFlow
+  );
+
+  // Test endpoint to debug data serialization
+  fastify.get('/test', async (request, reply) => {
+    const { FlowModel } = require('../db/models');
+    try {
+      // Use the dev user ID directly
+      const flows = await FlowModel.findByUserIdWithStatus('550e8400-e29b-41d4-a716-446655440000');
+      console.log('Test endpoint - raw flows:', flows.length);
+      console.log('Test endpoint - first flow:', flows[0]);
+
+      return reply.send({
+        success: true,
+        data: flows,
+        message: 'Test endpoint working',
+      });
+    } catch (error) {
+      console.error('Test endpoint error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
 
   // Get user's flows
-  fastify.get('/', {
-    preHandler: [requireAuth],
-    schema: {
-      description: 'Get user\'s flows',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      querystring: {
-        type: 'object',
-        properties: {
-          page: { type: 'integer', minimum: 1, default: 1 },
-          limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-          archived: { type: 'boolean', default: false },
-          visibility: { type: 'string', enum: ['private', 'friends', 'public'] }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            data: { type: 'array', items: { type: 'object' } },
-            pagination: {
-              type: 'object',
-              properties: {
-                page: { type: 'integer' },
-                limit: { type: 'integer' },
-                total: { type: 'integer' },
-                totalPages: { type: 'integer' }
-              }
-            }
-          }
-        }
-      }
-    }
-  }, getUserFlows);
-
-  // Search flows
-  fastify.get('/search', {
-    preHandler: [requireAuth],
-    schema: {
-      description: 'Search flows',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      querystring: {
-        type: 'object',
-        properties: {
-          q: { type: 'string', description: 'Search query' },
-          tags: { type: 'array', items: { type: 'string' } },
-          trackingType: { type: 'string', enum: ['Binary', 'Quantitative', 'Time-based'] },
-          visibility: { type: 'string', enum: ['private', 'friends', 'public'] },
-          page: { type: 'integer', minimum: 1, default: 1 },
-          limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            data: { type: 'array', items: { type: 'object' } },
-            pagination: {
-              type: 'object',
-              properties: {
-                page: { type: 'integer' },
-                limit: { type: 'integer' },
-                total: { type: 'integer' },
-                totalPages: { type: 'integer' }
-              }
-            }
-          }
-        }
-      }
-    }
-  }, searchFlows);
+  fastify.get(
+    '/',
+    {
+      preHandler: [requireAuth],
+    },
+    getUserFlows
+  );
 
   // Get flow by ID
-  fastify.get('/:id', {
-    preHandler: [requireAuth],
-    schema: {
-      description: 'Get flow by ID',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' }
-        },
-        required: ['id']
-      },
-      response: {
-        200: {
+  fastify.get(
+    '/:id',
+    {
+      preHandler: [requireAuth, requireOwnership('id')],
+      schema: {
+        description: 'Get a specific flow by ID',
+        tags: ['flows'],
+        security: [{ bearerAuth: [] }],
+        params: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
-            data: { type: 'object' }
-          }
-        },
-        404: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            error: { type: 'string' },
-            message: { type: 'string' }
-          }
-        }
-      }
-    }
-  }, getFlow);
-
-  // Update flow
-  fastify.put('/:id', {
-    preHandler: [requireAuth, requireOwnership('ownerId'), validateFlowData],
-    schema: {
-      description: 'Update flow',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' }
-        },
-        required: ['id']
-      },
-      body: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', minLength: 1, maxLength: 100 },
-          description: { type: 'string', maxLength: 500 },
-          trackingType: { type: 'string', enum: ['Binary', 'Quantitative', 'Time-based'] },
-          frequency: { type: 'string', enum: ['Daily', 'Weekly', 'Monthly'] },
-          everyDay: { type: 'boolean' },
-          daysOfWeek: {
-            type: 'array',
-            items: { type: 'string', enum: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] }
+            id: { type: 'string' },
           },
-          reminderTime: { type: 'string', format: 'date-time' },
-          reminderLevel: { type: 'string', enum: ['1', '2', '3'] },
-          cheatMode: { type: 'boolean' },
-          planId: { type: 'string' },
-          goal: {
+          required: ['id'],
+        },
+        response: {
+          200: {
             type: 'object',
             properties: {
-              type: { type: 'string', enum: ['number', 'duration', 'count'] },
-              value: { type: 'number' },
-              unit: { type: 'string' }
-            }
+              success: { type: 'boolean' },
+              data: { type: 'object' },
+            },
           },
-          progressMode: { type: 'string', enum: ['sum', 'average', 'latest'] },
-          tags: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 10 },
-          visibility: { type: 'string', enum: ['private', 'friends', 'public'] },
-          archived: { type: 'boolean' }
-        }
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            data: { type: 'object' },
-            message: { type: 'string' }
-          }
         },
-        404: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            error: { type: 'string' },
-            message: { type: 'string' }
-          }
-        }
-      }
-    }
-  }, updateFlow);
+      },
+    },
+    getFlow
+  );
 
-  // Archive flow
-  fastify.patch('/:id/archive', {
-    preHandler: [requireAuth, requireOwnership('ownerId')],
-    schema: {
-      description: 'Archive flow',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' }
-        },
-        required: ['id']
-      },
-      response: {
-        200: {
+  // Update flow
+  fastify.put(
+    '/:id',
+    {
+      preHandler: [requireAuth, requireOwnership('id'), validateFlowData],
+      schema: {
+        description: 'Update a specific flow by ID',
+        tags: ['flows'],
+        security: [{ bearerAuth: [] }],
+        params: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
-            data: { type: 'object' },
-            message: { type: 'string' }
-          }
-        }
-      }
-    }
-  }, archiveFlow);
-
-  // Delete flow (soft delete)
-  fastify.delete('/:id', {
-    preHandler: [requireAuth, requireOwnership('ownerId')],
-    schema: {
-      description: 'Delete flow',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' }
+            id: { type: 'string' },
+          },
+          required: ['id'],
         },
-        required: ['id']
-      },
-      response: {
-        200: {
+        body: {
           type: 'object',
           properties: {
-            success: { type: 'boolean' },
-            message: { type: 'string' }
-          }
-        }
-      }
-    }
-  }, deleteFlow);
-
-  // Get flow statistics
-  fastify.get('/:id/stats', {
-    preHandler: [requireAuth],
-    schema: {
-      description: 'Get flow statistics',
-      tags: ['flows'],
-      security: [{ bearerAuth: [] }],
-      params: {
-        type: 'object',
-        properties: {
-          id: { type: 'string' }
-        },
-        required: ['id']
-      },
-      response: {
-        200: {
-          type: 'object',
-          properties: {
-            success: { type: 'boolean' },
-            data: {
+            title: { type: 'string', minLength: 1, maxLength: 100 },
+            description: { type: 'string', maxLength: 500 },
+            trackingType: { type: 'string', enum: ['Binary', 'Quantitative', 'Time-based'] },
+            frequency: { type: 'string', enum: ['Daily', 'Weekly', 'Monthly'] },
+            everyDay: { type: 'boolean' },
+            daysOfWeek: {
+              type: 'array',
+              items: { type: 'string', enum: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] },
+            },
+            reminderTime: { type: 'string', format: 'date-time' },
+            reminderLevel: { type: 'string', enum: ['1', '2', '3'] },
+            cheatMode: { type: 'boolean' },
+            planId: { type: 'string' },
+            goal: {
               type: 'object',
               properties: {
-                totalEntries: { type: 'integer' },
-                completedEntries: { type: 'integer' },
-                skippedEntries: { type: 'integer' },
-                bonusEntries: { type: 'integer' },
-                currentStreak: { type: 'integer' },
-                longestStreak: { type: 'integer' },
-                averageMoodScore: { type: 'number' },
-                completionRate: { type: 'number' }
-              }
-            }
-          }
-        }
-      }
-    }
-  }, getFlowStats);
+                type: { type: 'string', enum: ['number', 'duration', 'count'] },
+                value: { type: 'number' },
+                unit: { type: 'string' },
+              },
+            },
+            progressMode: { type: 'string', enum: ['sum', 'average', 'latest'] },
+            tags: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 10 },
+            visibility: { type: 'string', enum: ['private', 'friends', 'public'] },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: { type: 'object' },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    updateFlow
+  );
+
+  // Archive flow
+  fastify.patch(
+    '/:id/archive',
+    {
+      preHandler: [requireAuth, requireOwnership('id')],
+      schema: {
+        description: 'Archive a specific flow by ID',
+        tags: ['flows'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    archiveFlow
+  );
+
+  // Delete flow
+  fastify.delete(
+    '/:id',
+    {
+      preHandler: [requireAuth, requireOwnership('id')],
+      schema: {
+        description: 'Delete a specific flow by ID',
+        tags: ['flows'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    deleteFlow
+  );
+
+  // Search flows
+  fastify.get(
+    '/search',
+    {
+      preHandler: [requireAuth],
+      schema: {
+        description: 'Search flows by title or description',
+        tags: ['flows'],
+        security: [{ bearerAuth: [] }],
+        querystring: {
+          type: 'object',
+          properties: {
+            q: { type: 'string', minLength: 1 },
+            page: { type: 'integer', minimum: 1, default: 1 },
+            limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+          },
+          required: ['q'],
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'array',
+                items: { type: 'object' },
+              },
+              pagination: {
+                type: 'object',
+                properties: {
+                  page: { type: 'integer' },
+                  limit: { type: 'integer' },
+                  total: { type: 'integer' },
+                  totalPages: { type: 'integer' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    searchFlows
+  );
+
+  // Get flow stats
+  fastify.get(
+    '/:id/stats',
+    {
+      preHandler: [requireAuth, requireOwnership('id')],
+      schema: {
+        description: 'Get statistics for a specific flow',
+        tags: ['flows'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+          },
+          required: ['id'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            timeframe: { type: 'string', enum: ['week', 'month', 'year', 'all'], default: 'all' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: { type: 'object' },
+            },
+          },
+        },
+      },
+    },
+    getFlowStats
+  );
 };
 
-module.exports = { flowsRoutes };
+module.exports = flowsRoutes;

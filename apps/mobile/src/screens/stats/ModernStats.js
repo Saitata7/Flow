@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
 import moment from 'moment';
 import { FlowsContext } from '../../context/FlowContext';
+import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import Card from '../../components/common/card';
@@ -25,13 +26,63 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const ModernStats = ({ navigation }) => {
   const { flows } = useContext(FlowsContext);
+  const { getAllStats, forceRefreshAnalytics } = useContext(ActivityContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [refreshing, setRefreshing] = useState(false);
   const [animatedValue] = useState(new Animated.Value(0));
+  const [stats, setStats] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
+
+  // Load stats using ActivityContext
+  useEffect(() => {
+    const loadStats = async () => {
+      if (!flows || flows.length === 0) {
+        setStats(null);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        console.log('ModernStats: Loading stats using ActivityContext...');
+        
+        // Force refresh analytics to ensure fresh data
+        await forceRefreshAnalytics();
+        
+        console.log('ModernStats: Calling getAllStats with timeframe:', selectedTimeframe);
+        const allStats = await getAllStats({
+          timeframe: selectedTimeframe,
+          includeArchived: false,
+          includeDeleted: false
+        });
+        console.log('ModernStats: getAllStats returned:', {
+          hasFlowSummaries: !!allStats?.flowSummaries,
+          flowSummariesCount: allStats?.flowSummaries?.length || 0,
+          flowSummaries: allStats?.flowSummaries?.map(f => ({
+            id: f.flowId,
+            title: f.flowTitle,
+            completionRate: f.completionRate,
+            completed: f.completed,
+            scheduled: f.scheduledDays
+          }))
+        });
+        
+        console.log('ModernStats: Stats loaded:', allStats);
+        setStats(allStats);
+      } catch (error) {
+        console.error('ModernStats: Failed to load stats:', error);
+        setStats(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadStats();
+  }, [flows, selectedTimeframe, getAllStats, forceRefreshAnalytics]);
 
   // Animate on mount
   React.useEffect(() => {
@@ -42,117 +93,36 @@ const ModernStats = ({ navigation }) => {
     }).start();
   }, []);
 
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
-
-  // Calculate comprehensive stats
-  const stats = useMemo(() => {
-    const now = moment();
-    const startDate = moment().subtract(
-      selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365,
-      'days'
-    );
-
-    let totalCompleted = 0;
-    let totalScheduled = 0;
-    let totalPoints = 0;
-    let currentStreak = 0;
-    let bestStreak = 0;
-    let weeklyData = [];
-    let flowPerformance = [];
-
-    // Generate weekly data for charts
-    for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 52); i++) {
-      const date = startDate.clone().add(i, 'days');
-      const dayKey = date.format('YYYY-MM-DD');
-      
-      let dayCompleted = 0;
-      let dayScheduled = 0;
-
-      flows.forEach(flow => {
-        const isScheduled = flow.repeatType === 'day' 
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(date.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(date.date().toString());
-
-        if (isScheduled) {
-          dayScheduled++;
-          totalScheduled++;
-          const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
-            dayCompleted++;
-            totalCompleted++;
-            totalPoints += 10;
-          }
-        }
+    try {
+      await forceRefreshAnalytics();
+      const allStats = await getAllStats({
+        timeframe: selectedTimeframe,
+        includeArchived: false,
+        includeDeleted: false
       });
-
-      weeklyData.push({
-        date: date.format('MMM DD'),
-        completed: dayCompleted,
-        scheduled: dayScheduled,
-        percentage: dayScheduled > 0 ? (dayCompleted / dayScheduled) * 100 : 0,
-      });
+      setStats(allStats);
+    } catch (error) {
+      console.error('ModernStats: Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
     }
+  }, [selectedTimeframe, getAllStats, forceRefreshAnalytics]);
 
-    // Calculate flow performance
-    flows.forEach(flow => {
-      let flowCompleted = 0;
-      let flowScheduled = 0;
-      let flowStreak = 0;
-      let maxStreak = 0;
-
-      for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365); i++) {
-        const date = startDate.clone().add(i, 'days');
-        const dayKey = date.format('YYYY-MM-DD');
-        
-        const isScheduled = flow.repeatType === 'day' 
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(date.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(date.date().toString());
-
-        if (isScheduled) {
-          flowScheduled++;
-          const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
-            flowCompleted++;
-            flowStreak++;
-            maxStreak = Math.max(maxStreak, flowStreak);
-          } else {
-            flowStreak = 0;
-          }
-        }
-      }
-
-      const performance = flowScheduled > 0 ? (flowCompleted / flowScheduled) * 100 : 0;
-      flowPerformance.push({
-        id: flow.id, // Add the flow ID for navigation
-        name: flow.title,
-        performance,
-        completed: flowCompleted,
-        scheduled: flowScheduled,
-        streak: maxStreak,
-        type: flow.trackingType,
-      });
-    });
-
-    const successRate = totalScheduled > 0 ? (totalCompleted / totalScheduled) * 100 : 0;
-    const avgDailyCompletion = weeklyData.length > 0 
-      ? weeklyData.reduce((sum, day) => sum + day.percentage, 0) / weeklyData.length 
-      : 0;
-
-    return {
-      totalCompleted,
-      totalScheduled,
-      totalPoints,
-      successRate,
-      avgDailyCompletion,
-      currentStreak,
-      bestStreak,
-      weeklyData,
-      flowPerformance,
-    };
-  }, [flows, selectedTimeframe]);
+  // Show loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingTitle, { color: themeColors.primaryText }]}>Loading...</Text>
+          <Text style={[styles.loadingMessage, { color: themeColors.secondaryText }]}>
+            Loading analytics...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Chart configurations
   const chartConfig = {
@@ -293,8 +263,8 @@ const ModernStats = ({ navigation }) => {
           </Text>
         </View>
 
-        {/* Use the new Analytics Dashboard */}
-        <AnalyticsDashboard flows={flows} theme={theme} navigation={navigation} />
+        {/* Use the new Analytics Dashboard with ActivityContext data */}
+        <AnalyticsDashboard flows={flows} theme={theme} navigation={navigation} stats={stats} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -303,6 +273,22 @@ const ModernStats = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.xl,
+  },
+  loadingTitle: {
+    ...typography.styles.title2,
+    fontWeight: '600',
+    marginBottom: layout.spacing.sm,
+    textAlign: 'center',
+  },
+  loadingMessage: {
+    ...typography.styles.body,
+    textAlign: 'center',
   },
   contentContainer: {
     padding: layout.spacing.md,

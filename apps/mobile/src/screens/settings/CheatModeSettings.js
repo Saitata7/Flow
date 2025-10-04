@@ -39,14 +39,24 @@ const CheatModeSettings = ({ route }) => {
   const { flows = [], updateFlow } = useContext(FlowsContext) || {};
 
   const [cheatData, setCheatData] = useState({
-    highlightDayStreak: true
+    highlightDayStreak: true,
+    enableDebugMode: false,
+    showAdvancedStats: false,
+    allowNegativeStreaks: false,
+    customMultiplier: 1.0,
+    enableTestData: false
   });
 
   // Initialize cheat data when settings load
   useEffect(() => {
     if (settings) {
       setCheatData({
-        highlightDayStreak: settings.highlightDayStreak ?? true
+        highlightDayStreak: settings.highlightDayStreak ?? true,
+        enableDebugMode: settings.enableDebugMode ?? false,
+        showAdvancedStats: settings.showAdvancedStats ?? false,
+        allowNegativeStreaks: settings.allowNegativeStreaks ?? false,
+        customMultiplier: settings.customMultiplier ?? 1.0,
+        enableTestData: settings.enableTestData ?? false
       });
     }
   }, [settings]);
@@ -78,6 +88,71 @@ const CheatModeSettings = ({ route }) => {
       console.error('Error saving cheat mode settings:', error);
       Alert.alert('Error', 'Failed to save settings. Please try again.');
     }
+  };
+
+  // Calculate flow statistics with cheat mode adjustments
+  const calculateFlowStats = (flow) => {
+    const baseStats = {
+      streak: flow.streak || 0,
+      totalDays: flow.totalDays || 0,
+      completionRate: flow.completionRate || 0,
+      averageScore: flow.averageScore || 0
+    };
+
+    if (cheatData.enableDebugMode) {
+      // Apply custom multiplier for testing
+      return {
+        ...baseStats,
+        streak: Math.floor(baseStats.streak * cheatData.customMultiplier),
+        totalDays: Math.floor(baseStats.totalDays * cheatData.customMultiplier),
+        completionRate: Math.min(100, baseStats.completionRate * cheatData.customMultiplier),
+        averageScore: Math.min(10, baseStats.averageScore * cheatData.customMultiplier)
+      };
+    }
+
+    return baseStats;
+  };
+
+  // Generate test data for flows
+  const generateTestData = () => {
+    if (!cheatData.enableTestData) return;
+
+    const testFlows = flows.map(flow => ({
+      ...flow,
+      streak: Math.floor(Math.random() * 30) + 1,
+      totalDays: Math.floor(Math.random() * 100) + 1,
+      completionRate: Math.floor(Math.random() * 40) + 60,
+      averageScore: Math.floor(Math.random() * 5) + 5,
+      lastCompleted: new Date().toISOString()
+    }));
+
+    Alert.alert('Test Data Generated', `Generated test data for ${testFlows.length} flows`);
+  };
+
+  // Reset all cheat mode settings
+  const resetCheatMode = () => {
+    Alert.alert(
+      'Reset Cheat Mode',
+      'This will reset all cheat mode settings to default values. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: () => {
+            setCheatData({
+              highlightDayStreak: true,
+              enableDebugMode: false,
+              showAdvancedStats: false,
+              allowNegativeStreaks: false,
+              customMultiplier: 1.0,
+              enableTestData: false
+            });
+            Alert.alert('Success', 'Cheat mode settings reset to defaults');
+          }
+        }
+      ]
+    );
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -287,7 +362,7 @@ const CheatModeSettings = ({ route }) => {
       <View style={dynamicStyles.header}>
         <TouchableOpacity 
           style={dynamicStyles.backButton}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.goBack()}
         >
           <Ionicons 
             name="arrow-back" 

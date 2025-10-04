@@ -379,7 +379,7 @@ const EditFlowScreen = ({ route, navigation }) => {
                 accessibilityLabel="Select Binary tracking"
                 accessibilityHint="Choose yes/no tracking for this flow"
               >
-                <Text style={styles.trackingTypeIcon}>✓</Text>
+                <Text style={styles.trackingTypeIcon}>+</Text>
                 <Text style={[
                   styles.trackingTypeText, 
                   { color: themeColors.secondaryText },

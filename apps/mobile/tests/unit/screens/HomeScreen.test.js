@@ -53,8 +53,8 @@ const mockFlowsContext = {
       trackingType: 'Binary',
       frequency: 'Daily',
       status: {
-        '2024-01-01': { symbol: '✅' },
-        '2024-01-02': { symbol: '❌' },
+        '2024-01-01': { symbol: '+' },
+        '2024-01-02': { symbol: '-' },
       },
     },
     {
@@ -63,8 +63,8 @@ const mockFlowsContext = {
       trackingType: 'Quantitative',
       frequency: 'Daily',
       status: {
-        '2024-01-01': { symbol: '✅' },
-        '2024-01-02': { symbol: '✅' },
+        '2024-01-01': { symbol: '+' },
+        '2024-01-02': { symbol: '+' },
       },
     },
   ],

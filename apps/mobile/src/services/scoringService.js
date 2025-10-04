@@ -97,11 +97,14 @@ export const calculateEntryPoints = (entry, flow, options = {}) => {
 
   // Calculate emotion bonus
   if (includeEmotionBonus && entry.emotion) {
-    result.breakdown.emotion = calculateEmotionBonus(entry.emotion);
+    const emotionBonus = calculateEmotionBonus(entry.emotion);
+    console.log('Scoring: Emotion bonus calculated:', { emotion: entry.emotion, bonus: emotionBonus });
+    result.breakdown.emotion = emotionBonus;
   }
 
   // Calculate notes bonus
   if (includeNotesBonus && entry.note && entry.note.trim().length > 0) {
+    console.log('Scoring: Notes bonus calculated:', { note: entry.note, bonus: SCORING_CONFIG.POINTS.NOTES_BONUS });
     result.breakdown.notes = SCORING_CONFIG.POINTS.NOTES_BONUS;
   }
 
@@ -183,25 +186,21 @@ const calculateCompletionStatus = (entry, flow) => {
     // Binary flow logic
     switch (symbol) {
       case '+':
-      case '✅':
         status = 'completed';
         points = SCORING_CONFIG.POINTS.COMPLETED;
         completionRate = 1;
         break;
       case '*':
-      case '~':
         status = 'partial';
         points = SCORING_CONFIG.POINTS.PARTIAL;
         completionRate = 0.5;
         isPartial = true;
         break;
       case '-':
-      case '❌':
         status = 'failed';
         points = SCORING_CONFIG.POINTS.FAILED;
         break;
       case '/':
-      case '⏭️':
         status = 'skipped';
         points = SCORING_CONFIG.POINTS.SKIPPED;
         break;
@@ -345,8 +344,19 @@ const isFlowScheduledForDate = (flow, date) => {
   const frequency = flow.frequency || (flow.repeatType === 'day' ? 'Daily' : flow.repeatType === 'month' ? 'Monthly' : 'Daily');
   
   if (frequency === 'Daily') {
-    return flow.everyDay || 
-           (flow.daysOfWeek && flow.daysOfWeek.length > 0 && flow.daysOfWeek.includes(date.format('ddd')));
+    // If everyDay is true, always scheduled
+    if (flow.everyDay) {
+      return true;
+    }
+    
+    // If daysOfWeek is specified and has entries, check if date is in the list
+    if (flow.daysOfWeek && flow.daysOfWeek.length > 0) {
+      return flow.daysOfWeek.includes(date.format('ddd'));
+    }
+    
+    // If everyDay is false but no specific days are set, treat as every day
+    // This handles cases where flows have entries but no explicit schedule
+    return true;
   } else if (frequency === 'Monthly') {
     return flow.selectedMonthDays && 
            flow.selectedMonthDays.includes(date.date().toString());
@@ -363,6 +373,26 @@ const isFlowScheduledForDate = (flow, date) => {
  * @returns {Object} Comprehensive flow stats
  */
 export const calculateFlowStats = (flow, options = {}) => {
+  console.log('ScoringService: calculateFlowStats called with:', {
+    flowId: flow.id,
+    flowTitle: flow.title,
+    flowStartDate: flow.startDate,
+    flowStatus: flow.status,
+    flowStatusKeys: flow.status ? Object.keys(flow.status) : 'No status',
+    flowStatusEntries: flow.status ? Object.entries(flow.status).map(([date, data]) => ({ date, symbol: data.symbol, emotion: data.emotion })) : 'No entries',
+    options
+  });
+
+  // Test with a known flow to debug the calculation
+  if (flow.id === '91e56df5-c217-4776-93a6-101d11ad03a9') {
+    console.log('ScoringService: DEBUGGING FLOW 91e56df5-c217-4776-93a6-101d11ad03a9');
+    console.log('ScoringService: Flow status object:', JSON.stringify(flow.status, null, 2));
+    console.log('ScoringService: Flow startDate:', flow.startDate);
+    console.log('ScoringService: Flow frequency:', flow.frequency);
+    console.log('ScoringService: Flow everyDay:', flow.everyDay);
+    console.log('ScoringService: Flow daysOfWeek:', flow.daysOfWeek);
+  }
+  
   const {
     includeEmotions = true,
     includeNotes = true,
@@ -406,8 +436,24 @@ export const calculateFlowStats = (flow, options = {}) => {
         break;
     }
   } else {
+    // Use flow start date, but extend range to include all status entries
     startDate = moment(flow.startDate);
     endDate = moment();
+    
+    // If flow has status entries, extend the range to include all entry dates
+    if (flow.status && Object.keys(flow.status).length > 0) {
+      const entryDates = Object.keys(flow.status).map(date => moment(date));
+      const minEntryDate = moment.min(entryDates);
+      const maxEntryDate = moment.max(entryDates);
+      
+      // Extend range to include all entry dates
+      if (minEntryDate.isBefore(startDate)) {
+        startDate = minEntryDate;
+      }
+      if (maxEntryDate.isAfter(endDate)) {
+        endDate = maxEntryDate;
+      }
+    }
   }
   
   if (!startDate.isValid()) {
@@ -416,6 +462,31 @@ export const calculateFlowStats = (flow, options = {}) => {
   }
 
   const diffDays = endDate.diff(startDate, 'days') + 1;
+  
+  console.log('ScoringService: Date range calculated:', {
+    startDate: startDate.format('YYYY-MM-DD'),
+    endDate: endDate.format('YYYY-MM-DD'),
+    diffDays: diffDays,
+    flowStartDate: flow.startDate,
+    currentDate: moment().format('YYYY-MM-DD'),
+    flowId: flow.id,
+    flowTitle: flow.title
+  });
+
+  // Debug specific flow
+  if (flow.id === '91e56df5-c217-4776-93a6-101d11ad03a9') {
+    console.log('ScoringService: DEBUG FLOW 91e56df5-c217-4776-93a6-101d11ad03a9 DATE RANGE:');
+    console.log('ScoringService: - startDate:', startDate.format('YYYY-MM-DD'));
+    console.log('ScoringService: - endDate:', endDate.format('YYYY-MM-DD'));
+    console.log('ScoringService: - diffDays:', diffDays);
+    console.log('ScoringService: - flow.startDate:', flow.startDate);
+  }
+  
+  console.log('ScoringService: Flow status entries:', {
+    statusKeys: flow.status ? Object.keys(flow.status) : 'No status',
+    statusSample: flow.status ? Object.entries(flow.status)[0] : 'No status entries',
+    statusCount: flow.status ? Object.keys(flow.status).length : 0
+  });
   
   let completed = 0;
   let partial = 0;
@@ -448,18 +519,44 @@ export const calculateFlowStats = (flow, options = {}) => {
       scheduledDaysFound++;
       const dayStat = flow.status?.[dayKey];
       
+      console.log('FlowStats: Processing scheduled day:', {
+        dayKey,
+        isScheduled,
+        hasDayStat: !!dayStat,
+        dayStat: dayStat ? { symbol: dayStat.symbol, emotion: dayStat.emotion } : null,
+        flowId: flow.id
+      });
+
+      // Debug specific flow
+      if (flow.id === '91e56df5-c217-4776-93a6-101d11ad03a9') {
+        console.log('ScoringService: DEBUG FLOW 91e56df5-c217-4776-93a6-101d11ad03a9 SCHEDULED DAY:', dayKey);
+        console.log('ScoringService: - isScheduled:', isScheduled);
+        console.log('ScoringService: - hasDayStat:', !!dayStat);
+        console.log('ScoringService: - dayStat:', dayStat);
+      }
+      
       if (!dayStat) {
+        console.log('FlowStats: No entry found for day:', { dayKey, flowId: flow.id, hasStatus: !!flow.status });
         inactive++;
         continue;
       }
 
       // Calculate scoring for this entry
+      console.log('FlowStats: Processing day entry:', { dayKey, dayStat, flowId: flow.id });
+      console.log('FlowStats: Day entry details:', {
+        symbol: dayStat.symbol,
+        emotion: dayStat.emotion,
+        note: dayStat.note,
+        hasEmotion: !!dayStat.emotion,
+        hasNote: !!(dayStat.note && dayStat.note.trim().length > 0)
+      });
       const scoringResult = calculateEntryPoints(dayStat, flow, {
         includeStreakBonus: false, // We'll calculate streak separately
         includeEmotionBonus,
         includeNotesBonus: includeNotes,
         isCheatMode: includeCheatMode,
       });
+      console.log('FlowStats: Scoring result:', scoringResult);
 
       // Count by status
       switch (scoringResult.status) {
@@ -515,6 +612,34 @@ export const calculateFlowStats = (flow, options = {}) => {
   // Calculate normalized score (0-100 scale)
   const maxPossiblePoints = scheduledDays * SCORING_CONFIG.POINTS.COMPLETED;
   const normalizedScore = maxPossiblePoints > 0 ? (totalPoints / maxPossiblePoints) * 100 : 0;
+
+  console.log('ScoringService: Final stats calculated:', {
+    completed,
+    partial,
+    failed,
+    skipped,
+    inactive,
+    scheduledDays,
+    emotionBonus,
+    notesCount,
+    totalPoints,
+    completionRate: parseFloat(completionRate.toFixed(1)),
+    finalScore: totalPoints,
+    calculationDetails: {
+      scheduledDaysCalculation: `scheduledDays=${scheduledDays}, completed=${completed}, partial=${partial}`,
+      completionRateFormula: `(completed + partial) / scheduledDays * 100 = (${completed} + ${partial}) / ${scheduledDays} * 100 = ${completionRate}`
+    }
+  });
+
+  // Debug specific flow
+  if (flow.id === '91e56df5-c217-4776-93a6-101d11ad03a9') {
+    console.log('ScoringService: DEBUG FLOW 91e56df5-c217-4776-93a6-101d11ad03a9 FINAL RESULTS:');
+    console.log('ScoringService: - scheduledDays:', scheduledDays);
+    console.log('ScoringService: - completed:', completed);
+    console.log('ScoringService: - partial:', partial);
+    console.log('ScoringService: - completionRate:', completionRate);
+    console.log('ScoringService: - Should be 100% if 2 completed entries and 2 scheduled days');
+  }
 
   return {
     completed,

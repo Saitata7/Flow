@@ -1,12 +1,12 @@
-const plansRoutes = async (fastify) => {
+const plansRoutes = async fastify => {
   // Placeholder for plans routes
   fastify.get('/', async (request, reply) => {
     return reply.send({
       success: true,
       message: 'Plans routes - coming soon',
-      data: []
+      data: [],
     });
   });
 };
 
-module.exports = { plansRoutes };
+module.exports = plansRoutes;

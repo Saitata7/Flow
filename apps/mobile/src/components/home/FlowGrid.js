@@ -119,13 +119,13 @@ const FlowGrid = ({ onFlowPress, cheatMode = false }) => {
     }
     
     // Check the symbol field which is used in the existing system
-    if (status.symbol === '+' || status.symbol === '✓') {
+    if (status.symbol === '+') {
       return 'done';
     } else if (status.symbol === '-') {
       return 'missed';
-    } else if (status.symbol === '*' || status.symbol === '~' || status.symbol === '≈' || status.symbol === 'p') {
+    } else if (status.symbol === '*') {
       return 'partial'; // Partial completion
-    } else if (status.symbol === '/' || status.symbol === 's' || status.symbol === 'skip') {
+    } else if (status.symbol === '/') {
       return 'skip'; // Incomplete/pending or skipped
     } else {
       return 'available'; // Scheduled but not completed

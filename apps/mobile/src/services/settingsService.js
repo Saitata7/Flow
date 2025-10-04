@@ -1,373 +1,576 @@
 // services/settingsService.js
+// User settings and privacy management service
+// Handles sync preferences, privacy settings, and user preferences
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { db } from '../config/firebaseConfig';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth } from '../config/firebaseConfig';
+import apiService from './apiService';
 
-const SETTINGS_STORAGE_KEY = 'app_settings';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const SETTINGS_STORAGE_KEY = 'user_settings';
+const PRIVACY_STORAGE_KEY = 'privacy_settings';
 
-// Default settings structure
-const defaultSettings = {
-  theme: 'light',
-  accentColor: '#007AFF',
-  textSize: 'medium',
-  highContrast: false,
-  cheatMode: false,
-  highlightDayStreak: true,
-  closeTime: '21:00',
-  habitDefaults: {
-    type: 'binary',
-    goalFrequency: 'daily',
-    repeatTimesPerWeek: 7,
-    reminderMethod: 'notification',
+// Default settings
+const DEFAULT_SETTINGS = {
+  // Sync preferences
+  syncEnabled: true,
+  autoSync: true,
+  syncFrequency: 'realtime', // 'realtime', 'hourly', 'daily', 'manual'
+  syncOnWifiOnly: false,
+  
+  // Privacy settings
+  dataSharing: {
+    analytics: true,
+    crashReports: true,
+    usageStats: true,
+    personalizedAds: false,
   },
-  scoring: {
-    showDetailedStats: true,
-    showEmotionNotes: true,
-    motivationalInsights: true,
-  },
-  emotionalLogging: {
-    promptFrequency: 'always',
-    customEmotions: ['Happy', 'Sad', 'Motivated'],
-  },
-  social: {
-    shareProgress: false,
-    communityChallenges: false,
-    peerEncouragement: false,
-  },
-  dataPrivacy: {
-    cloudBackup: false,
-    localBackup: false,
-    clinicianConsent: false,
-  },
-  clinician: {
-    enableDashboard: false,
-    sharedData: 'stats',
-    clinicians: [],
-  },
-  integrations: {
-    wearables: [],
-    externalApps: [],
-  },
-  appBehavior: {
-    defaultLandingPage: 'dashboard',
-  },
+  
+  // App preferences
+  theme: 'system', // 'light', 'dark', 'system'
+  language: 'en',
   notifications: {
-    dailyReminders: true,
+    reminders: true,
+    achievements: true,
+    streaks: true,
     weeklyReports: true,
-    achievementAlerts: true,
-    communityUpdates: false,
-    reminderTime: '09:00',
-    quietHours: {
-      enabled: false,
-      start: '22:00',
-      end: '08:00'
-    }
   },
-  privacy: {
-    shareStats: false,
-    shareAchievements: false,
-    allowFriendRequests: false,
-    showOnlineStatus: false
-  },
-  location: {
-    enabled: false,
-    precision: 'city',
-    shareLocation: false
-  },
-  schemaVersion: 2,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
+  
+  // Flow preferences
+  defaultReminderTime: '09:00',
+  defaultReminderLevel: '1',
+  showCompletedFlows: true,
+  showArchivedFlows: false,
+  
+  // Backup preferences
+  backupEnabled: true,
+  backupFrequency: 'daily',
+  lastBackupTime: null,
 };
 
 class SettingsService {
   constructor() {
-    this.cache = null;
-    this.cacheTimestamp = null;
+    this.settings = { ...DEFAULT_SETTINGS };
+    this.privacySettings = {};
+    this.isInitialized = false;
   }
 
-  // Get current user ID
-  getCurrentUserId() {
-    return auth.currentUser?.uid;
-  }
-
-  // Check if settings cache is valid
-  isCacheValid() {
-    if (!this.cacheTimestamp) return false;
-    return Date.now() - this.cacheTimestamp < CACHE_DURATION;
-  }
-
-  // Get settings from cache
-  getCachedSettings() {
-    if (this.isCacheValid()) {
-      return this.cache;
-    }
-    return null;
-  }
-
-  // Cache settings
-  cacheSettings(settings) {
-    this.cache = settings;
-    this.cacheTimestamp = Date.now();
-  }
-
-  // Get settings from local storage
-  async getLocalSettings() {
+  /**
+   * Initialize settings service
+   */
+  async initialize() {
     try {
-      const stored = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
-      return stored ? JSON.parse(stored) : null;
+      await this.loadSettings();
+      await this.loadPrivacySettings();
+      this.isInitialized = true;
+      console.log('✅ Settings service initialized');
     } catch (error) {
-      console.error('Error getting local settings:', error);
-      return null;
+      console.error('❌ Failed to initialize settings service:', error);
     }
   }
 
-  // Save settings to local storage
-  async saveLocalSettings(settings) {
+  /**
+   * Load settings from storage
+   */
+  async loadSettings() {
     try {
-      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-      console.error('Error saving local settings:', error);
-    }
-  }
-
-  // Get settings (with caching and offline support)
-  async getSettings() {
-    // Check cache first
-    const cachedSettings = this.getCachedSettings();
-    if (cachedSettings) {
-      return cachedSettings;
-    }
-
-    try {
-      const userId = this.getCurrentUserId();
-      if (userId) {
-        // Try to get from Firestore
-        const settingsRef = doc(db, 'userSettings', userId);
-        const settingsSnap = await getDoc(settingsRef);
-        
-        if (settingsSnap.exists()) {
-          const settings = { ...defaultSettings, ...settingsSnap.data() };
-          this.cacheSettings(settings);
-          await this.saveLocalSettings(settings);
-          return settings;
-        } else {
-          // Create default settings if none exists
-          const newSettings = { ...defaultSettings };
-          await this.createSettings(newSettings);
-          return newSettings;
-        }
+      const settingsData = await AsyncStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (settingsData) {
+        this.settings = { ...DEFAULT_SETTINGS, ...JSON.parse(settingsData) };
+        console.log('📱 Settings loaded from storage');
       } else {
-        // Fallback to local storage for anonymous users
-        const localSettings = await this.getLocalSettings();
-        if (localSettings) {
-          this.cacheSettings(localSettings);
-          return localSettings;
-        }
-        return { ...defaultSettings };
+        console.log('📱 Using default settings');
       }
     } catch (error) {
-      console.error('Error getting settings from Firestore:', error);
-      
-      // Fallback to local storage
-      const localSettings = await this.getLocalSettings();
-      if (localSettings) {
-        this.cacheSettings(localSettings);
-        return localSettings;
-      }
-      
-      // Return default settings if all else fails
-      return { ...defaultSettings };
+      console.error('Error loading settings:', error);
+      this.settings = { ...DEFAULT_SETTINGS };
     }
   }
 
-  // Create new settings
-  async createSettings(settingsData = {}) {
-    const settings = {
-      ...defaultSettings,
-      ...settingsData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
+  /**
+   * Load privacy settings from storage
+   */
+  async loadPrivacySettings() {
     try {
-      const userId = this.getCurrentUserId();
-      if (userId) {
-        const settingsRef = doc(db, 'userSettings', userId);
-        await setDoc(settingsRef, settings);
+      const privacyData = await AsyncStorage.getItem(PRIVACY_STORAGE_KEY);
+      if (privacyData) {
+        this.privacySettings = JSON.parse(privacyData);
+        console.log('🔒 Privacy settings loaded from storage');
       }
-      
-      // Update cache and local storage
-      this.cacheSettings(settings);
-      await this.saveLocalSettings(settings);
-      
-      return settings;
     } catch (error) {
-      console.error('Error creating settings:', error);
-      throw error;
+      console.error('Error loading privacy settings:', error);
+      this.privacySettings = {};
     }
   }
 
-  // Update settings
-  async updateSettings(updates) {
-    const updateData = {
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
-
+  /**
+   * Save settings to storage
+   */
+  async saveSettings() {
     try {
-      const userId = this.getCurrentUserId();
-      if (userId) {
-        const settingsRef = doc(db, 'userSettings', userId);
-        await updateDoc(settingsRef, updateData);
-      }
-      
-      // Get updated settings
-      const updatedSettings = await this.getSettings();
-      
-      // Update cache and local storage
-      this.cacheSettings(updatedSettings);
-      await this.saveLocalSettings(updatedSettings);
-      
-      return updatedSettings;
+      await AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(this.settings));
+      console.log('💾 Settings saved to storage');
     } catch (error) {
-      console.error('Error updating settings:', error);
-      
-      // Try to update locally for offline support
-      const localSettings = await this.getLocalSettings();
-      if (localSettings) {
-        const updatedLocalSettings = { ...localSettings, ...updateData };
-        await this.saveLocalSettings(updatedLocalSettings);
-        this.cacheSettings(updatedLocalSettings);
-        return updatedLocalSettings;
-      }
-      
-      throw error;
+      console.error('Error saving settings:', error);
     }
   }
 
-  // Update specific setting category
-  async updateSettingCategory(category, updates) {
-    const currentSettings = await this.getSettings();
-    const updatedCategory = {
-      ...currentSettings[category],
-      ...updates
-    };
+  /**
+   * Save privacy settings to storage
+   */
+  async savePrivacySettings() {
+    try {
+      await AsyncStorage.setItem(PRIVACY_STORAGE_KEY, JSON.stringify(this.privacySettings));
+      console.log('🔒 Privacy settings saved to storage');
+    } catch (error) {
+      console.error('Error saving privacy settings:', error);
+    }
+  }
+
+  /**
+   * Get all settings
+   */
+  getSettings() {
+    return { ...this.settings };
+  }
+
+  /**
+   * Get a specific setting by key with fallback
+   */
+  getSetting(key, defaultValue = null) {
+    const keys = key.split('.');
+    let value = this.settings;
     
-    return await this.updateSettings({
-      [category]: updatedCategory
-    });
+    for (const k of keys) {
+      if (value && typeof value === 'object' && k in value) {
+        value = value[k];
+      } else {
+        return defaultValue;
+      }
+    }
+    
+    return value !== undefined ? value : defaultValue;
   }
 
-  // Reset settings to defaults
+  /**
+   * Get privacy settings
+   */
+  getPrivacySettings() {
+    return { ...this.privacySettings };
+  }
+
+  /**
+   * Update a specific setting
+   */
+  async updateSetting(key, value) {
+    try {
+      // Handle nested keys (e.g., 'notifications.reminders')
+      const keys = key.split('.');
+      let current = this.settings;
+      
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) {
+          current[keys[i]] = {};
+        }
+        current = current[keys[i]];
+      }
+      
+      current[keys[keys.length - 1]] = value;
+      
+      await this.saveSettings();
+      
+      // Handle special cases
+      if (key === 'syncEnabled') {
+        await apiService.setSyncEnabled(value);
+        console.log(`🔄 Sync ${value ? 'enabled' : 'disabled'}`);
+      }
+      
+      console.log(`⚙️ Setting updated: ${key} = ${value}`);
+    } catch (error) {
+      console.error('Error updating setting:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update privacy setting
+   */
+  async updatePrivacySetting(key, value) {
+    try {
+      this.privacySettings[key] = value;
+      await this.savePrivacySettings();
+      console.log(`🔒 Privacy setting updated: ${key} = ${value}`);
+    } catch (error) {
+      console.error('Error updating privacy setting:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if sync is enabled
+   */
+  isSyncEnabled() {
+    return this.settings.syncEnabled && this.privacySettings.allowCloudSync !== false;
+  }
+
+  /**
+   * Enable/disable cloud sync
+   */
+  async setSyncEnabled(enabled) {
+    await this.updateSetting('syncEnabled', enabled);
+    await apiService.setSyncEnabled(enabled);
+  }
+
+  /**
+   * Check if auto-sync is enabled
+   */
+  isAutoSyncEnabled() {
+    return this.settings.autoSync && this.isSyncEnabled();
+  }
+
+  /**
+   * Get sync frequency
+   */
+  getSyncFrequency() {
+    return this.settings.syncFrequency;
+  }
+
+  /**
+   * Check if sync should only happen on WiFi
+   */
+  isWifiOnlySync() {
+    return this.settings.syncOnWifiOnly;
+  }
+
+  /**
+   * Get notification preferences
+   */
+  getNotificationSettings() {
+    return { ...this.settings.notifications };
+  }
+
+  /**
+   * Update notification setting
+   */
+  async updateNotificationSetting(key, value) {
+    await this.updateSetting(`notifications.${key}`, value);
+  }
+
+  /**
+   * Get theme preference
+   */
+  getTheme() {
+    return this.settings.theme;
+  }
+
+  /**
+   * Set theme preference
+   */
+  async setTheme(theme) {
+    await this.updateSetting('theme', theme);
+  }
+
+  /**
+   * Get language preference
+   */
+  getLanguage() {
+    return this.settings.language;
+  }
+
+  /**
+   * Set language preference
+   */
+  async setLanguage(language) {
+    await this.updateSetting('language', language);
+  }
+
+  /**
+   * Get data sharing preferences
+   */
+  getDataSharingSettings() {
+    return { ...this.settings.dataSharing };
+  }
+
+  /**
+   * Update data sharing preference
+   */
+  async updateDataSharingSetting(key, value) {
+    await this.updateSetting(`dataSharing.${key}`, value);
+  }
+
+  /**
+   * Check if analytics are enabled
+   */
+  isAnalyticsEnabled() {
+    return this.settings.dataSharing.analytics;
+  }
+
+  /**
+   * Check if crash reports are enabled
+   */
+  isCrashReportsEnabled() {
+    return this.settings.dataSharing.crashReports;
+  }
+
+  /**
+   * Check if usage stats are enabled
+   */
+  isUsageStatsEnabled() {
+    return this.settings.dataSharing.usageStats;
+  }
+
+  /**
+   * Check if personalized ads are enabled
+   */
+  isPersonalizedAdsEnabled() {
+    return this.settings.dataSharing.personalizedAds;
+  }
+
+  /**
+   * Get backup preferences
+   */
+  getBackupSettings() {
+    return {
+      enabled: this.settings.backupEnabled,
+      frequency: this.settings.backupFrequency,
+      lastBackupTime: this.settings.lastBackupTime,
+    };
+  }
+
+  /**
+   * Update backup setting
+   */
+  async updateBackupSetting(key, value) {
+    await this.updateSetting(`backup.${key}`, value);
+  }
+
+  /**
+   * Set last backup time
+   */
+  async setLastBackupTime(timestamp) {
+    await this.updateSetting('lastBackupTime', timestamp);
+  }
+
+  /**
+   * Reset settings to defaults
+   */
   async resetSettings() {
     try {
-      const userId = this.getCurrentUserId();
-      if (userId) {
-        const settingsRef = doc(db, 'userSettings', userId);
-        await setDoc(settingsRef, defaultSettings);
-      }
-      
-      // Update cache and local storage
-      this.cacheSettings(defaultSettings);
-      await this.saveLocalSettings(defaultSettings);
-      
-      return defaultSettings;
+      this.settings = { ...DEFAULT_SETTINGS };
+      await this.saveSettings();
+      console.log('🔄 Settings reset to defaults');
     } catch (error) {
       console.error('Error resetting settings:', error);
       throw error;
     }
   }
 
-  // Clear all data (for account deletion)
-  async clearAllData() {
+  /**
+   * Reset privacy settings
+   */
+  async resetPrivacySettings() {
     try {
-      const userId = this.getCurrentUserId();
-      if (userId) {
-        const settingsRef = doc(db, 'userSettings', userId);
-        await setDoc(settingsRef, {});
-      }
-      
-      // Clear local storage
-      await AsyncStorage.removeItem(SETTINGS_STORAGE_KEY);
-      
-      // Clear cache
-      this.cache = null;
-      this.cacheTimestamp = null;
-      
-      return true;
+      this.privacySettings = {};
+      await this.savePrivacySettings();
+      console.log('🔒 Privacy settings reset');
     } catch (error) {
-      console.error('Error clearing all data:', error);
+      console.error('Error resetting privacy settings:', error);
       throw error;
     }
   }
 
-  // Validate settings data
-  validateSettings(settings) {
-    const errors = [];
-
-    // Validate theme
-    if (settings.theme && !['light', 'dark', 'auto'].includes(settings.theme)) {
-      errors.push('Invalid theme value');
-    }
-
-    // Validate text size
-    if (settings.textSize && !['small', 'medium', 'large'].includes(settings.textSize)) {
-      errors.push('Invalid text size value');
-    }
-
-    // Validate accent color (basic hex color validation)
-    if (settings.accentColor && !/^#[0-9A-F]{6}$/i.test(settings.accentColor)) {
-      errors.push('Invalid accent color format');
-    }
-
-    // Validate time format (HH:MM)
-    if (settings.closeTime && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(settings.closeTime)) {
-      errors.push('Invalid close time format');
-    }
-
+  /**
+   * Export settings for backup
+   */
+  exportSettings() {
     return {
-      isValid: errors.length === 0,
-      errors
-    };
-  }
-
-  // Clear cache
-  clearCache() {
-    this.cache = null;
-    this.cacheTimestamp = null;
-  }
-
-  // Export settings (for backup)
-  async exportSettings() {
-    const settings = await this.getSettings();
-    return {
-      settings,
+      settings: this.getSettings(),
+      privacySettings: this.getPrivacySettings(),
       exportDate: new Date().toISOString(),
-      version: '1.0'
+      version: '1.0.0',
     };
   }
 
-  // Import settings (from backup)
-  async importSettings(importData) {
+  /**
+   * Import settings from backup
+   */
+  async importSettings(backupData) {
     try {
-      if (!importData.settings) {
-        throw new Error('Invalid import data');
+      if (backupData.settings) {
+        this.settings = { ...DEFAULT_SETTINGS, ...backupData.settings };
+        await this.saveSettings();
       }
-
-      const validation = this.validateSettings(importData.settings);
-      if (!validation.isValid) {
-        throw new Error(`Invalid settings: ${validation.errors.join(', ')}`);
+      
+      if (backupData.privacySettings) {
+        this.privacySettings = { ...backupData.privacySettings };
+        await this.savePrivacySettings();
       }
-
-      await this.updateSettings(importData.settings);
-      return true;
+      
+      console.log('📥 Settings imported from backup');
     } catch (error) {
       console.error('Error importing settings:', error);
       throw error;
     }
   }
+
+  /**
+   * Sync settings with backend
+   */
+  async syncWithBackend() {
+    if (!this.isSyncEnabled()) {
+      console.log('⏸️ Settings sync skipped - disabled');
+      return;
+    }
+
+    try {
+      console.log('🔄 Syncing settings with backend...');
+      
+      // Pull settings from backend
+      const response = await apiService.getUserSettings();
+      if (response.success) {
+        const serverSettings = response.data;
+        
+        // Merge server settings with local settings
+        this.settings = { ...this.settings, ...serverSettings };
+        await this.saveSettings();
+        
+        console.log('📥 Settings synced from backend');
+      }
+      
+      // Push local settings to backend
+      const updateResponse = await apiService.updateUserSettings(this.settings);
+      if (updateResponse.success) {
+        console.log('📤 Settings synced to backend');
+      }
+      
+    } catch (error) {
+      console.error('❌ Settings sync failed:', error);
+    }
+  }
+
+  /**
+   * Get privacy summary for user
+   */
+  getPrivacySummary() {
+    return {
+      syncEnabled: this.isSyncEnabled(),
+      analyticsEnabled: this.isAnalyticsEnabled(),
+      crashReportsEnabled: this.isCrashReportsEnabled(),
+      usageStatsEnabled: this.isUsageStatsEnabled(),
+      personalizedAdsEnabled: this.isPersonalizedAdsEnabled(),
+      dataSharingLevel: this.getDataSharingLevel(),
+    };
+  }
+
+  /**
+   * Get data sharing level
+   */
+  getDataSharingLevel() {
+    const settings = this.settings.dataSharing;
+    const enabledCount = Object.values(settings).filter(Boolean).length;
+    const totalCount = Object.keys(settings).length;
+    
+    if (enabledCount === 0) return 'minimal';
+    if (enabledCount === totalCount) return 'full';
+    if (enabledCount <= totalCount / 2) return 'limited';
+    return 'moderate';
+  }
+
+  /**
+   * Check if user has completed privacy setup
+   */
+  hasCompletedPrivacySetup() {
+    return Object.keys(this.privacySettings).length > 0;
+  }
+
+  /**
+   * Complete privacy setup with user choices
+   */
+  async completePrivacySetup(choices) {
+    try {
+      const {
+        allowCloudSync = true,
+        allowAnalytics = true,
+        allowCrashReports = true,
+        allowUsageStats = true,
+        allowPersonalizedAds = false,
+      } = choices;
+
+      await this.updateSetting('syncEnabled', allowCloudSync);
+      await this.updateSetting('dataSharing.analytics', allowAnalytics);
+      await this.updateSetting('dataSharing.crashReports', allowCrashReports);
+      await this.updateSetting('dataSharing.usageStats', allowUsageStats);
+      await this.updateSetting('dataSharing.personalizedAds', allowPersonalizedAds);
+
+      this.privacySettings.completed = true;
+      this.privacySettings.completedAt = new Date().toISOString();
+      await this.savePrivacySettings();
+
+      console.log('✅ Privacy setup completed');
+    } catch (error) {
+      console.error('Error completing privacy setup:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update multiple settings at once
+   */
+  async updateSettings(updates) {
+    try {
+      for (const [key, value] of Object.entries(updates)) {
+        await this.updateSetting(key, value);
+      }
+      return this.getSettings();
+    } catch (error) {
+      console.error('Error updating multiple settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a specific setting category
+   */
+  async updateSettingCategory(category, updates) {
+    try {
+      const categorySettings = { ...this.settings[category], ...updates };
+      await this.updateSetting(category, categorySettings);
+      return this.getSettings();
+    } catch (error) {
+      console.error('Error updating setting category:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reset settings to defaults
+   */
+  async resetSettings() {
+    try {
+      this.settings = { ...DEFAULT_SETTINGS };
+      await this.saveSettings();
+      console.log('🔄 Settings reset to defaults');
+      return this.getSettings();
+    } catch (error) {
+      console.error('Error resetting settings:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear all data
+   */
+  async clearAllData() {
+    try {
+      await AsyncStorage.removeItem(SETTINGS_STORAGE_KEY);
+      await AsyncStorage.removeItem(PRIVACY_STORAGE_KEY);
+      this.settings = { ...DEFAULT_SETTINGS };
+      this.privacySettings = {};
+      console.log('🗑️ All settings data cleared');
+    } catch (error) {
+      console.error('Error clearing all data:', error);
+      throw error;
+    }
+  }
 }
 
+// Export singleton instance
 export default new SettingsService();

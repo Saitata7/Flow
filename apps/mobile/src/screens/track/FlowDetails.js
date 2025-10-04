@@ -29,7 +29,12 @@ const FlowDetail = ({ route, navigation }) => {
 
   const flow = useMemo(() => {
     const foundFlow = flows.find((f) => f.id === flowId && !f.deletedAt && !f.archived) || {};
-    console.log('FlowDetails: Found flow:', { id: foundFlow.id, title: foundFlow.title });
+    console.log('FlowDetails: Found flow:', { 
+      id: foundFlow.id, 
+      title: foundFlow.title,
+      statusKeys: foundFlow.status ? Object.keys(foundFlow.status) : 'No status',
+      statusContent: foundFlow.status ? JSON.stringify(foundFlow.status, null, 2) : 'No status'
+    });
     return foundFlow;
   }, [flows, flowId]);
 
@@ -175,11 +180,43 @@ const FlowDetail = ({ route, navigation }) => {
 
   const renderNote = useCallback(({ item, index }) => {
     const isCompleted = item.symbol === '+';
-    const statusText = isCompleted ? 'Completed' : 'Missed';
-    const statusColor = isCompleted ? '#00AA00' : '#FF4D4D';
-    const badgeBackground = isCompleted ? '#E6F4EA' : '#FCECEC';
-    const badgeTextColor = isCompleted ? '#006400' : '#FF4D4D';
-    const badgeIcon = isCompleted ? 'check' : 'alert';
+    const isMissed = item.symbol === '-';
+    const isPartial = item.symbol === '*';
+    const isSkipped = item.symbol === '/';
+    
+    let statusText, statusColor, badgeBackground, badgeTextColor, badgeIcon;
+    
+    if (isCompleted) {
+      statusText = 'Completed';
+      statusColor = '#00AA00';
+      badgeBackground = '#E6F4EA';
+      badgeTextColor = '#006400';
+      badgeIcon = 'check';
+    } else if (isMissed) {
+      statusText = 'Missed';
+      statusColor = '#FF4D4D';
+      badgeBackground = '#FCECEC';
+      badgeTextColor = '#FF4D4D';
+      badgeIcon = 'alert';
+    } else if (isPartial) {
+      statusText = 'Partial';
+      statusColor = '#FFA500';
+      badgeBackground = '#FFF4E6';
+      badgeTextColor = '#CC6600';
+      badgeIcon = 'time';
+    } else if (isSkipped) {
+      statusText = 'Skipped';
+      statusColor = '#666666';
+      badgeBackground = '#F5F5F5';
+      badgeTextColor = '#666666';
+      badgeIcon = 'close';
+    } else {
+      statusText = 'Unknown';
+      statusColor = '#FF4D4D';
+      badgeBackground = '#FCECEC';
+      badgeTextColor = '#FF4D4D';
+      badgeIcon = 'alert';
+    }
     
     // Use actual timestamp if available, otherwise use current time for the date
     const creationTime = item.timestamp && item.timestamp !== item.date 

@@ -10,13 +10,13 @@ const knexConfig = {
   connection: {
     host: process.env.DB_HOST || 'localhost',
     port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'flow',
+    database: process.env.DB_NAME || 'flow_dev',
     user: process.env.DB_USER || 'flow_user',
     password: process.env.DB_PASSWORD || 'flow_password',
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   },
   migrations: {
-    directory: path.join(__dirname),
+    directory: path.join(__dirname, 'migrations'),
     tableName: 'knex_migrations',
   },
 };

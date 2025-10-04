@@ -48,7 +48,7 @@ const InsightsPanel = ({ flows, theme = 'light' }) => {
           dayScheduled++;
           totalScheduled++;
           const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
+          if (status?.symbol === '+') {
             dayCompleted++;
             totalCompleted++;
           }
@@ -79,7 +79,7 @@ const InsightsPanel = ({ flows, theme = 'light' }) => {
         if (isScheduled) {
           flowScheduled++;
           const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
+          if (status?.symbol === '+') {
             flowCompleted++;
             flowStreak++;
             maxStreak = Math.max(maxStreak, flowStreak);

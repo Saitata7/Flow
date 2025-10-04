@@ -62,13 +62,13 @@ const Toast = ({
         return { 
           backgroundColor: colors.light.success, 
           textColor: colors.light.cardBackground, 
-          icon: '✓' 
+          icon: '+' 
         };
       case 'error':
         return { 
           backgroundColor: colors.light.error, 
           textColor: colors.light.cardBackground, 
-          icon: '✕' 
+          icon: '-' 
         };
       case 'warning':
         return { 

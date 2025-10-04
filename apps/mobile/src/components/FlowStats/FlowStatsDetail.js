@@ -1,5 +1,6 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, TouchableOpacity, Animated, Alert, Modal } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import SafeAreaWrapper from '../common/SafeAreaWrapper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,17 +51,114 @@ const CircularProgress = ({ size = 120, strokeWidth = 8, progress = 0, color = '
 
 const FlowStatsDetail = ({ route, navigation }) => {
   const { flowId } = route?.params || {};
-  const { flows, deleteFlow } = useContext(FlowsContext);
-  const { getScoreboard, getActivityStats, getEmotionalActivity } = useContext(ActivityContext);
+  const { flows, deleteFlow, triggerSync, forceCompleteRefresh } = useContext(FlowsContext);
+  const { getScoreboard, getActivityStats, getEmotionalActivity, syncActivityCacheWithBackend, clearActivityCache, forceRefreshAnalytics } = useContext(ActivityContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [dateOffset, setDateOffset] = useState(0); // For navigating through date ranges
   const [showCalculationModal, setShowCalculationModal] = useState(false);
   const [selectedChart, setSelectedChart] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0); // Force refresh key
+  const [scoreboardData, setScoreboardData] = useState(null);
+  const [activityStatsData, setActivityStatsData] = useState(null);
+  const [emotionalActivityData, setEmotionalActivityData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
+
+  const handleRefresh = async () => {
+    try {
+      console.log('FlowStatsDetail: Manual refresh triggered');
+      
+      // Force complete refresh
+      await forceCompleteRefresh();
+      
+      // Force refresh analytics
+      await forceRefreshAnalytics();
+      
+      // Reload data
+      const scoreboard = await getScoreboard(flowId);
+      setScoreboardData(scoreboard);
+      
+      const activityStats = await getActivityStats(flowId);
+      setActivityStatsData(activityStats);
+      
+      const emotionalActivity = await getEmotionalActivity(flowId);
+      setEmotionalActivityData(emotionalActivity);
+      
+      console.log('FlowStatsDetail: Manual refresh completed');
+    } catch (error) {
+      console.error('FlowStatsDetail: Manual refresh failed:', error);
+    }
+  };
+
+  const handleDebugFlow = () => {
+    console.log('FlowStatsDetail: Debug flow data:', {
+      flowId,
+      flow: flow ? {
+        id: flow.id,
+        title: flow.title,
+        status: flow.status,
+        statusKeys: flow.status ? Object.keys(flow.status) : [],
+        statusCount: flow.status ? Object.keys(flow.status).length : 0,
+        statusEntries: flow.status ? Object.entries(flow.status) : []
+      } : null,
+      allFlows: flows.map(f => ({
+        id: f.id,
+        title: f.title,
+        statusCount: f.status ? Object.keys(f.status).length : 0,
+        statusKeys: f.status ? Object.keys(f.status) : []
+      }))
+    });
+  };
+
+  // Load data when component mounts or when dependencies change
+  useEffect(() => {
+    const loadData = async () => {
+      if (!flowId) return;
+      
+      try {
+        setIsLoading(true);
+        console.log('FlowStatsDetail: Loading data for flowId:', flowId);
+        
+        // Force complete refresh of flows data from backend
+        console.log('FlowStatsDetail: Force complete refresh...');
+        await forceCompleteRefresh();
+        
+        // Force refresh analytics by clearing cache and recalculating
+        console.log('FlowStatsDetail: Force refreshing analytics...');
+        await forceRefreshAnalytics();
+        
+        // Load scoreboard data
+        console.log('FlowStatsDetail: Loading scoreboard...');
+        const scoreboard = await getScoreboard(flowId);
+        setScoreboardData(scoreboard);
+        console.log('FlowStatsDetail: Scoreboard loaded:', scoreboard);
+        
+        // Load activity stats
+        console.log('FlowStatsDetail: Loading activity stats...');
+        const activityStats = await getActivityStats(flowId);
+        setActivityStatsData(activityStats);
+        console.log('FlowStatsDetail: Activity stats loaded:', activityStats);
+        
+        // Load emotional activity
+        console.log('FlowStatsDetail: Loading emotional activity...');
+        const emotionalActivity = await getEmotionalActivity(flowId);
+        setEmotionalActivityData(emotionalActivity);
+        console.log('FlowStatsDetail: Emotional activity loaded:', emotionalActivity);
+        
+        console.log('FlowStatsDetail: Data loading completed');
+      } catch (error) {
+        console.error('FlowStatsDetail: Data loading failed:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [flowId]); // Only depend on flowId to prevent infinite loops
 
   // Find the flow - this needs to be done after all hooks are called
   const flow = flows?.find((f) => f.id === flowId);
@@ -134,7 +232,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
       const status = flow.status?.[dayKey];
       
       if (flow.trackingType === 'Binary') {
-        intensity = (status?.symbol === '✅' || status?.symbol === '+') ? 1 : 0;
+        intensity = status?.symbol === '+' ? 1 : 0;
       } else if (flow.trackingType === 'Quantitative') {
         const quantitative = status?.quantitative;
         const value = quantitative?.count || 0;
@@ -366,7 +464,21 @@ const FlowStatsDetail = ({ route, navigation }) => {
 
   // Get flow type specific analytics using ActivityContext with timeframe filtering
   const getFlowTypeAnalytics = () => {
-    if (!flowId) return null;
+    if (!flowId || !scoreboardData) return null;
+    
+    console.log('FlowStatsDetail: getFlowTypeAnalytics called with flowId:', flowId);
+    console.log('FlowStatsDetail: flow data:', flow);
+    console.log('FlowStatsDetail: flow status data:', flow?.status);
+    console.log('FlowStatsDetail: flow status keys:', flow?.status ? Object.keys(flow.status) : 'No status');
+    console.log('FlowStatsDetail: flow status sample:', flow?.status ? Object.entries(flow.status)[0] : 'No status entries');
+    console.log('FlowStatsDetail: scoreboardData:', scoreboardData);
+    console.log('FlowStatsDetail: activityStatsData:', activityStatsData);
+    console.log('FlowStatsDetail: emotionalActivityData:', emotionalActivityData);
+
+    if (!flow) {
+      console.warn('FlowStatsDetail: No flow found for flowId:', flowId);
+      return null;
+    }
 
     // Get date range based on selected timeframe and date offset
     const getDateRange = () => {
@@ -410,13 +522,30 @@ const FlowStatsDetail = ({ route, navigation }) => {
     };
 
     const dateRange = getDateRange();
-    const scoreboard = getScoreboard(flowId, { 
-      timeframe: selectedTimeframe,
-      startDate: dateRange.start,
-      endDate: dateRange.end
-    });
-    const activityStats = getActivityStats(flowId);
-    const emotionalActivity = getEmotionalActivity(flowId);
+    console.log('FlowStatsDetail: Using loaded scoreboard data for flowId:', flowId, 'timeframe:', selectedTimeframe);
+    console.log('FlowStatsDetail: Scoreboard result:', scoreboardData);
+    console.log('FlowStatsDetail: Scoreboard timeBasedStats:', scoreboardData?.timeBasedStats);
+    console.log('FlowStatsDetail: Scoreboard quantitativeStats:', scoreboardData?.quantitativeStats);
+    
+    // Use the loaded data from state
+    const scoreboard = scoreboardData;
+    const activityStats = activityStatsData || {
+      total: scoreboard?.scheduledDays || 0,
+      byStatus: {
+        Completed: scoreboard?.completed || 0,
+        Partial: scoreboard?.partial || 0,
+        Missed: scoreboard?.failed || 0,
+        Inactive: scoreboard?.inactive || 0,
+        Skipped: scoreboard?.skipped || 0,
+      },
+      timeBased: scoreboard?.timeBasedStats || { totalDuration: 0, totalPauses: 0 },
+      quantitative: scoreboard?.quantitativeStats || { totalCount: 0, unitText: '' },
+    };
+    console.log('FlowStatsDetail: Activity stats result:', activityStats);
+    
+    // Use the loaded emotional activity data
+    const emotionalActivity = emotionalActivityData || { emotions: {} };
+    console.log('FlowStatsDetail: Emotional activity result:', emotionalActivity);
 
     // Generate daily data for the selected timeframe
     const generateDailyData = () => {
@@ -431,7 +560,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
         let completed = 0;
         let value = 0;
         
-        if (status?.symbol === '✅' || status?.symbol === '+') {
+        if (status?.symbol === '+') {
           completed = 1;
           if (flow.trackingType === 'Quantitative') {
             value = status?.quantitative?.count || 0;
@@ -690,14 +819,18 @@ const FlowStatsDetail = ({ route, navigation }) => {
           heatMapData: generateHeatMapData(),
           // Quantitative specific stats
           quantitativeStats: [
-            { title: 'Total Count', value: `${scoreboard.quantitativeStats.totalCount.toLocaleString()}`, icon: 'bar-chart', color: themeColors.success },
-            { title: 'Average Count', value: `${scoreboard.quantitativeStats.averageCount.toFixed(1)}`, icon: 'trending-up', color: themeColors.primaryOrange },
-            { title: 'Unit Text', value: scoreboard.quantitativeStats.unitText || 'units', icon: 'text', color: themeColors.primaryOrange },
-            { title: 'Goal Achievement', value: flow.goal ? `${((scoreboard.quantitativeStats.averageCount / flow.goal) * 100).toFixed(1)}%` : 'No goal set', icon: 'flag', color: themeColors.warning },
+            { title: 'Total Count', value: `${(scoreboard.quantitativeStats?.totalCount || 0).toLocaleString()}`, icon: 'bar-chart', color: themeColors.success },
+            { title: 'Average Count', value: `${(scoreboard.quantitativeStats?.averageCount || 0).toFixed(1)}`, icon: 'trending-up', color: themeColors.primaryOrange },
+            { title: 'Unit Text', value: scoreboard.quantitativeStats?.unitText || 'units', icon: 'text', color: themeColors.primaryOrange },
+            { title: 'Goal Achievement', value: flow.goal ? `${(((scoreboard.quantitativeStats?.averageCount || 0) / flow.goal) * 100).toFixed(1)}%` : 'No goal set', icon: 'flag', color: themeColors.warning },
           ],
         };
       
       case 'Time-based':
+        console.log('FlowStatsDetail: Processing Time-based flow analytics');
+        console.log('FlowStatsDetail: dailyData:', dailyData);
+        console.log('FlowStatsDetail: scoreboard:', scoreboard);
+        
         return {
           primaryMetric: '',
           primaryLabel: '',
@@ -716,21 +849,37 @@ const FlowStatsDetail = ({ route, navigation }) => {
             const timeframeAverageDuration = dailyData.length > 0 ? timeframeTotalDuration / dailyData.length : 0;
             const goalSeconds = ((flow.hours || 0) * 3600) + ((flow.minutes || 0) * 60) + (flow.seconds || 0);
             
+            console.log('FlowStatsDetail: Time-based calculations:', {
+              timeframeTotalDuration,
+              timeframeAverageDuration,
+              goalSeconds,
+              flowHours: flow.hours,
+              flowMinutes: flow.minutes,
+              flowSeconds: flow.seconds
+            });
+            
             return [
               { title: 'Total Duration', value: `${Math.floor(timeframeTotalDuration / 3600)}h ${Math.floor((timeframeTotalDuration % 3600) / 60)}m`, icon: 'time', color: themeColors.success },
               { title: 'Average Duration', value: `${Math.floor(timeframeAverageDuration / 3600)}h ${Math.floor((timeframeAverageDuration % 3600) / 60)}m`, icon: 'hourglass', color: themeColors.primaryOrange },
-              { title: 'Total Pauses', value: `${scoreboard.timeBasedStats.totalPauses}`, icon: 'pause', color: themeColors.primaryOrange },
+              { title: 'Total Pauses', value: `${scoreboard.timeBasedStats?.totalPauses || 0}`, icon: 'pause', color: themeColors.primaryOrange },
               { title: 'Goal Achievement', value: goalSeconds > 0 ? `${((timeframeAverageDuration / goalSeconds) * 100).toFixed(1)}%` : 'No goal set', icon: 'flag', color: themeColors.warning },
             ];
           })(),
         };
       
       default:
+        console.warn('FlowStatsDetail: Unsupported flow tracking type:', flow.trackingType);
+        console.log('FlowStatsDetail: Available flow data:', {
+          id: flow.id,
+          title: flow.title,
+          trackingType: flow.trackingType,
+          status: flow.status
+        });
         return null;
     }
   };
 
-  const analytics = useMemo(() => getFlowTypeAnalytics(), [flowId, selectedTimeframe, flows, dateOffset]);
+  const analytics = useMemo(() => getFlowTypeAnalytics(), [flowId, selectedTimeframe, flows, dateOffset, scoreboardData, activityStatsData, emotionalActivityData]);
 
   // Handle donut chart tap
   const handleDonutChartTap = (chartType) => {
@@ -768,7 +917,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
   };
 
   // Get scoreboard data for donut charts
-  const scoreboardData = useMemo(() => {
+  const scoreboardDataForCharts = useMemo(() => {
     if (!flowId) return null;
     
     const getDateRange = () => {
@@ -802,21 +951,17 @@ const FlowStatsDetail = ({ route, navigation }) => {
     };
 
     const dateRange = getDateRange();
-    return getScoreboard(flowId, { 
-      timeframe: selectedTimeframe,
-      startDate: dateRange.start,
-      endDate: dateRange.end
-    });
-  }, [flowId, selectedTimeframe, getScoreboard]);
+    return scoreboardData;
+  }, [scoreboardData, selectedTimeframe]);
 
-  if (!analytics) {
+  // Show loading state while data is being fetched
+  if (isLoading || !analytics) {
     return (
       <SafeAreaWrapper style={{ backgroundColor: themeColors.background }}>
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>⚠️</Text>
-          <Text style={[styles.emptyTitle, { color: themeColors.primaryText }]}>Unsupported Flow Type</Text>
-          <Text style={[styles.emptySubtitle, { color: themeColors.secondaryText }]}>
-            This flow type is not supported for detailed analytics.
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingTitle, { color: themeColors.primaryText }]}>Loading...</Text>
+          <Text style={[styles.loadingMessage, { color: themeColors.secondaryText }]}>
+            Loading flow analytics...
           </Text>
         </View>
       </SafeAreaWrapper>
@@ -877,6 +1022,13 @@ const FlowStatsDetail = ({ route, navigation }) => {
             </Text>
           </View>
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.debugButton}
+              onPress={handleDebugFlow}
+              accessibilityLabel="Debug flow data"
+            >
+              <Ionicons name="bug" size={20} color={themeColors.primaryText} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.calendarButton}
               onPress={() => navigation.navigate('FlowDetails', { flowId: flow.id })}
@@ -1197,8 +1349,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </View>
           <View style={styles.notesTracking}>
             {(() => {
-              const scoreboard = getScoreboard(flowId);
-              const notesCount = scoreboard.notesCount || 0;
+              const scoreboard = scoreboardData;
+              const notesCount = scoreboard?.notesCount || 0;
               
               return (
                 <View style={styles.notesSummary}>
@@ -1283,8 +1435,10 @@ const FlowStatsDetail = ({ route, navigation }) => {
           <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Insights</Text>
           <View style={styles.insightsList}>
             {(() => {
-              const scoreboard = getScoreboard(flowId);
+              const scoreboard = scoreboardData;
               const insights = [];
+              
+              if (!scoreboard) return null;
               
               if (scoreboard.completionRate >= 80) {
                 insights.push(
@@ -1308,18 +1462,18 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 );
               }
               
-              if (flow.trackingType === 'Quantitative' && scoreboard.quantitativeStats.averageCount > 0) {
+              if (flow.trackingType === 'Quantitative' && (scoreboard.quantitativeStats?.averageCount || 0) > 0) {
                 insights.push(
                   <View key="quantitative" style={styles.insightItem}>
                     <Ionicons name="bar-chart" size={20} color={themeColors.info} />
                     <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                      Your daily average is {scoreboard.quantitativeStats.averageCount.toFixed(1)} {scoreboard.quantitativeStats.unitText || 'units'}.
+                      Your daily average is {(scoreboard.quantitativeStats?.averageCount || 0).toFixed(1)} {scoreboard.quantitativeStats?.unitText || 'units'}.
                     </Text>
                   </View>
                 );
               }
               
-              if (flow.trackingType === 'Time-based' && scoreboard.timeBasedStats.averageDuration > 0) {
+              if (flow.trackingType === 'Time-based' && scoreboard.timeBasedStats?.averageDuration > 0) {
                 insights.push(
                   <View key="timebased" style={styles.insightItem}>
                     <Ionicons name="time" size={20} color={themeColors.info} />
@@ -1575,7 +1729,23 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: layout.spacing.sm,
-    paddingBottom: layout.spacing.lg,
+    paddingBottom: layout.spacing.x5l + 100, // Extra padding for bottom tab + safe area + insights card
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.xl,
+  },
+  loadingTitle: {
+    ...typography.styles.title2,
+    fontWeight: '600',
+    marginBottom: layout.spacing.sm,
+    textAlign: 'center',
+  },
+  loadingMessage: {
+    ...typography.styles.body,
+    textAlign: 'center',
   },
   emptyState: {
     alignItems: 'center',
@@ -1622,6 +1792,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+  },
+  debugButton: {
+    padding: layout.spacing.sm,
+    marginRight: layout.spacing.sm,
   },
   calendarButton: {
     padding: layout.spacing.sm,
@@ -2267,6 +2441,11 @@ const styles = StyleSheet.create({
   totalValue: {
     fontWeight: '700',
     fontSize: 18,
+  },
+  debugText: {
+    ...typography.styles.caption,
+    opacity: 0.6,
+    marginTop: layout.spacing.xs,
   },
 });
 

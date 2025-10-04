@@ -35,25 +35,28 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
   
 
   useEffect(() => {
-    console.log('Flow status updated:', flow.status);
-    // Debug: Log all status entries with emotions
+    console.log('FlowCalendar: Flow status updated:', flow.status);
+    console.log('FlowCalendar: Flow status type:', typeof flow.status);
+    console.log('FlowCalendar: Flow status is object?', flow.status && typeof flow.status === 'object');
+    
+    // Debug: Log all status entries
     if (flow.status) {
+      console.log('FlowCalendar: Total status entries:', Object.keys(flow.status).length);
+      console.log('FlowCalendar: All dates in status:', Object.keys(flow.status));
+      
       Object.entries(flow.status).forEach(([date, status]) => {
-        if (status.emotion) {
-          console.log(`Date ${date}: emotion=${status.emotion}, symbol=${status.symbol}`);
-        }
+        console.log(`FlowCalendar: Date ${date}: symbol=${status.symbol}, emotion=${status.emotion}, note=${status.note}`);
       });
       
-      // Specific debug for September 23rd
-      const sept23 = flow.status['2024-09-23'] || flow.status['2023-09-23'];
-      if (sept23) {
-        console.log('September 23rd status:', sept23);
-        console.log('September 23rd emotion:', sept23.emotion);
-        console.log('September 23rd symbol:', sept23.symbol);
+      // Check for historical data (January 2025)
+      const jan15 = flow.status['2025-01-15'];
+      if (jan15) {
+        console.log('FlowCalendar: Found historical entry 2025-01-15:', jan15);
       } else {
-        console.log('No status found for September 23rd');
-        console.log('Available dates:', Object.keys(flow.status));
+        console.log('FlowCalendar: No entry found for 2025-01-15');
       }
+    } else {
+      console.log('FlowCalendar: flow.status is null or undefined');
     }
   }, [flow.status]);
 
@@ -338,19 +341,19 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
       let backgroundColor;
       let textColor;
       
-      if (displaySymbol === '+' || displaySymbol === '✅') {
+      if (displaySymbol === '+') {
         // Completed - Green
         backgroundColor = themeColors.success;
         textColor = themeColors.background;
-      } else if (displaySymbol === '-' || displaySymbol === '❌') {
+      } else if (displaySymbol === '-') {
         // Missed/Failed - Red
         backgroundColor = themeColors.error;
         textColor = themeColors.background;
-      } else if (displaySymbol === '*' || displaySymbol === '~' || displaySymbol === '🔄') {
+      } else if (displaySymbol === '*') {
         // Partial - Orange/Yellow
         backgroundColor = themeColors.warning || '#FFA500';
         textColor = themeColors.background;
-      } else if (displaySymbol === '/' || displaySymbol === '⏭️') {
+      } else if (displaySymbol === '/') {
         // Skip/Inactive - Gray
         backgroundColor = themeColors.progressBackground;
         textColor = themeColors.secondaryText;
@@ -462,9 +465,9 @@ const FlowCalendar = ({ flow, onUpdateStatus, onMonthChange, currentMonth }) => 
               styles.statusSymbol,
               {
                 fontSize: textSize === 'small' ? 12 : textSize === 'large' ? 16 : 14,
-                color: statusSymbol === '+' || statusSymbol === '✅' ? themeColors.success : 
-                       statusSymbol === '-' || statusSymbol === '❌' ? themeColors.error : 
-                       statusSymbol === '*' || statusSymbol === '~' || statusSymbol === '🔄' ? (themeColors.warning || '#FFA500') :
+                color: statusSymbol === '+' ? themeColors.success : 
+                       statusSymbol === '-' ? themeColors.error : 
+                       statusSymbol === '*' ? (themeColors.warning || '#FFA500') :
                        themeColors.secondaryText,
               },
             ]}

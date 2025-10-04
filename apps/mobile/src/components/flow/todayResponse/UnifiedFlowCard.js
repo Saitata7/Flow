@@ -54,7 +54,7 @@ const calculateStreak = (flow) => {
     const dateKey = date.format('YYYY-MM-DD');
     const status = flow.status[dateKey]?.symbol;
     
-    if (status === '+' || status === '✓') {
+    if (status === '+') {
       streakDays.unshift(date.date());
       streak++;
     } else if (status === '-' || status === '/' || (i === 0 && !status)) {
@@ -120,6 +120,14 @@ const UnifiedFlowCard = ({ flow }) => {
   const emotion = flow.status?.[todayKey]?.emotion || '';
   const note = flow.status?.[todayKey]?.note || '';
   
+  // Debug: Log all status entries to see historical data
+  console.log('UnifiedFlowCard: Flow', flow.title, 'has status entries:', flow.status ? Object.keys(flow.status) : 'No status');
+  if (flow.status) {
+    Object.entries(flow.status).forEach(([date, statusData]) => {
+      console.log(`UnifiedFlowCard: ${date}: symbol=${statusData.symbol}, emotion=${statusData.emotion}, note=${statusData.note}`);
+    });
+  }
+  
   // State management
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -170,9 +178,9 @@ const UnifiedFlowCard = ({ flow }) => {
 
   // Status determination
   const isPending = status === '/';
-  const isCompleted = status === '+' || status === '✓';
+  const isCompleted = status === '+';
   const isMissed = status === '-';
-  const hasResponse = status === '+' || status === '-' || status === '*' || status === '✓';
+  const hasResponse = status === '+' || status === '-' || status === '*' || status === '/';
   
   // Debug logging
   console.log('UnifiedFlowCard Debug:', {

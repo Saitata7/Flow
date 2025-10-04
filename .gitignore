@@ -30,10 +30,21 @@ apps/mobile/babel.config.js.bak
 # Firebase Configuration Files (SENSITIVE - DO NOT COMMIT)
 apps/mobile/android/app/google-services.json
 apps/mobile/ios/GoogleService-Info.plist
+apps/mobile/ios/Flow/GoogleService-Info.plist
 apps/mobile/firebase-config.json
 apps/mobile/.env
 apps/mobile/.env.local
 apps/mobile/.env.production
+**/google-services.json
+
+# Environment files
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backup
 
 # Firebase Admin SDK Files (SENSITIVE - DO NOT COMMIT)
 services/api/keys/
@@ -42,6 +53,13 @@ services/api/.env.firebase
 services/api/.env.local
 services/api/.env.production
 services/api/env.production
+services/api/env.cloudrun*
+services/api/docker-compose.yml
+services/api/run-local-container.sh
+services/api/.env.local
+services/api/.env
+services/api/env.production
+services/api/keys/
 
 # Web App (Next.js/React)
 apps/web/.next/
@@ -191,5 +209,6 @@ apps/mobile/ios/Podfile.lock
 apps/mobile/ios/DerivedData/
 apps/mobile/ios/Archive/
 
-# Local development
-.local/
+# Shell Scripts with Credentials (SENSITIVE - DO NOT COMMIT)
+services/api/scripts/setup-cloud-sql-proxy.sh
+services/api/scripts/migrate-gcp-database.sh

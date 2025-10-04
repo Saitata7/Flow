@@ -31,7 +31,7 @@ export const createMockFlowEntry = (overrides = {}) => ({
   id: '1',
   flow_id: '1',
   content: 'Test entry',
-  symbol: '✓',
+  symbol: '+',
   date: '2024-01-15',
   mood_score: 5,
   created_at: '2024-01-15T10:00:00Z',
@@ -160,8 +160,8 @@ export const mockFlows = [
 
 export const mockFlowEntries = [
   createMockFlowEntry({ id: '1', flow_id: '1', content: 'Completed morning routine' }),
-  createMockFlowEntry({ id: '2', flow_id: '1', content: 'Skipped morning routine', symbol: '✗' }),
-  createMockFlowEntry({ id: '3', flow_id: '2', content: 'Ran 5km', symbol: '✓' }),
+  createMockFlowEntry({ id: '2', flow_id: '1', content: 'Skipped morning routine', symbol: '-' }),
+  createMockFlowEntry({ id: '3', flow_id: '2', content: 'Ran 5km', symbol: '+' }),
 ];
 
 export const mockPlans = [

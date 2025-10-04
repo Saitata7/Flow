@@ -429,7 +429,7 @@ class StatsService {
         
         if (isScheduled) {
           const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') count++;
+          if (status?.symbol === '+') count++;
         }
       });
       
@@ -655,7 +655,7 @@ class StatsService {
       if (isScheduled) {
         scheduled++;
         const status = flow.status?.[dayKey];
-        if (status?.symbol === '✅') completed++;
+        if (status?.symbol === '+') completed++;
       }
       
       currentDate.add(1, 'day');
@@ -686,7 +686,7 @@ class StatsService {
       if (isScheduled) {
         scheduled++;
         const status = flow.status?.[dayKey];
-        if (status?.symbol === '✅') completed++;
+        if (status?.symbol === '+') completed++;
       }
       
       currentDate.add(1, 'day');
@@ -712,7 +712,7 @@ class StatsService {
       
       if (isScheduled) {
         const status = flow.status?.[dayKey];
-        const completed = status?.symbol === '✅' ? 1 : 0;
+        const completed = status?.symbol === '+' ? 1 : 0;
         
         dailyData.push({
           date: dayKey,

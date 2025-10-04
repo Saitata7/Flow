@@ -520,6 +520,57 @@ class NotificationService {
     }
   }
 
+  // Send achievement alert
+  async sendAchievementAlert(achievementData) {
+    try {
+      await this.sendLocalNotification(
+        'Achievement Unlocked! 🎉',
+        `You've unlocked: ${achievementData.title}`,
+        { type: 'achievement', achievementId: achievementData.id }
+      );
+    } catch (error) {
+      console.error('Error sending achievement alert:', error);
+    }
+  }
+
+  // Send community update notification
+  async sendCommunityUpdate(updateData) {
+    try {
+      await this.sendLocalNotification(
+        'Community Update',
+        updateData.message || 'New community activity!',
+        { type: 'community', updateId: updateData.id }
+      );
+    } catch (error) {
+      console.error('Error sending community update:', error);
+    }
+  }
+
+  // Send custom notification
+  async sendCustomNotification(title, body, data = {}) {
+    try {
+      await this.sendLocalNotification(title, body, data);
+    } catch (error) {
+      console.error('Error sending custom notification:', error);
+    }
+  }
+
+  // Check if notifications are enabled
+  async areNotificationsEnabled() {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      return status === 'granted';
+    } catch (error) {
+      console.error('Error checking notification permissions:', error);
+      return false;
+    }
+  }
+
+  // Get token (alias for getExpoToken)
+  async getToken() {
+    return await this.getExpoToken();
+  }
+
   // Cleanup
   cleanup() {
     console.log('Expo Notification service cleanup.');

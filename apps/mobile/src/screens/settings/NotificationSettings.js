@@ -56,7 +56,27 @@ const NotificationSettings = () => {
       end: '08:00'
     },
     reminderSound: 'default',
-    vibration: true
+    vibration: true,
+    flowLevels: {
+      level1: {
+        enabled: true,
+        frequency: 'daily',
+        time: '09:00',
+        approach: 'gentle'
+      },
+      level2: {
+        enabled: true,
+        frequency: 'daily',
+        time: '12:00',
+        approach: 'moderate'
+      },
+      level3: {
+        enabled: false,
+        frequency: 'daily',
+        time: '18:00',
+        approach: 'intensive'
+      }
+    }
   });
 
   const [initializing, setInitializing] = useState(true);
@@ -264,6 +284,64 @@ const NotificationSettings = () => {
     return soundMap[sound] || 'Default';
   };
 
+  // Flow level handlers
+  const handleFlowLevelToggle = (level, enabled) => {
+    setNotificationData(prev => ({
+      ...prev,
+      flowLevels: {
+        ...prev.flowLevels,
+        [level]: {
+          ...prev.flowLevels[level],
+          enabled
+        }
+      }
+    }));
+  };
+
+  const handleFlowLevelTimeChange = (level, time) => {
+    setNotificationData(prev => ({
+      ...prev,
+      flowLevels: {
+        ...prev.flowLevels,
+        [level]: {
+          ...prev.flowLevels[level],
+          time
+        }
+      }
+    }));
+  };
+
+  const handleFlowLevelApproachChange = (level, approach) => {
+    setNotificationData(prev => ({
+      ...prev,
+      flowLevels: {
+        ...prev.flowLevels,
+        [level]: {
+          ...prev.flowLevels[level],
+          approach
+        }
+      }
+    }));
+  };
+
+  const getApproachDisplayName = (approach) => {
+    const approachMap = {
+      'gentle': 'Gentle Reminder',
+      'moderate': 'Moderate Push',
+      'intensive': 'Intensive Motivation'
+    };
+    return approachMap[approach] || 'Gentle Reminder';
+  };
+
+  const getLevelDescription = (level) => {
+    const descriptions = {
+      'level1': 'Light reminders to help you stay on track',
+      'level2': 'Moderate encouragement to maintain momentum',
+      'level3': 'Intensive motivation for breakthrough moments'
+    };
+    return descriptions[level] || '';
+  };
+
   const dynamicStyles = StyleSheet.create({
     container: {
       flex: 1,
@@ -404,6 +482,81 @@ const NotificationSettings = () => {
       fontSize: typography.sizes.body,
       marginRight: 8,
     },
+    sectionDescription: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.secondaryText,
+      marginBottom: 16,
+      lineHeight: 18,
+    },
+    flowLevelSection: {
+      backgroundColor: themeColors.surface || '#F8F9FA',
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    flowLevelHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    flowLevelTitle: {
+      fontSize: typography.sizes.body,
+      fontWeight: typography.weights.semibold,
+      color: themeColors.primaryText,
+    },
+    flowLevelDescription: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.secondaryText,
+      marginTop: 2,
+    },
+    flowLevelOptions: {
+      marginTop: 8,
+      paddingTop: 8,
+      borderTopWidth: 1,
+      borderTopColor: themeColors.border,
+    },
+    flowLevelOption: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 6,
+    },
+    flowLevelOptionLabel: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.secondaryText,
+      fontWeight: typography.weights.medium,
+    },
+    timeButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+      backgroundColor: themeColors.background,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    timeButtonText: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.primaryOrange,
+      fontWeight: typography.weights.semibold,
+    },
+    approachButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+      backgroundColor: themeColors.background,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    approachButtonText: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.primaryText,
+      marginRight: 4,
+    },
   });
 
   if (loading && !settings || initializing || notificationLoading) {
@@ -422,7 +575,7 @@ const NotificationSettings = () => {
       <View style={dynamicStyles.header}>
         <TouchableOpacity 
           style={dynamicStyles.backButton}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.goBack()}
         >
           <Ionicons 
             name="arrow-back" 
@@ -540,6 +693,188 @@ const NotificationSettings = () => {
               trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
               thumbColor={notificationData.communityUpdates ? '#fff' : '#f4f3f4'}
             />
+          </View>
+        </View>
+
+        {/* Flow Level Notifications */}
+        <View style={dynamicStyles.section}>
+          <Text style={dynamicStyles.sectionTitle}>Flow Level Notifications</Text>
+          <Text style={dynamicStyles.sectionDescription}>
+            Configure different notification approaches for your flow levels
+          </Text>
+          
+          {/* Level 1 */}
+          <View style={dynamicStyles.flowLevelSection}>
+            <View style={dynamicStyles.flowLevelHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={dynamicStyles.flowLevelTitle}>Level 1 - Gentle</Text>
+                <Text style={dynamicStyles.flowLevelDescription}>
+                  {getLevelDescription('level1')}
+                </Text>
+              </View>
+              <Switch
+                value={notificationData.flowLevels.level1.enabled}
+                onValueChange={(value) => handleFlowLevelToggle('level1', value)}
+                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
+                thumbColor={notificationData.flowLevels.level1.enabled ? '#fff' : '#f4f3f4'}
+              />
+            </View>
+            
+            {notificationData.flowLevels.level1.enabled && (
+              <View style={dynamicStyles.flowLevelOptions}>
+                <View style={dynamicStyles.flowLevelOption}>
+                  <Text style={dynamicStyles.flowLevelOptionLabel}>Time</Text>
+                  <TouchableOpacity 
+                    style={dynamicStyles.timeButton}
+                    onPress={() => {/* TODO: Add time picker for level 1 */}}
+                  >
+                    <Text style={dynamicStyles.timeButtonText}>
+                      {notificationData.flowLevels.level1.time}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={dynamicStyles.flowLevelOption}>
+                  <Text style={dynamicStyles.flowLevelOptionLabel}>Approach</Text>
+                  <TouchableOpacity 
+                    style={dynamicStyles.approachButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Select Approach',
+                        'Choose notification approach for Level 1',
+                        [
+                          { text: 'Gentle Reminder', onPress: () => handleFlowLevelApproachChange('level1', 'gentle') },
+                          { text: 'Moderate Push', onPress: () => handleFlowLevelApproachChange('level1', 'moderate') },
+                          { text: 'Intensive Motivation', onPress: () => handleFlowLevelApproachChange('level1', 'intensive') },
+                          { text: 'Cancel', style: 'cancel' }
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={dynamicStyles.approachButtonText}>
+                      {getApproachDisplayName(notificationData.flowLevels.level1.approach)}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color={themeColors.secondaryText} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Level 2 */}
+          <View style={dynamicStyles.flowLevelSection}>
+            <View style={dynamicStyles.flowLevelHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={dynamicStyles.flowLevelTitle}>Level 2 - Moderate</Text>
+                <Text style={dynamicStyles.flowLevelDescription}>
+                  {getLevelDescription('level2')}
+                </Text>
+              </View>
+              <Switch
+                value={notificationData.flowLevels.level2.enabled}
+                onValueChange={(value) => handleFlowLevelToggle('level2', value)}
+                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
+                thumbColor={notificationData.flowLevels.level2.enabled ? '#fff' : '#f4f3f4'}
+              />
+            </View>
+            
+            {notificationData.flowLevels.level2.enabled && (
+              <View style={dynamicStyles.flowLevelOptions}>
+                <View style={dynamicStyles.flowLevelOption}>
+                  <Text style={dynamicStyles.flowLevelOptionLabel}>Time</Text>
+                  <TouchableOpacity 
+                    style={dynamicStyles.timeButton}
+                    onPress={() => {/* TODO: Add time picker for level 2 */}}
+                  >
+                    <Text style={dynamicStyles.timeButtonText}>
+                      {notificationData.flowLevels.level2.time}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={dynamicStyles.flowLevelOption}>
+                  <Text style={dynamicStyles.flowLevelOptionLabel}>Approach</Text>
+                  <TouchableOpacity 
+                    style={dynamicStyles.approachButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Select Approach',
+                        'Choose notification approach for Level 2',
+                        [
+                          { text: 'Gentle Reminder', onPress: () => handleFlowLevelApproachChange('level2', 'gentle') },
+                          { text: 'Moderate Push', onPress: () => handleFlowLevelApproachChange('level2', 'moderate') },
+                          { text: 'Intensive Motivation', onPress: () => handleFlowLevelApproachChange('level2', 'intensive') },
+                          { text: 'Cancel', style: 'cancel' }
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={dynamicStyles.approachButtonText}>
+                      {getApproachDisplayName(notificationData.flowLevels.level2.approach)}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color={themeColors.secondaryText} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Level 3 */}
+          <View style={dynamicStyles.flowLevelSection}>
+            <View style={dynamicStyles.flowLevelHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={dynamicStyles.flowLevelTitle}>Level 3 - Intensive</Text>
+                <Text style={dynamicStyles.flowLevelDescription}>
+                  {getLevelDescription('level3')}
+                </Text>
+              </View>
+              <Switch
+                value={notificationData.flowLevels.level3.enabled}
+                onValueChange={(value) => handleFlowLevelToggle('level3', value)}
+                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
+                thumbColor={notificationData.flowLevels.level3.enabled ? '#fff' : '#f4f3f4'}
+              />
+            </View>
+            
+            {notificationData.flowLevels.level3.enabled && (
+              <View style={dynamicStyles.flowLevelOptions}>
+                <View style={dynamicStyles.flowLevelOption}>
+                  <Text style={dynamicStyles.flowLevelOptionLabel}>Time</Text>
+                  <TouchableOpacity 
+                    style={dynamicStyles.timeButton}
+                    onPress={() => {/* TODO: Add time picker for level 3 */}}
+                  >
+                    <Text style={dynamicStyles.timeButtonText}>
+                      {notificationData.flowLevels.level3.time}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <View style={dynamicStyles.flowLevelOption}>
+                  <Text style={dynamicStyles.flowLevelOptionLabel}>Approach</Text>
+                  <TouchableOpacity 
+                    style={dynamicStyles.approachButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Select Approach',
+                        'Choose notification approach for Level 3',
+                        [
+                          { text: 'Gentle Reminder', onPress: () => handleFlowLevelApproachChange('level3', 'gentle') },
+                          { text: 'Moderate Push', onPress: () => handleFlowLevelApproachChange('level3', 'moderate') },
+                          { text: 'Intensive Motivation', onPress: () => handleFlowLevelApproachChange('level3', 'intensive') },
+                          { text: 'Cancel', style: 'cancel' }
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={dynamicStyles.approachButtonText}>
+                      {getApproachDisplayName(notificationData.flowLevels.level3.approach)}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color={themeColors.secondaryText} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </View>
         </View>
 

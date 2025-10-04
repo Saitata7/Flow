@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo } from 'react';
+import React, { useContext, useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,80 +27,158 @@ const StatsScreen = ({ navigation }) => {
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
+  const [stats, setStats] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
 
   // Calculate comprehensive stats using ActivityContext
-  const stats = useMemo(() => {
-    console.log('Stats calculation - flows:', flows);
-    console.log('Stats calculation - flows length:', flows?.length);
-    
-    if (!flows || flows.length === 0) {
-      console.log('Stats calculation - No flows found, returning default values');
-      return {
-        overall: {
-          totalCompleted: 0,
-          totalScheduled: 0,
-          totalPoints: 0,
-          totalFlows: 0,
-          activeFlows: 0,
-          successRate: 0,
-          avgDailyCompletion: 0,
-          dailyData: []
-        },
-        flowPerformance: [],
-        weeklyTrends: [],
-        achievements: [],
-        heatMapData: { contributionData: [], maxCount: 0 }
-      };
-    }
+  useEffect(() => {
+    const calculateStats = async () => {
+      console.log('Stats calculation - flows:', flows);
+      console.log('Stats calculation - flows length:', flows?.length);
+      
+      setIsLoadingStats(true);
+      
+      if (!flows || flows.length === 0) {
+        console.log('Stats calculation - No flows found, returning default values');
+        setStats({
+          overall: {
+            totalCompleted: 0,
+            totalScheduled: 0,
+            totalPoints: 0,
+            totalFlows: 0,
+            activeFlows: 0,
+            successRate: 0,
+            avgDailyCompletion: 0,
+            dailyData: [],
+            successMetrics: {
+              totalSuccessfulDays: 0,
+              totalFailedDays: 0,
+              successRate: 0,
+              pureCompletionRate: 0,
+              partialSuccessRate: 0,
+              failureRate: 0,
+              skipRate: 0,
+            }
+          },
+          flowPerformance: [],
+          weeklyTrends: [],
+          achievements: [],
+          heatMapData: { contributionData: [], maxCount: 0 }
+        });
+        setIsLoadingStats(false);
+        return;
+      }
 
-    const allStats = getAllStats({
-      timeframe: 'all',
-      currentMonth: currentMonth,
-      includeArchived: false,
-      includeDeleted: false
-    });
+      try {
+        const allStats = await getAllStats({
+          timeframe: 'all',
+          currentMonth: currentMonth,
+          includeArchived: false,
+          includeDeleted: false
+        });
 
-    console.log('Stats calculation - allStats:', allStats);
+        console.log('Stats calculation - allStats:', allStats);
 
-    // Transform ActivityContext data to match the expected format
-    return {
-      overall: {
-        totalCompleted: allStats.totalCompleted,
-        totalScheduled: allStats.totalScheduledDays,
-        totalPoints: allStats.totalPoints,
-        totalFlows: allStats.totalFlows,
-        activeFlows: flows.filter(f => !f.archived && !f.deletedAt).length,
-        successRate: allStats.successMetrics?.successRate || allStats.averageCompletionRate,
-        pureCompletionRate: allStats.successMetrics?.pureCompletionRate || allStats.pureCompletionRate,
-        avgDailyCompletion: allStats.successMetrics?.successRate || allStats.averageCompletionRate,
-        dailyData: allStats.weeklyTrends || [],
-        // Additional success metrics
-        successMetrics: allStats.successMetrics || {
-          totalSuccessfulDays: allStats.totalCompleted + allStats.totalPartial,
-          totalFailedDays: allStats.totalFailed + allStats.totalSkipped,
-          successRate: allStats.averageCompletionRate,
-          pureCompletionRate: allStats.pureCompletionRate,
-          partialSuccessRate: 0,
-          failureRate: 0,
-          skipRate: 0,
+        // Defensive check for invalid allStats
+        if (!allStats || typeof allStats !== 'object' || !allStats.flowSummaries) {
+          console.warn('Stats: Invalid allStats received:', allStats);
+          setStats({
+            overall: {
+              totalFlows: 0,
+              totalCompleted: 0,
+              totalPoints: 0,
+              averageCompletionRate: 0,
+              dailyData: [],
+              successMetrics: {
+                totalSuccessfulDays: 0,
+                totalFailedDays: 0,
+                successRate: 0,
+                pureCompletionRate: 0,
+                partialSuccessRate: 0,
+                failureRate: 0,
+                skipRate: 0,
+              }
+            },
+            flowPerformance: [],
+            weeklyTrends: [],
+            achievements: [],
+            heatMapData: { contributionData: [], maxCount: 0 }
+          });
+          setIsLoadingStats(false);
+          return;
         }
-      },
-      flowPerformance: allStats.flowSummaries.map(flow => ({
-        id: flow.flowId,
-        name: flow.flowTitle,
-        type: flow.flowType,
-        completed: flow.completed,
-        currentStreak: flow.currentStreak,
-        longestStreak: flow.longestStreak,
-        performance: flow.completionRate
-      })),
-      weeklyTrends: allStats.weeklyTrends || [],
-      achievements: allStats.achievements || [],
-      heatMapData: allStats.heatMapData || { contributionData: [], maxCount: 0 }
+
+        // Transform ActivityContext data to match the expected format
+        const transformedStats = {
+          overall: {
+            totalCompleted: allStats.totalCompleted || 0,
+            totalScheduled: allStats.totalScheduledDays || 0,
+            totalPoints: allStats.totalPoints || 0,
+            totalFlows: allStats.totalFlows || flows.length,
+            activeFlows: flows.filter(f => !f.archived && !f.deletedAt).length,
+            successRate: allStats.successMetrics?.successRate || allStats.averageCompletionRate || 0,
+            pureCompletionRate: allStats.successMetrics?.pureCompletionRate || allStats.pureCompletionRate || 0,
+            avgDailyCompletion: allStats.successMetrics?.successRate || allStats.averageCompletionRate || 0,
+            dailyData: allStats.weeklyTrends || [],
+            successMetrics: allStats.successMetrics || {
+              totalSuccessfulDays: (allStats.totalCompleted || 0) + (allStats.totalPartial || 0),
+              totalFailedDays: (allStats.totalFailed || 0) + (allStats.totalSkipped || 0),
+              successRate: allStats.averageCompletionRate || 0,
+              pureCompletionRate: allStats.pureCompletionRate || 0,
+              partialSuccessRate: 0,
+              failureRate: 0,
+              skipRate: 0,
+            }
+          },
+          flowPerformance: (allStats.flowSummaries || []).map(flow => ({
+            id: flow.flowId,
+            name: flow.flowTitle,
+            type: flow.flowType,
+            completed: flow.completed,
+            currentStreak: flow.currentStreak,
+            longestStreak: flow.longestStreak,
+            performance: flow.completionRate
+          })),
+          weeklyTrends: allStats.weeklyTrends || [],
+          achievements: allStats.achievements || [],
+          heatMapData: allStats.heatMapData || { contributionData: [], maxCount: 0 }
+        };
+        
+        console.log('Stats calculation - transformed stats:', transformedStats);
+        setStats(transformedStats);
+      } catch (error) {
+        console.error('Stats calculation error:', error);
+        setStats({
+          overall: {
+            totalFlows: 0,
+            totalCompleted: 0,
+            totalPoints: 0,
+            averageCompletionRate: 0,
+            dailyData: [],
+            successMetrics: {
+              totalSuccessfulDays: 0,
+              totalFailedDays: 0,
+              successRate: 0,
+              pureCompletionRate: 0,
+              partialSuccessRate: 0,
+              failureRate: 0,
+              skipRate: 0,
+            }
+          },
+          flowPerformance: [],
+          weeklyTrends: [],
+          achievements: [],
+          heatMapData: { contributionData: [], maxCount: 0 }
+        });
+      } finally {
+        setIsLoadingStats(false);
+      }
     };
+
+    calculateStats();
   }, [flows, currentMonth, getAllStats]);
 
   // Chart configurations
@@ -157,6 +235,17 @@ const StatsScreen = ({ navigation }) => {
             accessibilityLabel="Create your first flow to start tracking habits"
             accessibilityHint="Navigates to the add flow screen"
           />
+        </View>
+      </SafeAreaWrapper>
+    );
+  }
+
+  // Handle loading state
+  if (isLoadingStats || !stats) {
+    return (
+      <SafeAreaWrapper style={{ backgroundColor: themeColors.background }} excludeBottom={true}>
+        <View style={styles.loadingContainer}>
+          <Text style={[styles.loadingText, { color: themeColors.primaryText }]}>Loading statistics...</Text>
         </View>
       </SafeAreaWrapper>
     );
@@ -250,7 +339,7 @@ const StatsScreen = ({ navigation }) => {
         
         if (isScheduled) {
           const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') count++;
+          if (status?.symbol === '+') count++;
         }
       });
       
@@ -284,8 +373,8 @@ const StatsScreen = ({ navigation }) => {
   const processChartData = (dailyData, timeframe) => {
     if (timeframe === 'weekly') {
       return {
-        labels: dailyData.map(d => d.displayDate).slice(-7),
-        data: dailyData.map(d => d.percentage).slice(-7)
+        labels: (dailyData || []).map(d => d.displayDate).slice(-7),
+        data: (dailyData || []).map(d => d.percentage).slice(-7)
       };
     } else if (timeframe === 'monthly') {
       // Group by actual calendar weeks within months
@@ -333,8 +422,8 @@ const StatsScreen = ({ navigation }) => {
       });
       
       return {
-        labels: weeklyData.map(w => w.label),
-        data: weeklyData.map(w => w.percentage)
+        labels: (weeklyData || []).map(w => w.label),
+        data: (weeklyData || []).map(w => w.percentage)
       };
     } else if (timeframe === 'yearly') {
       // Group by actual calendar months
@@ -372,15 +461,15 @@ const StatsScreen = ({ navigation }) => {
       });
       
       return {
-        labels: monthlyData.map(m => m.label),
-        data: monthlyData.map(m => m.percentage)
+        labels: (monthlyData || []).map(m => m.label),
+        data: (monthlyData || []).map(m => m.percentage)
       };
     }
     
     // Default to weekly
     return {
-      labels: dailyData.map(d => d.displayDate).slice(-7),
-      data: dailyData.map(d => d.percentage).slice(-7)
+      labels: (dailyData || []).map(d => d.displayDate).slice(-7),
+      data: (dailyData || []).map(d => d.percentage).slice(-7)
     };
   };
 
@@ -494,7 +583,7 @@ const StatsScreen = ({ navigation }) => {
               </View>
               <View style={styles.chartStatItem}>
                 <Text style={[styles.chartStatValue, { color: themeColors.success }]}>
-                  {stats.overall.dailyData.length > 0 ? Math.max(...stats.overall.dailyData.map(d => d.percentage)).toFixed(1) : '0.0'}%
+                  {stats.overall.dailyData.length > 0 ? Math.max(...(stats.overall.dailyData || []).map(d => d.percentage)).toFixed(1) : '0.0'}%
                 </Text>
                 <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Best</Text>
               </View>
@@ -539,7 +628,7 @@ const StatsScreen = ({ navigation }) => {
               </View>
             ) : (
               <View style={styles.flowsList}>
-                {stats.flowPerformance.map((flow, index) => (
+                {(stats.flowPerformance || []).map((flow, index) => (
                   <FlowPerformanceCard key={index} flow={flow} />
                 ))}
               </View>
@@ -561,7 +650,7 @@ const StatsScreen = ({ navigation }) => {
               </View>
             ) : (
               <View style={styles.achievementGrid}>
-                {stats.achievements.map((achievement, index) => (
+                {(stats.achievements || []).map((achievement, index) => (
                   <View key={index} style={[styles.achievementCard, { backgroundColor: achievement.color + '20' }]}>
                     <Text style={styles.achievementIcon}>{achievement.icon}</Text>
                     <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>{achievement.title}</Text>
@@ -1052,6 +1141,16 @@ const styles = StyleSheet.create({
     ...typography.styles.title3,
     fontWeight: '700',
     fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: layout.spacing.xl,
+  },
+  loadingText: {
+    ...typography.styles.body,
+    opacity: 0.7,
   },
 });
 

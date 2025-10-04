@@ -2,31 +2,31 @@ const { NotFoundError, ForbiddenError } = require('../middleware/errorHandler');
 const { StatsModel, FlowModel, FlowEntryModel, UserProfileModel } = require('../db/models');
 
 // Business logic: Calculate user streak statistics
-const calculateUserStreaks = async (userId) => {
+const calculateUserStreaks = async userId => {
   try {
     // Get all user's flows
     const flows = await FlowModel.findByUserId(userId);
-    
+
     let totalCurrentStreak = 0;
     let longestStreak = 0;
     let totalCompletedEntries = 0;
     let totalEntries = 0;
-    
+
     for (const flow of flows) {
       // Get all entries for this flow
       const entries = await FlowEntryModel.findByFlowId(flow.id);
-      
+
       if (entries.length === 0) continue;
-      
+
       // Calculate streaks for this flow
       const flowStats = calculateFlowStreaks(entries);
-      
+
       totalCurrentStreak += flowStats.currentStreak;
       longestStreak = Math.max(longestStreak, flowStats.longestStreak);
       totalCompletedEntries += flowStats.completedEntries;
       totalEntries += entries.length;
     }
-    
+
     return {
       currentStreak: totalCurrentStreak,
       longestStreak,
@@ -47,28 +47,28 @@ const calculateUserStreaks = async (userId) => {
 };
 
 // Business logic: Calculate streaks for a single flow
-const calculateFlowStreaks = (entries) => {
+const calculateFlowStreaks = entries => {
   if (entries.length === 0) {
     return { currentStreak: 0, longestStreak: 0, completedEntries: 0 };
   }
-  
+
   // Sort entries by date (newest first)
   const sortedEntries = entries.sort((a, b) => new Date(b.date) - new Date(a.date));
-  
+
   let currentStreak = 0;
   let longestStreak = 0;
   let tempStreak = 0;
   let completedEntries = 0;
-  
+
   const today = new Date().toISOString().split('T')[0];
-  let expectedDate = new Date(today);
-  
+  const expectedDate = new Date(today);
+
   for (const entry of sortedEntries) {
     const entryDate = new Date(entry.date);
-    
-    if (entry.symbol === '✓') {
+
+    if (entry.symbol === '+') {
       completedEntries++;
-      
+
       // Check if this entry continues the streak
       if (entryDate.toISOString().split('T')[0] === expectedDate.toISOString().split('T')[0]) {
         tempStreak++;
@@ -77,7 +77,7 @@ const calculateFlowStreaks = (entries) => {
         tempStreak = 1;
         currentStreak = Math.max(currentStreak, tempStreak);
       }
-      
+
       longestStreak = Math.max(longestStreak, tempStreak);
       expectedDate.setDate(expectedDate.getDate() - 1);
     } else {
@@ -85,7 +85,7 @@ const calculateFlowStreaks = (entries) => {
       tempStreak = 0;
     }
   }
-  
+
   return {
     currentStreak,
     longestStreak,
@@ -97,7 +97,7 @@ const calculateFlowStreaks = (entries) => {
 const getUserStats = async (request, reply) => {
   const { userId } = request.params;
   const { user } = request;
-  
+
   try {
     // Check if user can access these stats
     if (userId !== user.id && user.role !== 'admin') {
@@ -107,16 +107,16 @@ const getUserStats = async (request, reply) => {
         throw new ForbiddenError('Access denied to user statistics');
       }
     }
-    
+
     // Get basic stats from database
     const basicStats = await StatsModel.getUserStats(userId);
-    
+
     // Calculate streak statistics
     const streakStats = await calculateUserStreaks(userId);
-    
+
     // Get user profile for additional info
     const profile = await UserProfileModel.findByUserId(userId);
-    
+
     const stats = {
       ...basicStats,
       ...streakStats,
@@ -124,12 +124,12 @@ const getUserStats = async (request, reply) => {
       username: profile?.username || null,
       displayName: profile?.display_name || null,
     };
-    
+
     // Cache stats in Redis
     if (request.server.redis) {
       await request.server.redis.set(`stats:${userId}`, stats, 3600); // 1 hour TTL
     }
-    
+
     return reply.send({
       success: true,
       data: stats,
@@ -146,26 +146,26 @@ const getUserStats = async (request, reply) => {
 // Get leaderboard
 const getLeaderboard = async (request, reply) => {
   const { type = 'streak', timeframe = 'month', limit = 50 } = request.query;
-  
+
   try {
     // Try Redis cache first
     const cacheKey = `leaderboard:${type}:${timeframe}`;
     let leaderboard = null;
-    
+
     if (request.server.redis) {
       leaderboard = await request.server.redis.get(cacheKey);
     }
-    
+
     // Fallback to database
     if (!leaderboard) {
       leaderboard = await StatsModel.getLeaderboard({ type, timeframe, limit });
-      
+
       // Cache the result
       if (leaderboard && request.server.redis) {
         await request.server.redis.set(cacheKey, leaderboard, 86400); // 24 hours TTL
       }
     }
-    
+
     return reply.send({
       success: true,
       data: leaderboard,
@@ -186,52 +186,68 @@ const getLeaderboard = async (request, reply) => {
 const getFlowStats = async (request, reply) => {
   const { flowId } = request.params;
   const { user } = request;
-  
+
   try {
     // Check if flow exists and user has access
-    const flow = await FlowModel.findById(flowId);
+    const flow = await FlowModel.findByIdWithStatus(flowId);
     if (!flow) {
       throw new NotFoundError('Flow');
     }
-    
+
     if (flow.owner_id !== user.id && flow.visibility === 'private' && user.role !== 'admin') {
       throw new ForbiddenError('Access denied to this flow');
     }
-    
-    // Get all entries for this flow
-    const entries = await FlowEntryModel.findByFlowId(flowId);
-    
+
+    // Calculate statistics from flow status (mobile app compatible)
+    const status = flow.status || {};
+    console.log('Stats calculation - flow status:', JSON.stringify(status, null, 2));
+    const entries = Object.entries(status).map(([date, entryData]) => ({
+      date,
+      symbol: entryData.symbol,
+      mood_score: entryData.moodScore || entryData.mood_score,
+      emotion: entryData.emotion,
+      note: entryData.note,
+      quantitative: entryData.quantitative,
+      timebased: entryData.timebased,
+    }));
+    console.log('Stats calculation - entries:', entries.length, entries);
+
     // Calculate statistics
-    const stats = calculateFlowStreaks(entries);
-    
-    // Additional calculations
     const totalEntries = entries.length;
-    const skippedEntries = entries.filter(entry => entry.symbol === '✗').length;
+    const completedEntries = entries.filter(entry => entry.symbol === '+').length;
+    const skippedEntries = entries.filter(entry => entry.symbol === '-').length;
     const bonusEntries = entries.filter(entry => entry.symbol === '+').length;
-    
+
+    // Calculate streaks
+    const currentStreak = calculateCurrentStreak(entries);
+    const longestStreak = calculateLongestStreak(entries);
+
     // Calculate average mood score
     const moodEntries = entries.filter(entry => entry.mood_score);
-    const averageMoodScore = moodEntries.length > 0 
-      ? moodEntries.reduce((sum, entry) => sum + entry.mood_score, 0) / moodEntries.length
-      : null;
-    
+    const averageMoodScore =
+      moodEntries.length > 0
+        ? moodEntries.reduce((sum, entry) => sum + entry.mood_score, 0) / moodEntries.length
+        : null;
+
     // Calculate completion rate
-    const completionRate = totalEntries > 0 ? (stats.completedEntries / totalEntries) * 100 : 0;
-    
+    const completionRate = totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0;
+
     const flowStats = {
-      ...stats,
       totalEntries,
+      completedEntries,
       skippedEntries,
       bonusEntries,
+      currentStreak,
+      longestStreak,
       averageMoodScore: averageMoodScore ? Math.round(averageMoodScore * 100) / 100 : null,
       completionRate: Math.round(completionRate * 100) / 100,
     };
-    
+
     // Cache stats in Redis
     if (request.server.redis) {
       await request.server.redis.set(`flow:${flowId}:stats`, flowStats, 1800); // 30 minutes TTL
     }
-    
+
     return reply.send({
       success: true,
       data: flowStats,
@@ -249,35 +265,35 @@ const getFlowStats = async (request, reply) => {
 const getTrends = async (request, reply) => {
   const { flowId, startDate, endDate } = request.query;
   const { user } = request;
-  
+
   try {
     let flows = [];
-    
+
     if (flowId) {
       // Get stats for specific flow
       const flow = await FlowModel.findById(flowId);
       if (!flow) {
         throw new NotFoundError('Flow');
       }
-      
+
       if (flow.owner_id !== user.id && flow.visibility === 'private' && user.role !== 'admin') {
         throw new ForbiddenError('Access denied to this flow');
       }
-      
+
       flows = [flow];
     } else {
       // Get stats for all user's flows
       flows = await FlowModel.findByUserId(user.id);
     }
-    
+
     const trends = [];
-    
+
     for (const flow of flows) {
       const entries = await FlowEntryModel.findByFlowId(flow.id, {
         startDate,
         endDate,
       });
-      
+
       // Group entries by date
       const entriesByDate = {};
       entries.forEach(entry => {
@@ -287,16 +303,17 @@ const getTrends = async (request, reply) => {
         }
         entriesByDate[date].push(entry);
       });
-      
+
       // Calculate daily stats
       const dailyStats = Object.entries(entriesByDate).map(([date, dayEntries]) => {
-        const completed = dayEntries.filter(entry => entry.symbol === '✓').length;
+        const completed = dayEntries.filter(entry => entry.symbol === '+').length;
         const total = dayEntries.length;
-        const averageMood = dayEntries
-          .filter(entry => entry.mood_score)
-          .reduce((sum, entry) => sum + entry.mood_score, 0) / 
-          dayEntries.filter(entry => entry.mood_score).length || null;
-        
+        const averageMood =
+          dayEntries
+            .filter(entry => entry.mood_score)
+            .reduce((sum, entry) => sum + entry.mood_score, 0) /
+            dayEntries.filter(entry => entry.mood_score).length || null;
+
         return {
           date,
           completed,
@@ -305,7 +322,7 @@ const getTrends = async (request, reply) => {
           averageMood: averageMood ? Math.round(averageMood * 100) / 100 : null,
         };
       });
-      
+
       trends.push({
         flowId: flow.id,
         flowTitle: flow.title,
@@ -313,7 +330,7 @@ const getTrends = async (request, reply) => {
         dailyStats: dailyStats.sort((a, b) => new Date(a.date) - new Date(b.date)),
       });
     }
-    
+
     return reply.send({
       success: true,
       data: trends,
@@ -336,21 +353,21 @@ const getTrends = async (request, reply) => {
 // Get global statistics (admin only)
 const getGlobalStats = async (request, reply) => {
   const { user } = request;
-  
+
   try {
     // Check admin permissions
     if (user.role !== 'admin') {
       throw new ForbiddenError('Admin access required');
     }
-    
+
     // Try Redis cache first
     const cacheKey = 'global:stats';
     let globalStats = null;
-    
+
     if (request.server.redis) {
       globalStats = await request.server.redis.get(cacheKey);
     }
-    
+
     // Fallback to database calculation
     if (!globalStats) {
       // This would require additional database queries to calculate
@@ -364,13 +381,13 @@ const getGlobalStats = async (request, reply) => {
         topFlows: [],
         recentActivity: [],
       };
-      
+
       // Cache the result
       if (request.server.redis) {
         await request.server.redis.set(cacheKey, globalStats, 3600); // 1 hour TTL
       }
     }
-    
+
     return reply.send({
       success: true,
       data: globalStats,
@@ -386,6 +403,62 @@ const getGlobalStats = async (request, reply) => {
     request.log.error({ error: error.message }, 'Failed to get global stats');
     throw new NotFoundError('Failed to retrieve global statistics');
   }
+};
+
+// Helper functions for streak calculations
+const calculateCurrentStreak = entries => {
+  if (entries.length === 0) return 0;
+
+  // Sort entries by date (newest first)
+  const sortedEntries = entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  let streak = 0;
+  let currentDate = new Date();
+
+  for (const entry of sortedEntries) {
+    const entryDate = new Date(entry.date);
+    const dayDiff = Math.floor((currentDate - entryDate) / (1000 * 60 * 60 * 24));
+
+    if (dayDiff === streak && entry.symbol === '+') {
+      streak++;
+      currentDate = entryDate;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+};
+
+const calculateLongestStreak = entries => {
+  if (entries.length === 0) return 0;
+
+  // Sort entries by date (oldest first)
+  const sortedEntries = entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  let longestStreak = 0;
+  let currentStreak = 0;
+  let lastDate = null;
+
+  for (const entry of sortedEntries) {
+    const entryDate = new Date(entry.date);
+
+    if (entry.symbol === '+') {
+      if (lastDate === null || Math.floor((entryDate - lastDate) / (1000 * 60 * 60 * 24)) === 1) {
+        currentStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, currentStreak);
+        currentStreak = 1;
+      }
+      lastDate = entryDate;
+    } else {
+      longestStreak = Math.max(longestStreak, currentStreak);
+      currentStreak = 0;
+      lastDate = null;
+    }
+  }
+
+  return Math.max(longestStreak, currentStreak);
 };
 
 module.exports = {

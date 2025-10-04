@@ -46,7 +46,7 @@ const calculateStreak = (flow) => {
     const dateKey = date.format('YYYY-MM-DD');
     const status = flow.status[dateKey]?.symbol;
     
-    if (status === '+' || status === '✓') {
+    if (status === '+') {
       streakDays.unshift(date.date());
       streak++;
     } else if (status === '-' || status === '/' || (i === 0 && !status)) {
@@ -208,7 +208,7 @@ const Quantitative = ({ flow }) => {
                 end={{ x: 1, y: 0 }}
                 style={styles.gradientButton}
               >
-                <Text style={styles.actionButtonText}>+</Text>
+                <Text style={styles.actionButtonText}>✓</Text>
               </LinearGradient>
             </TouchableOpacity>
             <TouchableOpacity

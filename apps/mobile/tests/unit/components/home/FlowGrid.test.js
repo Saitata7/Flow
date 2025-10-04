@@ -49,9 +49,9 @@ const mockFlowsContext = {
       frequency: 'Daily',
       everyDay: true,
       status: {
-        '2024-01-01': { symbol: '✅' },
-        '2024-01-02': { symbol: '❌' },
-        '2024-01-03': { symbol: '➖' },
+        '2024-01-01': { symbol: '+' },
+        '2024-01-02': { symbol: '-' },
+        '2024-01-03': { symbol: '-' },
       },
     },
     {
@@ -61,9 +61,9 @@ const mockFlowsContext = {
       frequency: 'Daily',
       everyDay: true,
       status: {
-        '2024-01-01': { symbol: '✅' },
-        '2024-01-02': { symbol: '✅' },
-        '2024-01-03': { symbol: '➖' },
+        '2024-01-01': { symbol: '+' },
+        '2024-01-02': { symbol: '+' },
+        '2024-01-03': { symbol: '-' },
       },
     },
   ],

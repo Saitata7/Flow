@@ -175,8 +175,8 @@ const TodaysFlows = ({ visibleFlows }) => {
     const statusB = b.status?.[todayKey]?.symbol || '/';
     
     // Check if tasks are completed (any completion status)
-    const isCompletedA = ['+', '✓'].includes(statusA);
-    const isCompletedB = ['+', '✓'].includes(statusB);
+    const isCompletedA = statusA === '+';
+    const isCompletedB = statusB === '+';
     
     // Rule 1: Completed tasks go to bottom
     if (isCompletedA && !isCompletedB) return 1; // A goes after B

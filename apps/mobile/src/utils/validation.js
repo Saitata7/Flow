@@ -341,6 +341,17 @@ export const validateAchievements = (achievements) => {
 };
 
 /**
+ * Validates password strength
+ * @param {string} password
+ * @returns {{ valid: boolean, error: string | null }}
+ */
+export const validatePassword = (password) => {
+  if (!password || password.length < 6) return { valid: false, error: 'Password must be at least 6 characters' };
+  if (password.length > 128) return { valid: false, error: 'Password must be under 128 characters' };
+  return { valid: true, error: null };
+};
+
+/**
  * Validates email per RFC 5322
  * @param {string} email
  * @returns {{ valid: boolean, error: string | null }}
@@ -479,7 +490,7 @@ export const flowEntryValidationSchema = {
   // Required fields
   flowId: (value) => value ? { valid: true, error: null } : { valid: false, error: 'Flow ID is required' },
   date: (value) => moment(value).isValid() ? { valid: true, error: null } : { valid: false, error: 'Invalid date' },
-  symbol: (value) => ['✓', '✗', '+'].includes(value) ? { valid: true, error: null } : { valid: false, error: 'Invalid symbol' },
+  symbol: (value) => ['+', '-', '*', '/'].includes(value) ? { valid: true, error: null } : { valid: false, error: 'Invalid symbol' },
   
   // Optional fields
   moodScore: validateMoodScore,

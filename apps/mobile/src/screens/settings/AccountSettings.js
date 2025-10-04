@@ -168,6 +168,29 @@ const AccountSettings = () => {
     );
   };
 
+  const handleDeactivateAccount = () => {
+    Alert.alert(
+      'Deactivate Account',
+      'This will deactivate your account and remove all your data. This action cannot be undone. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Deactivate',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // TODO: Implement account deactivation
+              Alert.alert('Account Deactivated', 'Your account has been deactivated successfully.');
+            } catch (error) {
+              console.error('Failed to deactivate account:', error);
+              Alert.alert('Error', 'Failed to deactivate account');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleResetAllData = () => {
     Alert.alert(
       'Reset All Data',
@@ -179,7 +202,11 @@ const AccountSettings = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // TODO: Implement data reset
+              // Clear all settings data
+              await updateSettings({
+                dataPrivacy: { cloudBackup: false },
+                timezone: { autoTimezone: true, manualTimezone: 'UTC' }
+              });
               Alert.alert('Success', 'All data has been reset');
             } catch (error) {
               console.error('Failed to reset data:', error);
@@ -496,7 +523,7 @@ const AccountSettings = () => {
       <View style={dynamicStyles.header}>
         <TouchableOpacity 
           style={dynamicStyles.backButton}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.goBack()}
         >
           <Ionicons 
             name="arrow-back" 

@@ -27,7 +27,7 @@ class RedisClient {
         console.log('Redis connected');
       });
 
-      this.client.on('error', (error) => {
+      this.client.on('error', error => {
         this.isConnected = false;
         console.error('Redis connection error:', error);
       });
@@ -58,7 +58,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       const result = await this.client.ping();
       return result === 'PONG';
@@ -73,7 +73,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return null;
     }
-    
+
     try {
       const value = await this.client.get(key);
       return value ? JSON.parse(value) : null;
@@ -87,7 +87,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       const serialized = JSON.stringify(value);
       await this.client.setex(key, ttlSeconds, serialized);
@@ -102,7 +102,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       await this.client.del(key);
       return true;
@@ -116,7 +116,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       const result = await this.client.exists(key);
       return result === 1;
@@ -130,7 +130,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       await this.client.expire(key, seconds);
       return true;
@@ -145,7 +145,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       await this.client.zadd(key, score, member);
       return true;
@@ -159,7 +159,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return [];
     }
-    
+
     try {
       const args = withScores ? [key, start, stop, 'WITHSCORES'] : [key, start, stop];
       return await this.client.zrevrange(...args);
@@ -173,7 +173,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return null;
     }
-    
+
     try {
       return await this.client.zrank(key, member);
     } catch (error) {
@@ -187,7 +187,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return null;
     }
-    
+
     try {
       return await this.client.hget(key, field);
     } catch (error) {
@@ -200,7 +200,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       await this.client.hset(key, field, value);
       return true;
@@ -214,7 +214,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return {};
     }
-    
+
     try {
       return await this.client.hgetall(key);
     } catch (error) {
@@ -228,7 +228,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return false;
     }
-    
+
     try {
       await this.client.lpush(key, ...values);
       return true;
@@ -242,7 +242,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return null;
     }
-    
+
     try {
       return await this.client.rpop(key);
     } catch (error) {
@@ -255,7 +255,7 @@ class RedisClient {
     if (!this.client || !this.isConnected) {
       return 0;
     }
-    
+
     try {
       return await this.client.llen(key);
     } catch (error) {

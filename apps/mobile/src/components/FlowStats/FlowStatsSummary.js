@@ -11,9 +11,32 @@ const { width: screenWidth } = Dimensions.get('window');
 
 const FlowStatsSummary = ({ navigation }) => {
   const { flows } = useContext(FlowsContext) || {};
+  const { getScoreboard } = useContext(ActivityContext) || {};
   const { theme = 'light', textSize = 'medium', highContrast = false } = useContext(ThemeContext) || {};
   const [selectedPeriod, setSelectedPeriod] = useState('weekly');
+  const [flowStats, setFlowStats] = useState({});
   const [selectedYear, setSelectedYear] = useState(moment().year());
+
+  // Load stats for each flow
+  useEffect(() => {
+    const loadFlowStats = async () => {
+      if (!flows || flows.length === 0 || !getScoreboard) return;
+      
+      const stats = {};
+      for (const flow of flows) {
+        try {
+          const scoreboard = await getScoreboard(flow.id);
+          stats[flow.id] = scoreboard;
+        } catch (error) {
+          console.error(`Failed to load stats for flow ${flow.id}:`, error);
+          stats[flow.id] = null;
+        }
+      }
+      setFlowStats(stats);
+    };
+
+    loadFlowStats();
+  }, [flows, getScoreboard]);
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -196,14 +219,53 @@ const FlowStatsSummary = ({ navigation }) => {
               <Text style={[styles.flowTitle, dynamicStyles.header]}>{flow.title}</Text>
               <Text style={[styles.flowType, dynamicStyles.periodButtonText]}>{flow.trackingType}</Text>
               <View style={styles.flowStats}>
-                <Text style={[styles.flowStatValue, dynamicStyles.header]}>
-                  {flow.trackingType === 'Binary' ? '7 days' : 
-                   flow.trackingType === 'Quantitative' ? '1,250' : '25h 30m'}
-                </Text>
-                <Text style={[styles.flowStatLabel, dynamicStyles.periodButtonText]}>
-                  {flow.trackingType === 'Binary' ? 'Current Streak' : 
-                   flow.trackingType === 'Quantitative' ? 'Total Value' : 'Total Time'}
-                </Text>
+                {(() => {
+                  const stats = flowStats[flow.id];
+                  if (!stats) {
+                    return (
+                      <>
+                        <Text style={[styles.flowStatValue, dynamicStyles.header]}>--</Text>
+                        <Text style={[styles.flowStatLabel, dynamicStyles.periodButtonText]}>Loading...</Text>
+                      </>
+                    );
+                  }
+                  
+                  if (flow.trackingType === 'Binary') {
+                    return (
+                      <>
+                        <Text style={[styles.flowStatValue, dynamicStyles.header]}>
+                          {stats.currentStreak || 0} days
+                        </Text>
+                        <Text style={[styles.flowStatLabel, dynamicStyles.periodButtonText]}>Current Streak</Text>
+                      </>
+                    );
+                  } else if (flow.trackingType === 'Quantitative') {
+                    return (
+                      <>
+                        <Text style={[styles.flowStatValue, dynamicStyles.header]}>
+                          {stats.totalPoints || 0}
+                        </Text>
+                        <Text style={[styles.flowStatLabel, dynamicStyles.periodButtonText]}>Total Value</Text>
+                      </>
+                    );
+                  } else if (flow.trackingType === 'Time-based') {
+                    return (
+                      <>
+                        <Text style={[styles.flowStatValue, dynamicStyles.header]}>
+                          {Math.floor((stats.totalPoints || 0) / 3600)}h {Math.floor(((stats.totalPoints || 0) % 3600) / 60)}m
+                        </Text>
+                        <Text style={[styles.flowStatLabel, dynamicStyles.periodButtonText]}>Total Time</Text>
+                      </>
+                    );
+                  }
+                  
+                  return (
+                    <>
+                      <Text style={[styles.flowStatValue, dynamicStyles.header]}>--</Text>
+                      <Text style={[styles.flowStatLabel, dynamicStyles.periodButtonText]}>No Data</Text>
+                    </>
+                  );
+                })()}
               </View>
             </TouchableOpacity>
           ))}

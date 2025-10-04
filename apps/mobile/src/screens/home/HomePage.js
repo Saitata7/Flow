@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef } from 'react';
+import React, { useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
@@ -35,9 +35,13 @@ import {
 import { Button, Card, Icon, FlowGrid } from '../../components';
 
 export default function HomePage({ navigation }) {
+  console.log('HomePage: Component rendering...');
+  
   const [dayOffset, setDayOffset] = useState(0); // Controls which set of 3 days to show
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const insets = useSafeAreaInsets(); // Get safe area insets for proper positioning
+  
+  console.log('HomePage: State initialized');
   
   // Animation for FAB subtle attention effect
   const gentlePulse = useRef(new Animated.Value(1)).current;
@@ -58,6 +62,7 @@ export default function HomePage({ navigation }) {
 
   // Use centralized theme hook
   const { colors: themeColors, isDark } = useAppTheme();
+  console.log('HomePage: Theme loaded', { themeColors, isDark });
 
   // Refresh flows when home page comes into focus (only if flows are empty)
   useFocusEffect(
@@ -243,9 +248,19 @@ export default function HomePage({ navigation }) {
   });
 
   console.log('HomePage: All flows:', flows.map(f => ({ id: f.id, title: f.title })));
+  console.log('HomePage: All flows with status:', flows.map(f => ({ 
+    id: f.id, 
+    title: f.title, 
+    statusKeys: f.status ? Object.keys(f.status) : 'No status',
+    status: f.status ? JSON.stringify(f.status, null, 2) : 'No status'
+  })));
   console.log('HomePage: Todays flows:', visibleFlows.map(f => ({ id: f.id, title: f.title })));
 
-  return (
+
+  console.log('HomePage: About to render...');
+  
+  try {
+    return (
     <LinearGradient
       colors={['#FFE3C3', '#FFFFFF']}
       style={[commonStyles.container]}
@@ -323,7 +338,7 @@ export default function HomePage({ navigation }) {
             }}
             cheatMode={cheatMode}
           />
-          
+
           {/* Today Flows - Moved inside ScrollView */}
           <View style={[styles.todayContainer, { backgroundColor: 'transparent' }]}>
             <View style={styles.todaySection}>
@@ -416,6 +431,16 @@ export default function HomePage({ navigation }) {
       </SafeAreaView>
     </LinearGradient>
   );
+  } catch (error) {
+    console.error('HomePage: Render error:', error);
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 18, color: 'red', textAlign: 'center' }}>
+          Error: {error.message}
+        </Text>
+      </View>
+    );
+  }
 }
 
 // Refactored styles using centralized system

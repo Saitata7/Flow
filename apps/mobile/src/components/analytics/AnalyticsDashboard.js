@@ -21,122 +21,70 @@ import OverallInsights from './OverallInsights';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const AnalyticsDashboard = ({ flows, theme = 'light', navigation }) => {
+const AnalyticsDashboard = ({ flows, theme = 'light', navigation, stats }) => {
   const [selectedMetric, setSelectedMetric] = useState('performance');
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
 
-  // Calculate comprehensive analytics
+  // Use stats from ActivityContext or calculate fallback
   const analytics = useMemo(() => {
-    const now = moment();
-    const startDate = moment().subtract(
-      selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365,
-      'days'
-    );
-
-    let totalCompleted = 0;
-    let totalScheduled = 0;
-    let totalPoints = 0;
-    let weeklyData = [];
-    let flowPerformance = [];
-    let categoryData = {};
-
-    // Generate time series data
-    for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 52); i++) {
-      const date = startDate.clone().add(i, 'days');
-      const dayKey = date.format('YYYY-MM-DD');
+    if (stats && stats.flowSummaries) {
+      console.log('AnalyticsDashboard: Using ActivityContext stats:', {
+        totalFlows: stats.flowSummaries.length,
+        flowSummaries: stats.flowSummaries.map(f => ({
+          id: f.flowId,
+          title: f.flowTitle,
+          completionRate: f.completionRate,
+          completed: f.completed,
+          scheduled: f.scheduledDays
+        }))
+      });
       
-      let dayCompleted = 0;
-      let dayScheduled = 0;
+      // Use ActivityContext data
+      const flowPerformance = stats.flowSummaries.map(flow => ({
+        id: flow.flowId,
+        name: flow.flowTitle,
+        performance: flow.completionRate || 0,
+        completed: flow.completed || 0,
+        scheduled: flow.scheduledDays || 0,
+        type: flow.flowType || 'Binary',
+      }));
 
-      flows.forEach(flow => {
-        const isScheduled = flow.repeatType === 'day' 
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(date.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(date.date().toString());
-
-        if (isScheduled) {
-          dayScheduled++;
-          totalScheduled++;
-          const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
-            dayCompleted++;
-            totalCompleted++;
-            totalPoints += 10;
-          }
+      const categoryData = {};
+      flowPerformance.forEach(flow => {
+        if (!categoryData[flow.type]) {
+          categoryData[flow.type] = { completed: 0, scheduled: 0 };
         }
+        categoryData[flow.type].completed += flow.completed;
+        categoryData[flow.type].scheduled += flow.scheduled;
       });
 
-      weeklyData.push({
-        date: date.format('MMM DD'),
-        completed: dayCompleted,
-        scheduled: dayScheduled,
-        percentage: dayScheduled > 0 ? (dayCompleted / dayScheduled) * 100 : 0,
-      });
+      return {
+        totalCompleted: stats.overall?.totalCompleted || 0,
+        totalScheduled: stats.overall?.totalScheduledDays || 0,
+        totalPoints: stats.overall?.totalPoints || 0,
+        successRate: stats.overall?.completionRate || 0,
+        avgDailyCompletion: stats.overall?.avgDailyCompletion || 0,
+        weeklyData: stats.weeklyTrends || [],
+        flowPerformance,
+        categoryData,
+      };
     }
 
-    // Calculate flow performance
-    flows.forEach(flow => {
-      let flowCompleted = 0;
-      let flowScheduled = 0;
-      let flowStreak = 0;
-      let maxStreak = 0;
-
-      for (let i = 0; i < (selectedTimeframe === 'weekly' ? 7 : selectedTimeframe === 'monthly' ? 30 : 365); i++) {
-        const date = startDate.clone().add(i, 'days');
-        const dayKey = date.format('YYYY-MM-DD');
-        
-        const isScheduled = flow.repeatType === 'day' 
-          ? flow.everyDay || (flow.daysOfWeek && flow.daysOfWeek.includes(date.format('ddd')))
-          : flow.selectedMonthDays && flow.selectedMonthDays.includes(date.date().toString());
-
-        if (isScheduled) {
-          flowScheduled++;
-          const status = flow.status?.[dayKey];
-          if (status?.symbol === '✅') {
-            flowCompleted++;
-            flowStreak++;
-            maxStreak = Math.max(maxStreak, flowStreak);
-          } else {
-            flowStreak = 0;
-          }
-        }
-      }
-
-      const performance = flowScheduled > 0 ? (flowCompleted / flowScheduled) * 100 : 0;
-      flowPerformance.push({
-        name: flow.title,
-        performance,
-        completed: flowCompleted,
-        scheduled: flowScheduled,
-        streak: maxStreak,
-        type: flow.trackingType,
-      });
-
-      // Category data
-      if (!categoryData[flow.trackingType]) {
-        categoryData[flow.trackingType] = { completed: 0, scheduled: 0 };
-      }
-      categoryData[flow.trackingType].completed += flowCompleted;
-      categoryData[flow.trackingType].scheduled += flowScheduled;
-    });
-
-    const successRate = totalScheduled > 0 ? (totalCompleted / totalScheduled) * 100 : 0;
-    const avgDailyCompletion = weeklyData.length > 0 
-      ? weeklyData.reduce((sum, day) => sum + day.percentage, 0) / weeklyData.length 
-      : 0;
-
+    // Fallback calculation if no stats provided
+    console.log('AnalyticsDashboard: Using fallback calculation - no stats from ActivityContext');
     return {
-      totalCompleted,
-      totalScheduled,
-      totalPoints,
-      successRate,
-      avgDailyCompletion,
-      weeklyData,
-      flowPerformance,
-      categoryData,
+      totalCompleted: 0,
+      totalScheduled: 0,
+      totalPoints: 0,
+      successRate: 0,
+      avgDailyCompletion: 0,
+      weeklyData: [],
+      flowPerformance: [],
+      categoryData: {},
     };
-  }, [flows, selectedTimeframe]);
+  }, [stats, selectedTimeframe]);
 
   // Render metric card
   const MetricCard = ({ title, value, subtitle, icon, color, trend, onPress }) => (

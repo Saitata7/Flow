@@ -1,6 +1,6 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import auth from '../config/firebaseInit'; // Use our defensive Firebase import
+import auth from '@react-native-firebase/auth';
 import * as SecureStore from 'expo-secure-store';
 import { Alert } from 'react-native';
 
