@@ -1,5 +1,5 @@
 // src/screens/auth/Login.js
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -10,15 +10,16 @@ import {
   KeyboardAvoidingView,
   TouchableOpacity,
   ScrollView,
-  StatusBar
+  StatusBar,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Button from '../../components/common/Button';
 import Toast from '../../components/common/Toast';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
-import { useAuth } from '../../context/AuthContext';
-import { validateEmail, validatePassword } from '../../utils/validation';
+import { useAuth } from '../../context/JWTAuthContext';
+import { validateInput } from '../../utils/validation';
 import { colors, typography, layout, useAppTheme } from '../../../styles';
 
 const fallbackColors = {
@@ -32,18 +33,46 @@ const fallbackColors = {
 };
 
 const Login = ({ navigation, route }) => {
-  const { login, isLoading, error, clearError } = useAuth();
+  const { 
+    login, 
+    isLoading, 
+    error, 
+    clearError 
+  } = useAuth();
+  
   const { colors: themeColors } = useAppTheme();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [formErrors, setFormErrors] = useState({});
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('error');
   const [showPassword, setShowPassword] = useState(false);
+  const [isFormValid, setIsFormValid] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
+  const successAnim = useRef(new Animated.Value(0)).current;
 
   const safeColors = themeColors || fallbackColors;
 
-  React.useEffect(() => {
+  // Enhanced form validation - only validate for form state, don't show errors until submit
+  const validateForm = () => {
+    const emailValidation = validateInput('email', formData.email);
+    const passwordValidation = validateInput('password', formData.password);
+    
+    // Don't set formErrors here - only check validity for button state
+    const isValid = emailValidation.valid && passwordValidation.valid;
+    setIsFormValid(isValid);
+    return isValid;
+  };
+
+  // Real-time validation on input change - only for form state, not error display
+  useEffect(() => {
+    validateForm();
+  }, [formData.email, formData.password]);
+
+  // Auto-focus and navigation effects
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -56,64 +85,147 @@ const Login = ({ navigation, route }) => {
         useNativeDriver: true,
       }),
     ]).start();
+
+    // Auto-focus email field on mount
+    const timer = setTimeout(() => {
+      // Focus will be handled by TextInput autoFocus prop
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, []);
 
+  // Show toast with custom message and type
+  const showCustomToast = (message, type = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const playSuccessAnimation = () => {
+    Animated.sequence([
+      Animated.timing(successAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(successAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   const handleLogin = async () => {
+    console.log('🔐 Login: Starting Firebase authentication...');
+    console.log('🔐 Login: Email:', formData.email);
+    console.log('🔐 Login: Password length:', formData.password.length);
+    console.log('🔐 Login: isLoading:', isLoading);
+    console.log('🔐 Login: isSubmitting:', isSubmitting);
+    
+    // Prevent multiple submissions
+    if (isSubmitting || isLoading) {
+      console.log('🔐 Login: Already submitting, ignoring request');
+      return;
+    }
+
     const { email, password } = formData;
     
     // Clear previous errors
     clearError();
     setFormErrors({});
     
-    // Validate inputs
-    const emailValidation = validateEmail(email);
-    const passwordValidation = validatePassword(password);
-
-    if (!emailValidation.valid || !passwordValidation.valid) {
-      setFormErrors({
-        email: emailValidation.error,
-        password: passwordValidation.error,
-      });
-      setShowToast(true);
+    // Validate form before submission
+    const emailValidation = validateInput('email', email);
+    const passwordValidation = validateInput('password', password);
+    
+    const errors = {};
+    if (!emailValidation.valid) {
+      errors.email = emailValidation.error;
+    }
+    if (!passwordValidation.valid) {
+      errors.password = passwordValidation.error;
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      showCustomToast('Please check your email and password');
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
+      console.log('🔐 Login: Calling Firebase authentication...');
+      
+      // Use Firebase authentication with proper error handling
       const result = await login(email, password);
       
       if (result.success) {
-        // Navigate to main app after successful login
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Main' }],
-        });
+        console.log('✅ Login: Firebase authentication successful');
+        console.log('✅ Login: User data:', result.user);
+        
+        // Play success animation
+        playSuccessAnimation();
+        
+        // Show success toast
+        showCustomToast('Login successful!', 'success');
+        
+        // Navigate to main app after a short delay
+        setTimeout(() => {
+          navigation.navigate('Main');
+        }, 1500);
       } else {
-        // Show error toast
-        setShowToast(true);
+        console.log('❌ Login: Authentication failed:', result.error);
+        showCustomToast(result.error, 'error');
+        setFormErrors({ general: result.error });
       }
-    } catch (err) {
-      console.error('Login error:', err);
-      setShowToast(true);
+      
+    } catch (error) {
+      console.error('❌ Login: Firebase authentication failed:', error);
+      
+      // Handle specific Firebase error codes
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('user-not-found')) {
+          errorMessage = 'No account found with this email address.';
+        } else if (error.message.includes('wrong-password')) {
+          errorMessage = 'Incorrect password. Please try again.';
+        } else if (error.message.includes('invalid-email')) {
+          errorMessage = 'Please enter a valid email address.';
+        } else if (error.message.includes('user-disabled')) {
+          errorMessage = 'This account has been disabled.';
+        } else if (error.message.includes('too-many-requests')) {
+          errorMessage = 'Too many failed attempts. Please try again later.';
+        } else if (error.message.includes('network-request-failed')) {
+          errorMessage = 'Network error. Please check your connection.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showCustomToast(errorMessage, 'error');
+      setFormErrors({ general: errorMessage });
+      
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    setFormErrors((prev) => ({ ...prev, [field]: null }));
-  };
-
   const handleGoogleSignIn = async () => {
-    // Google Sign-In not implemented yet - show message
-    setShowToast(true);
+    console.log('🔐 Login: Google Sign-In not implemented yet');
+    showCustomToast('Google Sign-In coming soon!', 'info');
   };
 
-  const handleSkip = () => {
-    // Navigate to main app as guest
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Main' }],
-    });
+  const handleForgotPassword = () => {
+    navigation.navigate('ForgotPassword');
   };
+
+  const handleRegister = () => {
+    navigation.navigate('Register');
+  };
+
 
   const animatedStyle = {
     opacity: fadeAnim,
@@ -161,19 +273,16 @@ const Login = ({ navigation, route }) => {
               Welcome Back
             </Text>
             <Text style={[styles.welcomeSubtitle, { color: safeColors.primaryText }]}>
-              Sign in to continue your flow journey
+              Sign in to continue your Flow journey
             </Text>
           </Animated.View>
 
           {/* Form Section */}
           <Animated.View style={[styles.formSection, animatedStyle]}>
             {/* Email Input */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: safeColors.primaryText }]}>
-                Email Address
-              </Text>
+            <View style={styles.inputWrapper}>
               <View style={[
-                styles.inputWrapper,
+                styles.inputContainer,
                 formErrors.email && styles.inputWrapperError,
                 { backgroundColor: safeColors.cardBackground }
               ]}>
@@ -188,11 +297,13 @@ const Login = ({ navigation, route }) => {
                   placeholder="Enter your email"
                   placeholderTextColor={safeColors.placeholderText}
                   value={formData.email}
-                  onChangeText={(text) => handleInputChange('email', text)}
-                  autoCapitalize="none"
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, email: text }))}
                   keyboardType="email-address"
-                  autoComplete="email"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoFocus
                   accessibilityLabel="Email input"
+                  editable={!isSubmitting && !isLoading}
                 />
               </View>
               {formErrors.email && (
@@ -203,12 +314,9 @@ const Login = ({ navigation, route }) => {
             </View>
 
             {/* Password Input */}
-            <View style={styles.inputContainer}>
-              <Text style={[styles.inputLabel, { color: safeColors.primaryText }]}>
-                Password
-              </Text>
+            <View style={styles.inputWrapper}>
               <View style={[
-                styles.inputWrapper,
+                styles.inputContainer,
                 formErrors.password && styles.inputWrapperError,
                 { backgroundColor: safeColors.cardBackground }
               ]}>
@@ -223,10 +331,11 @@ const Login = ({ navigation, route }) => {
                   placeholder="Enter your password"
                   placeholderTextColor={safeColors.placeholderText}
                   value={formData.password}
-                  onChangeText={(text) => handleInputChange('password', text)}
+                  onChangeText={(text) => setFormData(prev => ({ ...prev, password: text }))}
                   secureTextEntry={!showPassword}
                   autoComplete="password"
                   accessibilityLabel="Password input"
+                  editable={!isSubmitting && !isLoading}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -248,9 +357,10 @@ const Login = ({ navigation, route }) => {
             </View>
 
             {/* Forgot Password */}
-            <TouchableOpacity
-              onPress={() => navigation.navigate('ForgotPassword')}
+            <TouchableOpacity 
+              onPress={handleForgotPassword}
               style={styles.forgotPasswordContainer}
+              disabled={isSubmitting || isLoading}
             >
               <Text style={[styles.forgotPasswordText, { color: safeColors.primaryOrange }]}>
                 Forgot Password?
@@ -262,10 +372,11 @@ const Login = ({ navigation, route }) => {
               variant="primary"
               title="Sign In"
               onPress={handleLogin}
-              loading={isLoading}
+              loading={isSubmitting || isLoading}
+              disabled={!isFormValid || isSubmitting || isLoading}
               style={styles.loginButton}
-              testID="login-button"
             />
+
 
             {/* Google Sign-In Button */}
             <Button
@@ -274,6 +385,7 @@ const Login = ({ navigation, route }) => {
               onPress={handleGoogleSignIn}
               style={styles.googleButton}
               icon="logo-google"
+              disabled={isSubmitting || isLoading}
             />
 
             {/* Divider */}
@@ -285,23 +397,20 @@ const Login = ({ navigation, route }) => {
               <View style={[styles.dividerLine, { backgroundColor: safeColors.placeholderText }]} />
             </View>
 
-            {/* Sign Up Button */}
-            <Button
-              variant="secondary"
-              title="Create New Account"
-              onPress={() => navigation.navigate('Register')}
-              style={styles.signupButton}
-            />
-
-            {/* Skip Button */}
-            <TouchableOpacity
-              onPress={handleSkip}
-              style={styles.skipContainer}
-            >
-              <Text style={[styles.skipText, { color: safeColors.placeholderText }]}>
-                Continue as Guest
+            {/* Register Link */}
+            <View style={styles.registerContainer}>
+              <Text style={[styles.registerText, { color: safeColors.placeholderText }]}>
+                Don't have an account?{' '}
               </Text>
-            </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={handleRegister}
+                disabled={isSubmitting || isLoading}
+              >
+                <Text style={[styles.registerLink, { color: safeColors.primaryOrange }]}>
+                  Sign Up
+                </Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -309,8 +418,8 @@ const Login = ({ navigation, route }) => {
       {/* Toast */}
       {showToast && (
         <Toast
-          type="error"
-          message={error || 'Login failed. Please try again.'}
+          type={toastType}
+          message={toastMessage}
           onDismiss={() => {
             setShowToast(false);
             clearError();
@@ -328,9 +437,9 @@ const styles = StyleSheet.create({
   },
   backgroundGradient: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
+    top: 0,
     bottom: 0,
   },
   keyboardContainer: {
@@ -339,17 +448,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: layout.spacing.lg,
-    paddingTop: layout.spacing.lg,
-    paddingBottom: layout.spacing.sm,
+    paddingTop: layout.spacing.xxl,
+    paddingBottom: layout.spacing.xl,
   },
-  
-  // Header Section
   headerSection: {
     alignItems: 'center',
-    marginBottom: layout.spacing.lg,
+    marginBottom: layout.spacing.xxl,
   },
   logoContainer: {
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.lg,
   },
   logoGradient: {
     width: 80,
@@ -357,90 +464,87 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   welcomeTitle: {
-    fontSize: typography.largeTitle.fontSize,
+    fontSize: typography.sizes.xxl,
     fontWeight: typography.weights.bold,
-    textAlign: 'center',
     marginBottom: layout.spacing.sm,
+    textAlign: 'center',
   },
   welcomeSubtitle: {
-    fontSize: typography.sizes.body,
+    fontSize: typography.sizes.md,
     textAlign: 'center',
-    opacity: 0.8,
     lineHeight: 22,
+    opacity: 0.8,
   },
-  
-  // Form Section
   formSection: {
-    flex: 1,
-  },
-  inputContainer: {
-    marginBottom: layout.spacing.md,
-  },
-  inputLabel: {
-    fontSize: typography.sizes.caption1,
-    fontWeight: typography.weights.semibold,
-    marginBottom: layout.spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    width: '100%',
   },
   inputWrapper: {
+    marginBottom: layout.spacing.lg,
+  },
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: layout.radii.squircle,
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
+    height: 56,
+    borderRadius: 16,
     paddingHorizontal: layout.spacing.md,
-    paddingVertical: layout.spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inputWrapperError: {
-    borderColor: fallbackColors.error,
     borderWidth: 2,
+    borderColor: '#FF3B30',
   },
   inputIcon: {
     marginRight: layout.spacing.sm,
   },
   input: {
     flex: 1,
-    fontSize: typography.sizes.body,
-    paddingVertical: layout.spacing.xs,
+    fontSize: typography.sizes.md,
+    paddingVertical: 0,
   },
   passwordToggle: {
     padding: layout.spacing.xs,
   },
   errorText: {
-    fontSize: typography.sizes.caption2,
+    fontSize: typography.sizes.sm,
     marginTop: layout.spacing.xs,
+    marginLeft: layout.spacing.sm,
     fontWeight: typography.weights.medium,
   },
-  
-  // Forgot Password
   forgotPasswordContainer: {
-    alignSelf: 'flex-end',
-    marginBottom: layout.spacing.md,
+    alignItems: 'flex-end',
+    marginBottom: layout.spacing.lg,
   },
   forgotPasswordText: {
-    fontSize: typography.sizes.caption1,
-    fontWeight: typography.weights.semibold,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
   },
-  
-  // Buttons
   loginButton: {
     marginBottom: layout.spacing.md,
   },
   googleButton: {
-    marginBottom: layout.spacing.md,
+    marginBottom: layout.spacing.lg,
   },
-  signupButton: {
-    marginBottom: layout.spacing.sm,
-  },
-  
-  // Divider
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: layout.spacing.md,
+    marginBottom: layout.spacing.lg,
   },
   dividerLine: {
     flex: 1,
@@ -448,19 +552,21 @@ const styles = StyleSheet.create({
     opacity: 0.3,
   },
   dividerText: {
-    fontSize: typography.sizes.caption1,
+    fontSize: typography.sizes.sm,
     marginHorizontal: layout.spacing.md,
     fontWeight: typography.weights.medium,
   },
-  
-  // Skip Button
-  skipContainer: {
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: layout.spacing.sm,
   },
-  skipText: {
-    fontSize: typography.sizes.body,
-    fontWeight: typography.weights.medium,
+  registerText: {
+    fontSize: typography.sizes.sm,
+  },
+  registerLink: {
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.semibold,
   },
 });
 

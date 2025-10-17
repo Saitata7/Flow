@@ -212,11 +212,12 @@ const getFlowStats = async (request, reply) => {
     }));
     console.log('Stats calculation - entries:', entries.length, entries);
 
-    // Calculate statistics
+    // Calculate basic statistics
     const totalEntries = entries.length;
     const completedEntries = entries.filter(entry => entry.symbol === '+').length;
-    const skippedEntries = entries.filter(entry => entry.symbol === '-').length;
-    const bonusEntries = entries.filter(entry => entry.symbol === '+').length;
+    const partialEntries = entries.filter(entry => entry.symbol === '*').length;
+    const missedEntries = entries.filter(entry => entry.symbol === '-').length;
+    const skippedEntries = entries.filter(entry => entry.symbol === '/').length;
 
     // Calculate streaks
     const currentStreak = calculateCurrentStreak(entries);
@@ -232,15 +233,72 @@ const getFlowStats = async (request, reply) => {
     // Calculate completion rate
     const completionRate = totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0;
 
+    // Calculate points (simplified scoring system)
+    const totalPoints = (completedEntries * 10) + (partialEntries * 5);
+
+    // Calculate time-based stats if applicable
+    let timeBasedStats = null;
+    if (flow.tracking_type === 'Time-based') {
+      const timeBasedEntries = entries.filter(entry => entry.timebased);
+      const totalDuration = timeBasedEntries.reduce((sum, entry) => {
+        return sum + (entry.timebased?.totalDuration || 0);
+      }, 0);
+      
+      timeBasedStats = {
+        totalDuration,
+        averageDuration: timeBasedEntries.length > 0 ? totalDuration / timeBasedEntries.length : 0,
+        totalSessions: timeBasedEntries.length,
+        totalPauses: timeBasedEntries.reduce((sum, entry) => {
+          return sum + (entry.timebased?.pausesCount || 0);
+        }, 0)
+      };
+    }
+
+    // Calculate quantitative stats if applicable
+    let quantitativeStats = null;
+    if (flow.tracking_type === 'Quantitative') {
+      const quantitativeEntries = entries.filter(entry => entry.quantitative);
+      const totalCount = quantitativeEntries.reduce((sum, entry) => {
+        return sum + (entry.quantitative?.count || 0);
+      }, 0);
+      
+      quantitativeStats = {
+        totalCount,
+        averageCount: quantitativeEntries.length > 0 ? totalCount / quantitativeEntries.length : 0,
+        totalSessions: quantitativeEntries.length,
+        goal: flow.goal || 1,
+        unitText: flow.unit_text || ''
+      };
+    }
+
+    // Return data structure matching frontend expectations
     const flowStats = {
-      totalEntries,
-      completedEntries,
-      skippedEntries,
-      bonusEntries,
+      // Basic stats
+      completionRate: Math.round(completionRate * 100) / 100,
       currentStreak,
       longestStreak,
+      totalCompleted: completedEntries,
+      totalScheduled: totalEntries,
+      totalPoints,
+      
+      // Additional stats for compatibility
+      totalEntries,
+      completedEntries,
+      partialEntries,
+      missedEntries,
+      skippedEntries,
       averageMoodScore: averageMoodScore ? Math.round(averageMoodScore * 100) / 100 : null,
-      completionRate: Math.round(completionRate * 100) / 100,
+      
+      // Flow-specific stats
+      timeBasedStats,
+      quantitativeStats,
+      
+      // Flow metadata
+      flowId: flow.id,
+      flowTitle: flow.title,
+      flowType: flow.tracking_type,
+      createdAt: flow.created_at,
+      updatedAt: flow.updated_at
     };
 
     // Cache stats in Redis
@@ -405,6 +463,226 @@ const getGlobalStats = async (request, reply) => {
   }
 };
 
+// Get flow scoreboard data (for OptimizedActivityContext)
+const getFlowScoreboard = async (request, reply) => {
+  const { flowId } = request.params;
+  const { timeframe = 'weekly' } = request.query;
+  const { user } = request;
+
+  try {
+    // Get flow stats using existing function
+    const flowStats = await getFlowStatsData(flowId, user);
+    
+    // Return data in the format expected by frontend
+    const scoreboardData = {
+      completionRate: flowStats.completionRate,
+      currentStreak: flowStats.currentStreak,
+      longestStreak: flowStats.longestStreak,
+      totalCompleted: flowStats.totalCompleted,
+      totalScheduled: flowStats.totalScheduled,
+      totalPoints: flowStats.totalPoints,
+      timeBasedStats: flowStats.timeBasedStats,
+      quantitativeStats: flowStats.quantitativeStats,
+    };
+
+    return reply.send({
+      success: true,
+      data: scoreboardData,
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+      throw error;
+    }
+    request.log.error({ error: error.message, flowId }, 'Failed to get flow scoreboard');
+    throw new NotFoundError('Failed to retrieve flow scoreboard');
+  }
+};
+
+// Get flow activity stats (for OptimizedActivityContext)
+const getFlowActivityStats = async (request, reply) => {
+  const { flowId } = request.params;
+  const { timeframe = 'weekly' } = request.query;
+  const { user } = request;
+
+  try {
+    // Get flow stats using existing function
+    const flowStats = await getFlowStatsData(flowId, user);
+    
+    // Return data in the format expected by frontend
+    const activityStats = {
+      total: flowStats.totalScheduled,
+      byStatus: {
+        Completed: flowStats.totalCompleted,
+        Partial: flowStats.partialEntries,
+        Missed: flowStats.missedEntries,
+        Inactive: 0, // Not tracked in current system
+        Skipped: flowStats.skippedEntries,
+      },
+      timeBased: flowStats.timeBasedStats,
+      quantitative: flowStats.quantitativeStats,
+    };
+
+    return reply.send({
+      success: true,
+      data: activityStats,
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+      throw error;
+    }
+    request.log.error({ error: error.message, flowId }, 'Failed to get flow activity stats');
+    throw new NotFoundError('Failed to retrieve flow activity stats');
+  }
+};
+
+// Get flow emotional activity (for OptimizedActivityContext)
+const getFlowEmotionalActivity = async (request, reply) => {
+  const { flowId } = request.params;
+  const { timeframe = 'weekly' } = request.query;
+  const { user } = request;
+
+  try {
+    // Get flow and calculate emotional data
+    const flow = await FlowModel.findByIdWithStatus(flowId);
+    if (!flow) {
+      throw new NotFoundError('Flow');
+    }
+
+    if (flow.owner_id !== user.id && flow.visibility === 'private' && user.role !== 'admin') {
+      throw new ForbiddenError('Access denied to this flow');
+    }
+
+    const status = flow.status || {};
+    const entries = Object.entries(status).map(([date, entryData]) => ({
+      date,
+      emotion: entryData.emotion,
+      mood_score: entryData.moodScore || entryData.mood_score,
+    }));
+
+    // Calculate emotion distribution
+    const emotionDistribution = {};
+    let totalMoodScore = 0;
+    let moodEntries = 0;
+
+    entries.forEach(entry => {
+      if (entry.emotion) {
+        emotionDistribution[entry.emotion] = (emotionDistribution[entry.emotion] || 0) + 1;
+      }
+      if (entry.mood_score) {
+        totalMoodScore += entry.mood_score;
+        moodEntries++;
+      }
+    });
+
+    const emotionalData = {
+      emotionDistribution,
+      averageMoodScore: moodEntries > 0 ? Math.round((totalMoodScore / moodEntries) * 100) / 100 : 0,
+      totalEntries: entries.length,
+    };
+
+    return reply.send({
+      success: true,
+      data: emotionalData,
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+      throw error;
+    }
+    request.log.error({ error: error.message, flowId }, 'Failed to get flow emotional activity');
+    throw new NotFoundError('Failed to retrieve flow emotional activity');
+  }
+};
+
+// Helper function to get flow stats data (extracted from getFlowStats)
+const getFlowStatsData = async (flowId, user) => {
+  const flow = await FlowModel.findByIdWithStatus(flowId);
+  if (!flow) {
+    throw new NotFoundError('Flow');
+  }
+
+  if (flow.owner_id !== user.id && flow.visibility === 'private' && user.role !== 'admin') {
+    throw new ForbiddenError('Access denied to this flow');
+  }
+
+  // Calculate statistics from flow status
+  const status = flow.status || {};
+  const entries = Object.entries(status).map(([date, entryData]) => ({
+    date,
+    symbol: entryData.symbol,
+    mood_score: entryData.moodScore || entryData.mood_score,
+    emotion: entryData.emotion,
+    note: entryData.note,
+    quantitative: entryData.quantitative,
+    timebased: entryData.timebased,
+  }));
+
+  // Calculate basic statistics
+  const totalEntries = entries.length;
+  const completedEntries = entries.filter(entry => entry.symbol === '+').length;
+  const partialEntries = entries.filter(entry => entry.symbol === '*').length;
+  const missedEntries = entries.filter(entry => entry.symbol === '-').length;
+  const skippedEntries = entries.filter(entry => entry.symbol === '/').length;
+
+  // Calculate streaks
+  const currentStreak = calculateCurrentStreak(entries);
+  const longestStreak = calculateLongestStreak(entries);
+
+  // Calculate completion rate
+  const completionRate = totalEntries > 0 ? (completedEntries / totalEntries) * 100 : 0;
+
+  // Calculate points
+  const totalPoints = (completedEntries * 10) + (partialEntries * 5);
+
+  // Calculate time-based stats if applicable
+  let timeBasedStats = null;
+  if (flow.tracking_type === 'Time-based') {
+    const timeBasedEntries = entries.filter(entry => entry.timebased);
+    const totalDuration = timeBasedEntries.reduce((sum, entry) => {
+      return sum + (entry.timebased?.totalDuration || 0);
+    }, 0);
+    
+    timeBasedStats = {
+      totalDuration,
+      averageDuration: timeBasedEntries.length > 0 ? totalDuration / timeBasedEntries.length : 0,
+      totalSessions: timeBasedEntries.length,
+      totalPauses: timeBasedEntries.reduce((sum, entry) => {
+        return sum + (entry.timebased?.pausesCount || 0);
+      }, 0)
+    };
+  }
+
+  // Calculate quantitative stats if applicable
+  let quantitativeStats = null;
+  if (flow.tracking_type === 'Quantitative') {
+    const quantitativeEntries = entries.filter(entry => entry.quantitative);
+    const totalCount = quantitativeEntries.reduce((sum, entry) => {
+      return sum + (entry.quantitative?.count || 0);
+    }, 0);
+    
+    quantitativeStats = {
+      totalCount,
+      averageCount: quantitativeEntries.length > 0 ? totalCount / quantitativeEntries.length : 0,
+      totalSessions: quantitativeEntries.length,
+      goal: flow.goal || 1,
+      unitText: flow.unit_text || ''
+    };
+  }
+
+  return {
+    completionRate: Math.round(completionRate * 100) / 100,
+    currentStreak,
+    longestStreak,
+    totalCompleted: completedEntries,
+    totalScheduled: totalEntries,
+    totalPoints,
+    partialEntries,
+    missedEntries,
+    skippedEntries,
+    timeBasedStats,
+    quantitativeStats,
+  };
+};
+
 // Helper functions for streak calculations
 const calculateCurrentStreak = entries => {
   if (entries.length === 0) return 0;
@@ -465,6 +743,9 @@ module.exports = {
   getUserStats,
   getLeaderboard,
   getFlowStats,
+  getFlowScoreboard,
+  getFlowActivityStats,
+  getFlowEmotionalActivity,
   getTrends,
   getGlobalStats,
 };

@@ -11,16 +11,19 @@ import { ThemeContext } from '../../context/ThemeContext';
 import { colors, layout, typography } from '../../../styles';
 import { LineChart, PieChart, BarChart } from 'react-native-chart-kit';
 import Svg, { Circle, Path } from 'react-native-svg';
-import Card from '../common/card';
+import Card from '../common/Card';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 // Circular Progress Component
 const CircularProgress = ({ size = 120, strokeWidth = 8, progress = 0, color = '#4CAF50', backgroundColor = '#E0E0E0' }) => {
+  // Ensure progress is a valid number
+  const safeProgress = typeof progress === 'number' && !isNaN(progress) ? Math.max(0, Math.min(100, progress)) : 0;
+  
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const strokeDashoffset = circumference - (safeProgress / 100) * circumference;
 
   return (
     <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
@@ -52,14 +55,13 @@ const CircularProgress = ({ size = 120, strokeWidth = 8, progress = 0, color = '
 const FlowStatsDetail = ({ route, navigation }) => {
   const { flowId } = route?.params || {};
   const { flows, deleteFlow, triggerSync, forceCompleteRefresh } = useContext(FlowsContext);
-  const { getScoreboard, getActivityStats, getEmotionalActivity, syncActivityCacheWithBackend, clearActivityCache, forceRefreshAnalytics } = useContext(ActivityContext);
+  const { getFlowScoreboard, getFlowActivityStats, getFlowEmotionalActivity, forceRefreshAnalytics } = useContext(ActivityContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
   const [dateOffset, setDateOffset] = useState(0); // For navigating through date ranges
   const [showCalculationModal, setShowCalculationModal] = useState(false);
   const [selectedChart, setSelectedChart] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0); // Force refresh key
   const [scoreboardData, setScoreboardData] = useState(null);
   const [activityStatsData, setActivityStatsData] = useState(null);
   const [emotionalActivityData, setEmotionalActivityData] = useState(null);
@@ -67,32 +69,6 @@ const FlowStatsDetail = ({ route, navigation }) => {
 
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
-
-  const handleRefresh = async () => {
-    try {
-      console.log('FlowStatsDetail: Manual refresh triggered');
-      
-      // Force complete refresh
-      await forceCompleteRefresh();
-      
-      // Force refresh analytics
-      await forceRefreshAnalytics();
-      
-      // Reload data
-      const scoreboard = await getScoreboard(flowId);
-      setScoreboardData(scoreboard);
-      
-      const activityStats = await getActivityStats(flowId);
-      setActivityStatsData(activityStats);
-      
-      const emotionalActivity = await getEmotionalActivity(flowId);
-      setEmotionalActivityData(emotionalActivity);
-      
-      console.log('FlowStatsDetail: Manual refresh completed');
-    } catch (error) {
-      console.error('FlowStatsDetail: Manual refresh failed:', error);
-    }
-  };
 
   const handleDebugFlow = () => {
     console.log('FlowStatsDetail: Debug flow data:', {
@@ -121,31 +97,23 @@ const FlowStatsDetail = ({ route, navigation }) => {
       
       try {
         setIsLoading(true);
-        console.log('FlowStatsDetail: Loading data for flowId:', flowId);
+        console.log('FlowStatsDetail: Loading data for flowId:', flowId, 'timeframe:', selectedTimeframe);
         
-        // Force complete refresh of flows data from backend
-        console.log('FlowStatsDetail: Force complete refresh...');
-        await forceCompleteRefresh();
-        
-        // Force refresh analytics by clearing cache and recalculating
-        console.log('FlowStatsDetail: Force refreshing analytics...');
-        await forceRefreshAnalytics();
-        
-        // Load scoreboard data
+        // Load scoreboard data with new optimized method
         console.log('FlowStatsDetail: Loading scoreboard...');
-        const scoreboard = await getScoreboard(flowId);
+        const scoreboard = await getFlowScoreboard(flowId, selectedTimeframe);
         setScoreboardData(scoreboard);
         console.log('FlowStatsDetail: Scoreboard loaded:', scoreboard);
         
-        // Load activity stats
+        // Load activity stats with new optimized method
         console.log('FlowStatsDetail: Loading activity stats...');
-        const activityStats = await getActivityStats(flowId);
+        const activityStats = await getFlowActivityStats(flowId, selectedTimeframe);
         setActivityStatsData(activityStats);
         console.log('FlowStatsDetail: Activity stats loaded:', activityStats);
         
-        // Load emotional activity
+        // Load emotional activity with new optimized method
         console.log('FlowStatsDetail: Loading emotional activity...');
-        const emotionalActivity = await getEmotionalActivity(flowId);
+        const emotionalActivity = await getFlowEmotionalActivity(flowId, selectedTimeframe);
         setEmotionalActivityData(emotionalActivity);
         console.log('FlowStatsDetail: Emotional activity loaded:', emotionalActivity);
         
@@ -158,7 +126,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
     };
 
     loadData();
-  }, [flowId]); // Only depend on flowId to prevent infinite loops
+  }, [flowId, selectedTimeframe, flows]); // Depend on flows for automatic updates when flow data changes
 
   // Find the flow - this needs to be done after all hooks are called
   const flow = flows?.find((f) => f.id === flowId);
@@ -167,6 +135,14 @@ const FlowStatsDetail = ({ route, navigation }) => {
   const hasError = !flowId || !flows || !flow;
 
   // No longer need flowStats since we're using ActivityContext
+
+  // Safe data validation helper
+  const safeNumber = (value, defaultValue = 0) => {
+    if (typeof value === 'number' && !isNaN(value) && isFinite(value)) {
+      return value;
+    }
+    return defaultValue;
+  };
 
   // Chart configuration with theme colors
   const chartConfig = {
@@ -892,7 +868,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
     if (!scoreboardData) return null;
 
     const breakdown = {
-      completed: scoreboardData.completed || 0,
+      completed: scoreboardData.totalCompleted || 0,
       partial: scoreboardData.partial || 0,
       failed: scoreboardData.failed || 0,
       inactive: scoreboardData.inactive || 0,
@@ -1072,7 +1048,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 <CircularProgress
                   size={60}
                   strokeWidth={5}
-                  progress={scoreboardData.completionRate || 0}
+                  progress={typeof scoreboardData.completionRate === 'number' ? scoreboardData.completionRate : 0}
                   color="hsl(120, 60%, 65%)"
                   backgroundColor="hsl(0, 0%, 90%)"
                 />
@@ -1091,13 +1067,13 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 <CircularProgress
                   size={60}
                   strokeWidth={5}
-                  progress={((scoreboardData.completed || 0) / (scoreboardData.scheduledDays || 30)) * 100}
+                  progress={scoreboardData.totalScheduled > 0 ? ((scoreboardData.totalCompleted || 0) / scoreboardData.totalScheduled) * 100 : 0}
                   color="hsl(200, 70%, 65%)"
                   backgroundColor="hsl(0, 0%, 90%)"
                 />
                 <View style={styles.donutChartOverlay}>
                   <Text style={[styles.donutChartValue, { color: 'hsl(200, 70%, 65%)' }]}>
-                    {scoreboardData.completed || 0}
+                    {scoreboardData.totalCompleted || 0}
                   </Text>
                 </View>
               </View>
@@ -1110,13 +1086,13 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 <CircularProgress
                   size={60}
                   strokeWidth={5}
-                  progress={scoreboardData.finalScore || 0}
+                  progress={typeof scoreboardData.totalPoints === 'number' ? Math.min(100, scoreboardData.totalPoints) : 0}
                   color="hsl(30, 80%, 65%)"
                   backgroundColor="hsl(0, 0%, 90%)"
                 />
                 <View style={styles.donutChartOverlay}>
                   <Text style={[styles.donutChartValue, { color: 'hsl(30, 80%, 65%)' }]}>
-                    {scoreboardData.finalScore || 0}
+                    {scoreboardData.totalPoints || 0}
                   </Text>
                 </View>
               </View>
@@ -1129,13 +1105,13 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 <CircularProgress
                   size={60}
                   strokeWidth={5}
-                  progress={Math.min(100, (scoreboardData.streak || 0) * 10)}
+                  progress={typeof scoreboardData.currentStreak === 'number' ? Math.min(100, scoreboardData.currentStreak * 10) : 0}
                   color="hsl(0, 80%, 65%)"
                   backgroundColor="hsl(0, 0%, 90%)"
                 />
                 <View style={styles.donutChartOverlay}>
                   <Text style={[styles.donutChartValue, { color: 'hsl(0, 80%, 65%)' }]}>
-                    {scoreboardData.streak || 0}
+                    {scoreboardData.currentStreak || 0}
                   </Text>
                 </View>
               </View>
@@ -1149,7 +1125,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
                   <CircularProgress
                     size={60}
                     strokeWidth={5}
-                    progress={Math.min(100, ((scoreboardData.quantitativeStats?.totalCount || 0) / (flow.goal || 100)) * 100)}
+                    progress={flow.goal > 0 ? Math.min(100, ((scoreboardData.quantitativeStats?.totalCount || 0) / flow.goal) * 100) : 0}
                     color="hsl(280, 70%, 65%)"
                     backgroundColor="hsl(0, 0%, 90%)"
                   />
@@ -1170,7 +1146,10 @@ const FlowStatsDetail = ({ route, navigation }) => {
                   <CircularProgress
                     size={60}
                     strokeWidth={5}
-                    progress={Math.min(100, ((scoreboardData.timeBasedStats?.totalDuration || 0) / ((flow.hours || 0) * 3600 + (flow.minutes || 0) * 60 + (flow.seconds || 0) || 3600)) * 100)}
+                    progress={(() => {
+                      const totalGoalSeconds = (flow.hours || 0) * 3600 + (flow.minutes || 0) * 60 + (flow.seconds || 0);
+                      return totalGoalSeconds > 0 ? Math.min(100, ((scoreboardData.timeBasedStats?.totalDuration || 0) / totalGoalSeconds) * 100) : 0;
+                    })()}
                     color="hsl(60, 80%, 65%)"
                     backgroundColor="hsl(0, 0%, 90%)"
                   />
@@ -1390,7 +1369,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
           </View>
           <View style={styles.emotionalTrackingSingleLine}>
             {(() => {
-              const emotionalData = getEmotionalActivity(flowId);
+              const emotionalData = emotionalActivityData;
               console.log('FlowStatsDetail: Emotional data for flowId', flowId, ':', emotionalData);
               console.log('FlowStatsDetail: Flow object:', { id: flow?.id, title: flow?.title, statusKeys: Object.keys(flow?.status || {}) });
               
@@ -1628,7 +1607,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
                   Success Rate = (Completed + Partial) ÷ Total Scheduled Days × 100
                 </Text>
                 <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
-                  = ({scoreboardData.completed || 0} + {scoreboardData.partial || 0}) ÷ {scoreboardData.completed + scoreboardData.partial + scoreboardData.failed + scoreboardData.skipped + scoreboardData.inactive || 1} × 100
+                  = ({scoreboardData.totalCompleted || 0} + {scoreboardData.partial || 0}) ÷ {scoreboardData.totalCompleted + scoreboardData.partial + scoreboardData.failed + scoreboardData.skipped + scoreboardData.inactive || 1} × 100
                 </Text>
                 <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
                   = {scoreboardData.completionRate?.toFixed(1) || 0}%
@@ -1639,7 +1618,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
             {selectedChart === 'completedDays' && (
               <View style={styles.calculationContent}>
                 <Text style={[styles.calculationTitle, { color: themeColors.primaryText }]}>
-                  Completed Days: {scoreboardData.completed || 0}
+                  Completed Days: {scoreboardData.totalCompleted || 0}
                 </Text>
                 <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
                   Days where you marked the flow as completed
@@ -1650,7 +1629,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
             {selectedChart === 'streak' && (
               <View style={styles.calculationContent}>
                 <Text style={[styles.calculationTitle, { color: themeColors.primaryText }]}>
-                  Current Streak: {scoreboardData.streak || 0} days
+                  Current Streak: {scoreboardData.currentStreak || 0} days
                 </Text>
                 <Text style={[styles.calculationText, { color: themeColors.primaryText }]}>
                   Consecutive completed days from today backwards

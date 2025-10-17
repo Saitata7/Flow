@@ -14,10 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import moment from 'moment';
 import { colors, typography, layout } from '../../../styles';
 import ModernChart from '../charts/ModernChart';
-import InsightsPanel from './InsightsPanel';
-import AchievementsPanel from './AchievementsPanel';
-import HeatMapPanel from './HeatMapPanel';
-import OverallInsights from './OverallInsights';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -325,16 +321,32 @@ const AnalyticsDashboard = ({ flows, theme = 'light', navigation, stats }) => {
       />
 
       {/* Overall Insights */}
-      <OverallInsights flows={flows} theme={theme} />
+      <View style={styles.placeholderPanel}>
+        <Text style={[styles.placeholderText, { color: themeColors.primaryText }]}>
+          Overall Insights
+        </Text>
+      </View>
 
       {/* Achievements Panel */}
-      <AchievementsPanel flows={flows} theme={theme} />
+      <View style={styles.placeholderPanel}>
+        <Text style={[styles.placeholderText, { color: themeColors.primaryText }]}>
+          Achievements Panel
+        </Text>
+      </View>
 
       {/* Heat Map Panel */}
-      <HeatMapPanel flows={flows} theme={theme} />
+      <View style={styles.placeholderPanel}>
+        <Text style={[styles.placeholderText, { color: themeColors.primaryText }]}>
+          Heat Map Panel
+        </Text>
+      </View>
 
       {/* Insights Panel */}
-      <InsightsPanel flows={flows} theme={theme} />
+      <View style={styles.placeholderPanel}>
+        <Text style={[styles.placeholderText, { color: themeColors.primaryText }]}>
+          Insights Panel
+        </Text>
+      </View>
 
       {/* Flow Performance */}
       <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>
@@ -547,6 +559,21 @@ const styles = StyleSheet.create({
   legendText: {
     ...typography.styles.caption,
     fontSize: 11,
+  },
+  placeholderPanel: {
+    backgroundColor: colors.light.cardBackground,
+    padding: layout.spacing.lg,
+    borderRadius: layout.radii.large,
+    marginVertical: layout.spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 100,
+    ...layout.elevation.low,
+  },
+  placeholderText: {
+    ...typography.styles.body,
+    opacity: 0.6,
+    fontStyle: 'italic',
   },
 });
 

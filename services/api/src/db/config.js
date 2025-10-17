@@ -1,30 +1,58 @@
 const { Pool } = require('pg');
 
+// 🔍 DIAGNOSTIC: Safe startup logging (no passwords)
+console.info('🔍 DB DIAG - DB_HOST:', process.env.DB_HOST);
+console.info('🔍 DB DIAG - DB_USER:', process.env.DB_USER);
+console.info('🔍 DB DIAG - DB_NAME:', process.env.DB_NAME);
+console.info('🔍 DB DIAG - DB_PORT:', process.env.DB_PORT || '5432');
+console.info('🔍 DB DIAG - PGSSLMODE:', process.env.PGSSLMODE || 'not set');
+console.info('🔍 DB DIAG - NODE_ENV:', process.env.NODE_ENV || 'not set');
+
 // Database configuration optimized for Cloud Run
+// Use Cloud SQL socket connection - SSL must be disabled for socket connections
 const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  host: process.env.DB_HOST, // e.g. /cloudsql/project:region:instance
   port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'flow_dev',
-  user: process.env.DB_USER || 'flow_user',
-  password: process.env.DB_PASSWORD || 'flow_password1',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: process.env.DB_SSL === 'true' ? true : false, // 🔥 CRITICAL: disable SSL for Cloud SQL socket connections
+  sslmode: process.env.PGSSLMODE || 'disable', // PostgreSQL SSL mode
   
   // Cloud Run optimized connection pooling
-  max: process.env.NODE_ENV === 'production' ? 10 : 20, // Reduced for Cloud Run
-  min: 2, // Minimum connections
-  idleTimeoutMillis: 10000, // Reduced for Cloud Run (10 seconds)
-  connectionTimeoutMillis: 5000, // Increased timeout for Cloud SQL
-  acquireTimeoutMillis: 10000, // Time to acquire connection from pool
-  createTimeoutMillis: 10000, // Time to create new connection
-  
+  max: process.env.NODE_ENV === 'production' ? 10 : 20,
+  min: 2,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 5000,
+  acquireTimeoutMillis: 10000,
+  createTimeoutMillis: 10000,
+
   // Cloud Run specific optimizations
   keepAlive: true,
   keepAliveInitialDelayMillis: 10000,
-  
+
   // Statement timeout for long-running queries
-  statement_timeout: 30000, // 30 seconds
-  query_timeout: 30000, // 30 seconds
+  statement_timeout: 30000,
+  query_timeout: 30000,
 };
+
+console.info('🔍 DB DIAG - Final config:', {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  ssl: dbConfig.ssl,
+  user: dbConfig.user,
+  database: dbConfig.database
+});
+
+// Debug logging
+console.log('Database configuration:', {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  database: dbConfig.database,
+  user: dbConfig.user,
+  ssl: dbConfig.ssl,
+  nodeEnv: process.env.NODE_ENV
+});
 
 // Create connection pool
 const pool = new Pool(dbConfig);

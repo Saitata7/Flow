@@ -92,12 +92,79 @@ export const useNotifications = () => {
     }
   }, []);
 
+  // Schedule flow reminder
+  const scheduleFlowReminder = useCallback(async (flowId, flowTitle, level, scheduledTime) => {
+    try {
+      return await notificationService.scheduleFlowReminder(flowId, flowTitle, level, scheduledTime);
+    } catch (error) {
+      console.error('Error scheduling flow reminder:', error);
+      return false;
+    }
+  }, []);
+
+  // Cancel flow reminder
+  const cancelFlowReminder = useCallback(async (flowId, level) => {
+    try {
+      await notificationService.cancelFlowReminder(flowId, level);
+    } catch (error) {
+      console.error('Error cancelling flow reminder:', error);
+    }
+  }, []);
+
+  // Cancel all flow reminders
+  const cancelAllFlowReminders = useCallback(async (flowId) => {
+    try {
+      await notificationService.cancelAllFlowReminders(flowId);
+    } catch (error) {
+      console.error('Error cancelling all flow reminders:', error);
+    }
+  }, []);
+
+  // Schedule reminders for all flows
+  const scheduleAllFlowReminders = useCallback(async (flows) => {
+    try {
+      return await notificationService.scheduleAllFlowReminders(flows);
+    } catch (error) {
+      console.error('Error scheduling all flow reminders:', error);
+      return 0;
+    }
+  }, []);
+
+  // Update flow reminder
+  const updateFlowReminder = useCallback(async (flowId, flowTitle, level, reminderTime) => {
+    try {
+      return await notificationService.updateFlowReminder(flowId, flowTitle, level, reminderTime);
+    } catch (error) {
+      console.error('Error updating flow reminder:', error);
+      return false;
+    }
+  }, []);
+
+  // Complete flow reminder
+  const completeFlowReminder = useCallback(async (flowId) => {
+    try {
+      await notificationService.completeFlowReminder(flowId);
+    } catch (error) {
+      console.error('Error completing flow reminder:', error);
+    }
+  }, []);
+
   // Send test notification
   const sendTestNotification = useCallback(async () => {
     try {
-      await notificationService.sendTestNotification();
+      return await notificationService.sendTestNotification();
     } catch (error) {
       console.error('Error sending test notification:', error);
+      return false;
+    }
+  }, []);
+
+  // Mark flow as completed
+  const markFlowCompleted = useCallback(async (flowId) => {
+    try {
+      await notificationService.markFlowCompleted(flowId);
+    } catch (error) {
+      console.error('Error marking flow as completed:', error);
     }
   }, []);
 
@@ -118,5 +185,12 @@ export const useNotifications = () => {
     updateNotificationSettings,
     getNotificationSettings,
     sendTestNotification,
+    scheduleFlowReminder,
+    cancelFlowReminder,
+    cancelAllFlowReminders,
+    markFlowCompleted,
+    scheduleAllFlowReminders,
+    updateFlowReminder,
+    completeFlowReminder,
   };
 };

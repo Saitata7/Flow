@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import apiService from './apiService';
 import settingsService from './settingsService';
+import { safeSetItem, safeGetItem, safeMultiSet, safeMultiGet } from '../utils/safeAsyncStorage';
 
 const SYNC_STORAGE_KEYS = {
   PENDING_UPLOADS: 'pending_uploads',
@@ -20,6 +21,7 @@ class SyncService {
     this.isOnline = false;
     this.isSyncing = false;
     this.syncQueue = [];
+    this.pendingDownloads = [];
     this.conflicts = [];
     this.lastSyncTime = null;
     this.syncMetadata = {};
@@ -80,13 +82,14 @@ class SyncService {
    */
   async saveSyncState() {
     try {
-      await Promise.all([
-        AsyncStorage.setItem(SYNC_STORAGE_KEYS.PENDING_UPLOADS, JSON.stringify(this.syncQueue)),
-        AsyncStorage.setItem(SYNC_STORAGE_KEYS.PENDING_DOWNLOADS, JSON.stringify(this.pendingDownloads)),
-        AsyncStorage.setItem(SYNC_STORAGE_KEYS.LAST_SYNC_TIMESTAMP, this.lastSyncTime?.toISOString() || ''),
-        AsyncStorage.setItem(SYNC_STORAGE_KEYS.SYNC_CONFLICTS, JSON.stringify(this.conflicts)),
-        AsyncStorage.setItem(SYNC_STORAGE_KEYS.SYNC_METADATA, JSON.stringify(this.syncMetadata)),
-      ]);
+      // Use safe storage to prevent undefined value errors
+      await safeMultiSet({
+        [SYNC_STORAGE_KEYS.PENDING_UPLOADS]: this.syncQueue || [],
+        [SYNC_STORAGE_KEYS.PENDING_DOWNLOADS]: this.pendingDownloads || [],
+        [SYNC_STORAGE_KEYS.LAST_SYNC_TIMESTAMP]: this.lastSyncTime?.toISOString() || '',
+        [SYNC_STORAGE_KEYS.SYNC_CONFLICTS]: this.conflicts || [],
+        [SYNC_STORAGE_KEYS.SYNC_METADATA]: this.syncMetadata || {},
+      });
     } catch (error) {
       console.error('Error saving sync state:', error);
     }
@@ -215,6 +218,13 @@ class SyncService {
   async downloadLatestData() {
     try {
       console.log('📥 Downloading latest data from backend...');
+
+      // Check authentication before making API calls
+      const isAuthenticated = await apiService.isUserAuthenticated();
+      if (!isAuthenticated) {
+        console.log('📥 User not authenticated, skipping download');
+        return;
+      }
 
       // Get flows
       const flowsResponse = await apiService.getFlows();

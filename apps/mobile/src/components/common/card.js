@@ -1,7 +1,6 @@
-// common/card.js
+// common/Card.js
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import PropTypes from 'prop-types';
 import { colors, layout } from '../../../styles';
 
 const Card = ({ 
@@ -75,15 +74,6 @@ const Card = ({
   );
 };
 
-Card.propTypes = {
-  children: PropTypes.node.isRequired,
-  style: PropTypes.object,
-  variant: PropTypes.oneOf(['default', 'elevated', 'outlined', 'filled']),
-  padding: PropTypes.oneOf(['xs', 'sm', 'md', 'lg', 'xl']),
-  margin: PropTypes.oneOf(['xs', 'sm', 'md', 'lg', 'xl', 'none']),
-  elevated: PropTypes.bool,
-};
-
 const styles = StyleSheet.create({
   card: {
     borderRadius: layout.radii.large,
@@ -92,8 +82,3 @@ const styles = StyleSheet.create({
 });
 
 export default Card;
-
-// Example Usage:
-// <Card variant="elevated" padding="lg" margin="md">
-//   <Text>Habit Content</Text>
-// </Card>

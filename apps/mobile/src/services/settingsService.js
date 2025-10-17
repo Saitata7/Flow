@@ -126,9 +126,28 @@ class SettingsService {
   }
 
   /**
-   * Get all settings
+   * Get all settings (async version for API compatibility)
    */
-  getSettings() {
+  async getSettings() {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    
+    try {
+      // Try to get settings from backend first
+      const backendSettings = await apiService.getUserSettings();
+      if (backendSettings.success) {
+        // Merge backend settings with local settings
+        this.settings = { ...this.settings, ...backendSettings.data };
+        await this.saveSettings();
+        console.log('📥 Settings loaded from backend');
+        return { ...this.settings };
+      }
+    } catch (error) {
+      console.log('⚠️ Failed to load settings from backend, using local settings');
+    }
+    
+    // Fallback to local settings
     return { ...this.settings };
   }
 
@@ -423,6 +442,13 @@ class SettingsService {
     try {
       console.log('🔄 Syncing settings with backend...');
       
+      // Check authentication before making API calls
+      const isAuthenticated = await apiService.isUserAuthenticated();
+      if (!isAuthenticated) {
+        console.log('🔄 User not authenticated, skipping settings sync');
+        return;
+      }
+      
       // Pull settings from backend
       const response = await apiService.getUserSettings();
       if (response.success) {
@@ -516,9 +542,24 @@ class SettingsService {
    */
   async updateSettings(updates) {
     try {
+      // Update local settings first
       for (const [key, value] of Object.entries(updates)) {
         await this.updateSetting(key, value);
       }
+      
+      // Sync with backend
+      try {
+        const backendResponse = await apiService.updateUserSettings(updates);
+        if (backendResponse.success) {
+          console.log('📤 Settings synced to backend');
+          // Update local settings with backend response
+          this.settings = { ...this.settings, ...backendResponse.data };
+          await this.saveSettings();
+        }
+      } catch (error) {
+        console.log('⚠️ Failed to sync settings to backend:', error.message);
+      }
+      
       return this.getSettings();
     } catch (error) {
       console.error('Error updating multiple settings:', error);

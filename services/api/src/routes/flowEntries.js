@@ -9,7 +9,7 @@ const {
   bulkCreateEntries,
 } = require('../controllers/flowEntries.controller');
 
-const { requireAuth, requireOwnership } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { validateFlowEntryData } = require('../middleware/errorHandler');
 
 const flowEntriesRoutes = async fastify => {

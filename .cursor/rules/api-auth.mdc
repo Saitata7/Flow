@@ -1,0 +1,162 @@
+# Firebase Auth + API Integration Rule (Production-Ready)
+# -------------------------------------------------------
+# Context:
+# The Flow mobile app uses Firebase Authentication and calls backend APIs
+# deployed on Google Cloud Run. All requests must include a valid Firebase
+# ID token in the Authorization header to avoid 401 Unauthorized errors.
+# 
+# Goals:
+# 1. Ensure all API calls include an up-to-date Firebase token.
+# 2. Auto-refresh tokens when expired.
+# 3. Handle guest sessions safely (optional future use).
+# 4. Ensure no syntax errors, no testing code, only production-safe logic.
+
+## Implementation Rules
+
+### ✅ Create Central API Client
+- Use a single `apiClient.js` inside `src/services/` (or existing folder).
+- Import this client everywhere instead of using raw `axios`.
+
+```js
+// src/services/apiClient.js
+import axios from 'axios';
+import { getAuth } from 'firebase/auth';
+
+const api = axios.create({
+  baseURL: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-xxxxxx.a.run.app',
+  timeout: 10000,
+});
+
+// Request interceptor to attach Firebase token
+api.interceptors.request.use(async (config) => {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (user) {
+    try {
+      const token = await user.getIdToken(true); // refresh token if expired
+      config.headers.Authorization = `Bearer ${token}`;
+    } catch (error) {
+      console.warn('⚠️ Token retrieval failed:', error.message);
+      config.headers.Authorization = '';
+    }
+  } else {
+    // no user logged in — optional guest logic for later
+    config.headers.Authorization = '';
+  }
+
+  // Enforce secure headers
+  config.headers['Content-Type'] = 'application/json';
+  config.headers['X-Client-Version'] = 'flow-mobile-v1';
+  return config;
+});
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      console.error('🚫 Unauthorized: Token missing or expired');
+      // (Optional) redirect to login or trigger token refresh
+    } else if (error.response?.status >= 500) {
+      console.error('⚠️ Server error:', error.response.statusText);
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+```
+
+---
+
+### ✅ Validation & Safety Rules
+
+* **All API calls** (flows, activities, settings, stats, etc.) **must import `apiClient`**.
+* Never use hard-coded tokens or headers manually.
+* Token refresh happens automatically through `getIdToken(true)`.
+* Network errors should show an in-app Toast or Notification — no console-only logs in production.
+
+---
+
+### ✅ GCP & Redis Connection Checks
+
+* Ensure API endpoints (`/flows`, `/activities`, `/settings`) are publicly reachable via HTTPS.
+* Backend verifies Firebase ID token via Google Public Keys (standard Firebase verification).
+* Redis cache connections are handled server-side; client should not directly connect.
+
+---
+
+### ✅ UI Integration
+
+* Before any API call, make sure user is authenticated:
+
+  ```js
+  import { getAuth, onAuthStateChanged } from 'firebase/auth';
+  const auth = getAuth();
+  onAuthStateChanged(auth, (user) => {
+    if (!user) navigation.navigate('Login');
+  });
+  ```
+* All guest logic and sync (guest → user transition) will use the same `apiClient` later, but currently must remain authenticated.
+
+---
+
+### ✅ Security & Validation
+
+* Input fields (login, forms, search) must enforce:
+
+  * Min/max length limits
+  * No SQL/XSS injections (`sanitizeTextInput` helper)
+  * Only valid characters for flow titles, notes, etc.
+* Always validate data before sending to API.
+
+---
+
+### ✅ Error Handling Standards
+
+| Type   | Behavior                                   |
+| ------ | ------------------------------------------ |
+| `401`  | Trigger token refresh or navigate to login |
+| `403`  | Show "Access Denied" toast                 |
+| `404`  | Show "Data not found" toast                |
+| `500+` | Retry with exponential backoff (optional)  |
+
+---
+
+### ✅ Testing & Deployment
+
+* No mock tokens or test credentials allowed.
+* Verify one real login flow (email/password or Google sign-in) works.
+* Use `adb logcat` or React Native Debugger to confirm requests include:
+  `Authorization: Bearer eyJhbGciOi...`
+
+---
+
+### ✅ Health Verification
+
+When testing in Android emulator or device:
+
+* Confirm baseURL points to correct Cloud Run endpoint.
+* Confirm Firebase Auth works by logging in and running:
+
+  ```js
+  const auth = getAuth();
+  auth.currentUser.getIdToken().then(console.log);
+  ```
+
+  Output should be a long JWT token.
+
+---
+
+### ✅ Done Criteria
+
+✅ All 401s resolved.
+✅ Tokens automatically refresh.
+✅ API requests pass through single `apiClient`.
+✅ No duplicate auth logic.
+✅ Works on Android emulator + physical device.
+
+---
+
+**End of MDC rule.**

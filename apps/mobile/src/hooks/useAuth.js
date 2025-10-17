@@ -1,7 +1,7 @@
 // src/hooks/useAuth.js
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import sessionManager from '../utils/sessionManager';
 import { generateIdempotencyKey } from '../utils/idempotency';
 import { clearDemoData } from '../utils/clearDemoData';
 
@@ -15,12 +15,11 @@ const useAuth = () => {
     queryKey: ['auth'],
     queryFn: async () => {
       try {
-        // Check if user is already logged in (stored in AsyncStorage)
-        const storedUser = await AsyncStorage.getItem('user_data');
-        const storedToken = await AsyncStorage.getItem('authToken');
+        // Check if user is already logged in (stored in SecureStore via SessionManager)
+        const sessionResult = await sessionManager.getStoredSession();
         
-        if (storedUser && storedToken) {
-          const userData = JSON.parse(storedUser);
+        if (sessionResult && sessionResult.type === 'user' && sessionResult.data) {
+          const userData = sessionResult.data.userData;
           // Don't auto-login demo users - require explicit login
           if (userData.email === 'demo@flow.app' && userData.displayName === 'Demo User') {
             console.log('❌ Demo user detected, clearing and requiring login');
@@ -33,7 +32,7 @@ const useAuth = () => {
             await clearDemoData();
             return null;
           }
-          console.log('✅ User already logged in, restoring session');
+          console.log('✅ User already logged in, restoring session from SecureStore');
           return userData;
         }
         

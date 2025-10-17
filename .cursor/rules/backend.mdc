@@ -1,0 +1,148 @@
+---
+description: >
+  Validate and harden the entire Flow project codebase across API, mobile, and backend services.
+  Enforce real-time connections, secure data handling, input validation, and context-driven caching logic.
+  Do not generate test or placeholder code — only real, production-level implementations.
+  Optimize all context-based flows (FlowContext, ActivityContext, SettingsContext) for offline-first and cloud-sync behavior.
+
+globs:
+  - apps/mobile/**
+  - services/api/**
+  - packages/**
+  - services/cache/**
+alwaysApply: true
+---
+
+### 🧠 GOAL
+Ensure the **Flow** ecosystem (mobile app + APIs + Redis + GCP services) operates in full production readiness with:
+- Secure **input validation** (SQL injection, XSS prevention, min/max checks)
+- Verified **GCP Cloud Run** + **Cloud SQL** + **MemoryStore (Redis)** connectivity
+- Stable **Firebase Auth** integration
+- Reliable **offline → cloud sync** via React Context
+- No mock/test/demo code — only **real data connections**
+- **Zero syntax errors** across all environments
+
+---
+
+### 🧾 VALIDATION & SECURITY RULES
+
+#### 🛡️ Input Validation
+- Sanitize **all user inputs** before storage or API calls:
+  - Prevent SQL injection using parameterized queries or ORM-safe methods.
+  - Prevent XSS by sanitizing text fields (titles, notes, descriptions).
+  - Check **min/max** length limits for:
+    - Titles: min 3, max 20  
+    - Descriptions: max 200  
+    - Usernames: min 3, max 25
+  - Reject or sanitize emojis and special characters in restricted fields.
+- Use a **universal validation utility** in `packages/utils/validation.js`
+  - Export `validateInput(type, value)` for reuse across contexts and APIs.
+
+#### 🔐 Authentication & Session
+- Ensure **Firebase Auth** handles real credentials only.
+- Use `auth.currentUser.getIdToken(true)` for fresh JWT validation.
+- Store user state securely in `AsyncStorage` or `SecureStore`.
+- Use Firebase UID as the foreign key reference in the `users` table.
+- Guest-to-user sync should occur via `/api/sync/guest-to-user` route.
+
+#### 🧱 API & Database Layer
+- Confirm **GCP Cloud SQL (PostgreSQL)** connection works:
+  - Pooling enabled with retry (max 3 attempts, exponential backoff)
+  - `ssl: false` (Cloud Run socket) with explicit `PGSSLMODE=disable`
+  - All queries parameterized.
+- Redis (MemoryStore):
+  - Use for activity cache, user settings cache, and computed stats (weekly/monthly).
+  - TTLs:  
+    - `flow_cache`: 3600s  
+    - `user_cache`: 1800s  
+    - `leaderboard_cache`: 86400s  
+  - Implement graceful fallback if Redis unavailable.
+
+---
+
+### ⚙️ CONTEXT CONNECTION LOGIC
+
+#### 🧩 FlowContext
+- Acts as local state for all flows.
+- Write operations:
+  - Update AsyncStorage immediately.
+  - Queue background sync to Redis/API.
+- Read operations:
+  - Read from cache first, fallback to API.
+- Merge rules:
+  - If network available → sync local changes.
+  - If offline → store in queue (`sync_queue` table once DB connected).
+
+#### 📊 ActivityContext
+- Use cached stats (Redis) when available.
+- Calculate deltas locally and push batched updates every 24h.
+- Always validate against server schema before update.
+- Cache structure:
+  - `activity:{userId}:{flowId}` = { completed, failed, partial, score }
+
+#### ⚙️ SettingsContext
+- Load preferences from Redis or DB on startup.
+- Persist locally using AsyncStorage when offline.
+- Always revalidate user preferences with `/api/user/settings` endpoint.
+
+---
+
+### ☁️ GCP SERVICE VALIDATION
+
+#### ✅ Cloud Run
+- Check environment variables:
+  - `DB_HOST`, `DB_USER`, `DB_NAME`, `DB_PASSWORD`
+  - `REDIS_HOST`, `REDIS_PORT`
+  - `JWT_SECRET`, `API_KEY`
+- Health check: `/healthz` must return `200 OK`.
+- Validate CORS for mobile app origins.
+
+#### ✅ Cloud SQL
+- Ensure all tables have:
+  - Primary keys, foreign key constraints, and unique indexes.
+  - On delete cascade rules where required.
+  - Normalized up to 3NF.
+
+#### ✅ Redis (MemoryStore)
+- Verify write/read with retry and fallback logic.
+- No persistent blocking operations.
+- JSON.stringify objects before writing.
+
+---
+
+### 🧩 ERROR HANDLING & LOGGING
+- Use global error boundary for app-level React errors.
+- Log backend errors with correlation IDs.
+- Suppress stack traces for production (hide internal paths).
+- Handle all network errors gracefully:
+  - Timeout → retry 3 times
+  - 401 → refresh token
+  - 429 → exponential backoff
+
+---
+
+### 🚀 PERFORMANCE & INTEGRITY
+- Use `useMemo` and `useCallback` for heavy calculations in contexts.
+- Use Redis + Cloud SQL sync for heavy operations (stats, flows summary).
+- Enable background sync job (Cloud Scheduler) for cache invalidation.
+- Check latency on every API route before deploy (<250ms preferred).
+
+---
+
+### 🚫 DO NOT
+- ❌ Create new files or demo data.
+- ❌ Include mock APIs, fake JSON, or unit test stubs.
+- ❌ Break existing structure or logic.
+- ❌ Add unvalidated or unsafe user inputs.
+
+---
+
+### ✅ SUCCESS CRITERIA
+- No syntax or runtime errors.
+- All context-based sync flows (FlowContext, ActivityContext, SettingsContext) work offline/online.
+- GCP, Redis, and Firebase all properly connected and tested.
+- No mock/test code remains.
+- All user inputs validated, sanitized, and safely stored.
+- App passes health and connectivity checks for production deployment.
+
+---

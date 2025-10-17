@@ -20,7 +20,7 @@ import { ThemeContext } from '../../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { validateNumericInput } from '../../utils/validation';
-import Card from '../../components/common/card';
+import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 import { colors, typography, layout } from '../../../styles';

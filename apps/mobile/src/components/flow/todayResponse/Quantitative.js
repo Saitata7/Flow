@@ -61,7 +61,7 @@ const Quantitative = ({ flow }) => {
   const navigation = useNavigation();
   const { updateCount, updateFlowStatus } = useContext(FlowsContext);
   const todayKey = moment().format('YYYY-MM-DD');
-  const status = flow.status?.[todayKey]?.symbol || '-';
+  const status = flow.status?.[todayKey]?.symbol || null; // Don't default to missed
   const emotion = flow.status?.[todayKey]?.emotion || '';
   const note = flow.status?.[todayKey]?.note || '';
   const flowTime = flow.reminderTime ? moment(flow.reminderTime).format('h:mm A') : 'No time set';

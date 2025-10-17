@@ -98,7 +98,7 @@ echo -e "${BLUE}🔐 Setting up secrets...${NC}"
 
 # Database secrets
 echo -e "${BLUE}   Setting up database secrets...${NC}"
-echo -n "/cloudsql/quick-doodad-472200-k0:us-central1:flow-prod" | gcloud secrets create db-host --data-file=- --replication-policy="automatic" 2>/dev/null || echo "db-host secret already exists"
+echo -n "34.63.78.153" | gcloud secrets create db-host --data-file=- --replication-policy="automatic" 2>/dev/null || echo "db-host secret already exists"
 echo -n "${DB_PASSWORD}" | gcloud secrets create db-password --data-file=- --replication-policy="automatic" 2>/dev/null || echo "db-password secret already exists"
 
 # Redis secrets
@@ -114,6 +114,7 @@ echo -n "${JWT_SECRET}" | gcloud secrets create jwt-secret --data-file=- --repli
 echo -e "${BLUE}   Setting up Firebase secrets...${NC}"
 echo -n "quick-doodad-472200-k0" | gcloud secrets create firebase-project-id --data-file=- --replication-policy="automatic" 2>/dev/null || echo "firebase-project-id secret already exists"
 echo -n "${FIREBASE_CLIENT_EMAIL}" | gcloud secrets create firebase-client-email --data-file=- --replication-policy="automatic" 2>/dev/null || echo "firebase-client-email secret already exists"
+echo -n "${FIREBASE_PRIVATE_KEY}" | gcloud secrets create firebase-private-key --data-file=- --replication-policy="automatic" 2>/dev/null || echo "firebase-private-key secret already exists"
 
 # API keys
 echo -e "${BLUE}   Setting up API keys...${NC}"
@@ -148,7 +149,8 @@ gcloud run deploy ${SERVICE_NAME} \
     --set-env-vars DB_NAME=flow \
     --set-env-vars DB_USER=flow_user \
     --set-env-vars DB_PORT=5432 \
-    --set-env-vars DB_SSL=true \
+    --set-env-vars DB_SSL=false \
+    --set-env-vars PGSSLMODE=disable \
     --set-env-vars REDIS_PORT=6379 \
     --set-env-vars REDIS_DB=0 \
     --set-env-vars JWT_EXPIRES_IN=7d \
@@ -165,6 +167,7 @@ gcloud run deploy ${SERVICE_NAME} \
     --set-secrets JWT_SECRET=jwt-secret:latest \
     --set-secrets FIREBASE_PROJECT_ID=firebase-project-id:latest \
     --set-secrets FIREBASE_CLIENT_EMAIL=firebase-client-email:latest \
+    --set-secrets FIREBASE_PRIVATE_KEY=firebase-private-key:latest \
     --set-secrets VALID_API_KEYS=api-keys:latest \
     --set-secrets CORS_ORIGIN=cors-origin:latest
 

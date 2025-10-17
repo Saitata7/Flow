@@ -1,78 +1,84 @@
-// config/api.js
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import auth from '@react-native-firebase/auth';
+// src/config/api.js
+/**
+ * API Configuration for Flow Mobile App
+ * Handles different environments and network configurations
+ */
 
-// Base API configuration
-const API_BASE_URL = __DEV__ 
-  ? 'http://10.0.10.94:4000/v1'  // Local development server
-  : 'https://flow-api-c57f3te5va-uc.a.run.app/v1';   // Production Cloud Run URL
+import { Platform } from 'react-native';
 
-// Create axios instance
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Client-Version': '1.0.0',
-    'X-Platform': 'mobile',
+// API Configuration
+const API_CONFIG = {
+  // Development URLs
+  development: {
+    // For Android emulator
+    android: 'http://10.0.10.94:4003', // Computer's IP address
+    // For iOS simulator
+    ios: 'http://10.0.10.94:4003',
+    // For physical device
+    device: 'http://10.0.10.94:4003', // Computer's IP address
   },
-});
-
-// Request interceptor to add auth token
-apiClient.interceptors.request.use(
-  async (config) => {
-    try {
-      // Get auth token from storage (Firebase token)
-      const token = await getAuthToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for error handling
-apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login
-      console.log('Unauthorized access - redirecting to login');
-      // You can dispatch a logout action here
-    }
-    
-    // Handle network errors gracefully
-    if (error.code === 'NETWORK_ERROR' || error.message.includes('Network Error')) {
-      console.log('Network error - backend may not be available');
-    }
-    
-    return Promise.reject(error);
-  }
-);
-
-// Helper function to get auth token from Firebase
-const getAuthToken = async () => {
-  try {
-    const user = auth().currentUser;
-    if (user) {
-      const token = await user.getIdToken();
-      return token;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting auth token:', error);
-    return null;
+  
+  // Production URL
+  production: {
+    android: 'https://api.flow.app',
+    ios: 'https://api.flow.app',
+    device: 'https://api.flow.app',
   }
 };
 
-export { apiClient, getAuthToken };
-export default apiClient;
+// Get current environment
+const getEnvironment = () => {
+  return process.env.NODE_ENV || 'development';
+};
+
+// Get current platform
+const getPlatform = () => {
+  return Platform.OS;
+};
+
+// Get API base URL
+const getApiBaseUrl = () => {
+  const env = getEnvironment();
+  const platform = getPlatform();
+  
+  // Check if custom URL is provided via environment variable
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  
+  // Use environment-specific URL
+  const config = API_CONFIG[env];
+  
+  if (config) {
+    // For development, try to detect if running on device or emulator
+    if (env === 'development') {
+      // You can add logic here to detect device vs emulator
+      // For now, default to Android emulator IP
+      return config.android;
+    }
+    
+    return config[platform] || config.android;
+  }
+  
+  // Fallback
+  return 'https://api.flow.app';
+};
+
+// API Configuration object
+const config = {
+  baseURL: getApiBaseUrl(),
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Client-Version': 'flow-mobile-v1',
+    'X-Platform': Platform.OS,
+  },
+};
+
+// Log configuration for debugging
+console.log('🌐 API Configuration:');
+console.log('  Environment:', getEnvironment());
+console.log('  Platform:', getPlatform());
+console.log('  Base URL:', config.baseURL);
+
+export default config;

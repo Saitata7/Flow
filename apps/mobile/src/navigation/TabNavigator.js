@@ -14,6 +14,7 @@ import FlowDetail from '../screens/track/FlowDetails';
 import EditFlowScreen from '../screens/flow/EditFlow';
 import { colors, layout, typography } from '../../styles';
 import { ThemeContext } from '../context/ThemeContext';
+import { useAuth } from '../context/JWTAuthContext';
 
 // Import SVG icons
 import HomeIcon from '../../assets/icons/HomeIcon';
@@ -202,10 +203,19 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 const TabNavigator = () => {
   const colorScheme = useColorScheme();
   const { theme } = useContext(ThemeContext) || { theme: 'light' };
+  const { user, isLoading: authLoading } = useAuth();
   
   // Robust theme handling
   const currentTheme = theme || colorScheme || 'light';
   const themeColors = colors[currentTheme] || colors.light;
+
+  // Authentication guard - redirect to auth if not properly authenticated
+  React.useEffect(() => {
+    if (!authLoading && !user) {
+      console.log('TabNavigator: Not authenticated, redirecting to Auth');
+      // This will be handled by the parent navigator
+    }
+  }, [user, authLoading]);
 
   return (
     <Tab.Navigator

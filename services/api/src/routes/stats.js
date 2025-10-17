@@ -2,11 +2,14 @@ const {
   getUserStats,
   getLeaderboard,
   getFlowStats,
+  getFlowScoreboard,
+  getFlowActivityStats,
+  getFlowEmotionalActivity,
   getTrends,
   getGlobalStats,
 } = require('../controllers/stats.controller');
 
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 const statsRoutes = async fastify => {
   // Get user statistics
@@ -148,6 +151,162 @@ const statsRoutes = async fastify => {
       },
     },
     getFlowStats
+  );
+
+  // Get flow scoreboard data (for OptimizedActivityContext)
+  fastify.get(
+    '/flows/:flowId/scoreboard',
+    {
+      preHandler: [requireAuth],
+      schema: {
+        description: 'Get flow scoreboard data',
+        tags: ['stats'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            flowId: { type: 'string' },
+          },
+          required: ['flowId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            timeframe: {
+              type: 'string',
+              enum: ['weekly', 'monthly', 'yearly', 'all'],
+              default: 'weekly',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  completionRate: { type: 'number' },
+                  currentStreak: { type: 'number' },
+                  longestStreak: { type: 'number' },
+                  totalCompleted: { type: 'number' },
+                  totalScheduled: { type: 'number' },
+                  totalPoints: { type: 'number' },
+                  timeBasedStats: { type: 'object', nullable: true },
+                  quantitativeStats: { type: 'object', nullable: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    getFlowScoreboard
+  );
+
+  // Get flow activity stats (for OptimizedActivityContext)
+  fastify.get(
+    '/flows/:flowId/activity',
+    {
+      preHandler: [requireAuth],
+      schema: {
+        description: 'Get flow activity statistics',
+        tags: ['stats'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            flowId: { type: 'string' },
+          },
+          required: ['flowId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            timeframe: {
+              type: 'string',
+              enum: ['weekly', 'monthly', 'yearly', 'all'],
+              default: 'weekly',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  total: { type: 'number' },
+                  byStatus: {
+                    type: 'object',
+                    properties: {
+                      Completed: { type: 'number' },
+                      Partial: { type: 'number' },
+                      Missed: { type: 'number' },
+                      Inactive: { type: 'number' },
+                      Skipped: { type: 'number' },
+                    },
+                  },
+                  timeBased: { type: 'object', nullable: true },
+                  quantitative: { type: 'object', nullable: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    getFlowActivityStats
+  );
+
+  // Get flow emotional activity (for OptimizedActivityContext)
+  fastify.get(
+    '/flows/:flowId/emotional',
+    {
+      preHandler: [requireAuth],
+      schema: {
+        description: 'Get flow emotional activity data',
+        tags: ['stats'],
+        security: [{ bearerAuth: [] }],
+        params: {
+          type: 'object',
+          properties: {
+            flowId: { type: 'string' },
+          },
+          required: ['flowId'],
+        },
+        querystring: {
+          type: 'object',
+          properties: {
+            timeframe: {
+              type: 'string',
+              enum: ['weekly', 'monthly', 'yearly', 'all'],
+              default: 'weekly',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              data: {
+                type: 'object',
+                properties: {
+                  emotionDistribution: { type: 'object' },
+                  averageMoodScore: { type: 'number' },
+                  totalEntries: { type: 'number' },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    getFlowEmotionalActivity
   );
 
   // Get trends data

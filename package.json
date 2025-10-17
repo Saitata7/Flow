@@ -4,9 +4,10 @@
   "private": true,
   "packageManager": "yarn@1.22.22",
   "workspaces": [
-    "apps/*",
-    "packages/*",
-    "services/*"
+    "apps/mobile",
+    "packages/api-sdk",
+    "packages/data-models",
+    "services/api"
   ],
   "scripts": {
     "start": "yarn workspace @flow/mobile start",

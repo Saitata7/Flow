@@ -41,7 +41,10 @@ const NotificationSettings = () => {
     getNotificationSettings,
     updateNotificationSettings,
     sendTestNotification,
-    requestPermissions
+    requestPermissions,
+    scheduleFlowReminder,
+    cancelFlowReminder,
+    cancelAllFlowReminders,
   } = useNotificationContext();
 
   const [notificationData, setNotificationData] = useState({
@@ -49,32 +52,22 @@ const NotificationSettings = () => {
     weeklyReports: true,
     achievementAlerts: true,
     communityUpdates: false,
-    reminderTime: '09:00',
     quietHours: {
       enabled: false,
       start: '22:00',
       end: '08:00'
     },
-    reminderSound: 'default',
     vibration: true,
     flowLevels: {
-      level1: {
-        enabled: true,
-        frequency: 'daily',
-        time: '09:00',
-        approach: 'gentle'
-      },
       level2: {
-        enabled: true,
-        frequency: 'daily',
-        time: '12:00',
-        approach: 'moderate'
+        ringtone: 'default',
+        customRingtone: null,
+        description: '🔔 Moderate push with ringtone'
       },
       level3: {
-        enabled: false,
-        frequency: 'daily',
-        time: '18:00',
-        approach: 'intensive'
+        ringtone: 'default',
+        customRingtone: null,
+        description: '🚨 Urgent alarm with ringtone (repeats until completed)'
       }
     }
   });
@@ -94,21 +87,47 @@ const NotificationSettings = () => {
         // Load notification settings
         const notificationSettings = await getNotificationSettings();
         if (notificationSettings) {
-          setNotificationData(notificationSettings);
+          // Ensure flowLevels is always present with default values
+          const settingsWithFlowLevels = {
+            ...notificationSettings,
+            flowLevels: notificationSettings.flowLevels || {
+              level2: {
+                ringtone: 'default',
+                customRingtone: null,
+                description: '🔔 Moderate push with ringtone'
+              },
+              level3: {
+                ringtone: 'default',
+                customRingtone: null,
+                description: '🚨 Urgent alarm with ringtone (repeats until completed)'
+              }
+            }
+          };
+          setNotificationData(settingsWithFlowLevels);
         } else if (settings?.notifications) {
           setNotificationData({
             dailyReminders: settings.notifications.dailyReminders ?? true,
             weeklyReports: settings.notifications.weeklyReports ?? true,
             achievementAlerts: settings.notifications.achievementAlerts ?? true,
             communityUpdates: settings.notifications.communityUpdates ?? false,
-            reminderTime: settings.notifications.reminderTime || '09:00',
             quietHours: {
               enabled: settings.notifications.quietHours?.enabled ?? false,
               start: settings.notifications.quietHours?.start || '22:00',
               end: settings.notifications.quietHours?.end || '08:00'
             },
-            reminderSound: settings.notifications.reminderSound || 'default',
-            vibration: settings.notifications.vibration ?? true
+            vibration: settings.notifications.vibration ?? true,
+            flowLevels: {
+              level2: {
+                ringtone: 'default',
+                customRingtone: null,
+                description: '🔔 Moderate push with ringtone'
+              },
+              level3: {
+                ringtone: 'default',
+                customRingtone: null,
+                description: '🚨 Urgent alarm with ringtone (repeats until completed)'
+              }
+            }
           });
         }
       } catch (error) {
@@ -210,30 +229,56 @@ const NotificationSettings = () => {
     }
   };
 
-  // Preview notification with current settings
-  const handlePreviewNotification = async () => {
+  // Test different notification levels
+  const handleTestLevelNotifications = async () => {
     try {
-      const previewData = {
-        title: 'Daily Flow Reminder',
-        body: `Time to complete your flows! Your reminder is set for ${notificationData.reminderTime}`,
-        data: { 
-          type: 'preview',
-          reminderTime: notificationData.reminderTime,
-          sound: notificationData.reminderSound,
-          vibration: notificationData.vibration
-        }
-      };
-      
-      await sendTestNotification();
-      setNotificationPreview(previewData);
-      
       Alert.alert(
-        'Preview Sent', 
-        `A preview notification has been sent with your current settings:\n\n• Time: ${notificationData.reminderTime}\n• Sound: ${getSoundDisplayName(notificationData.reminderSound)}\n• Vibration: ${notificationData.vibration ? 'On' : 'Off'}`
+        'Test Notification Levels',
+        'Choose which notification level to test:',
+        [
+          {
+            text: 'Level 1 - Notification',
+            onPress: async () => {
+              await scheduleFlowReminder('test-flow-1', 'Test Flow Level 1', 1, '09:00');
+              Alert.alert('Level 1 Scheduled', 'A Level 1 notification has been scheduled for 9:00 AM');
+            }
+          },
+          {
+            text: 'Level 2 - Alarm',
+            onPress: async () => {
+              await scheduleFlowReminder('test-flow-2', 'Test Flow Level 2', 2, '12:00');
+              Alert.alert('Level 2 Scheduled', 'A Level 2 alarm has been scheduled for 12:00 PM');
+            }
+          },
+          {
+            text: 'Level 3 - Urgent Alarm',
+            onPress: async () => {
+              await scheduleFlowReminder('test-flow-3', 'Test Flow Level 3', 3, '18:00');
+              Alert.alert('Level 3 Scheduled', 'A Level 3 urgent alarm has been scheduled for 6:00 PM (will repeat until completed)');
+            }
+          },
+          { text: 'Cancel', style: 'cancel' }
+        ]
       );
     } catch (error) {
-      console.error('Error sending preview notification:', error);
-      Alert.alert('Error', 'Failed to send preview notification.');
+      console.error('Error testing level notifications:', error);
+      Alert.alert('Error', 'Failed to test notifications.');
+    }
+  };
+  const handleTestQuietHours = async () => {
+    try {
+      const success = await notificationService.testQuietHours();
+      if (success) {
+        Alert.alert(
+          'Quiet Hours Test',
+          'Quiet hours functionality has been tested! Check the console logs for detailed results.'
+        );
+      } else {
+        Alert.alert('Error', 'Failed to test quiet hours functionality.');
+      }
+    } catch (error) {
+      console.error('Error testing quiet hours:', error);
+      Alert.alert('Error', 'Failed to test quiet hours.');
     }
   };
 
@@ -245,10 +290,31 @@ const NotificationSettings = () => {
         return;
       }
 
-      // This would integrate with the backend to schedule the reminder
+      // Schedule reminders for each flow level
+      const levels = [
+        { level: 1, time: notificationData.flowLevels?.level1?.time || '09:00', enabled: notificationData.flowLevels?.level1?.enabled || false },
+        { level: 2, time: notificationData.flowLevels?.level2?.time || '12:00', enabled: notificationData.flowLevels?.level2?.enabled || false },
+        { level: 3, time: notificationData.flowLevels?.level3?.time || '18:00', enabled: notificationData.flowLevels?.level3?.enabled || false },
+      ];
+
+      let scheduledCount = 0;
+      for (const { level, time, enabled } of levels) {
+        if (enabled) {
+          const success = await scheduleFlowReminder(
+            `test-flow-${level}`,
+            `Test Flow Level ${level}`,
+            level,
+            time
+          );
+          if (success) {
+            scheduledCount++;
+          }
+        }
+      }
+
       Alert.alert(
-        'Reminder Scheduled',
-        `Daily reminders will be sent at ${notificationData.reminderTime}${notificationData.quietHours.enabled ? ` (except during quiet hours: ${notificationData.quietHours.start} - ${notificationData.quietHours.end})` : ''}`
+        'Reminders Scheduled',
+        `Successfully scheduled ${scheduledCount} flow reminders${notificationData.quietHours.enabled ? ` (except during quiet hours: ${notificationData.quietHours.start} - ${notificationData.quietHours.end})` : ''}`
       );
     } catch (error) {
       console.error('Error scheduling reminder:', error);
@@ -285,62 +351,21 @@ const NotificationSettings = () => {
   };
 
   // Flow level handlers
-  const handleFlowLevelToggle = (level, enabled) => {
+  const handleRingtoneChange = (level, ringtoneType) => {
     setNotificationData(prev => ({
       ...prev,
       flowLevels: {
         ...prev.flowLevels,
         [level]: {
           ...prev.flowLevels[level],
-          enabled
+          ringtone: ringtoneType,
+          customRingtone: ringtoneType === 'custom' ? prev.flowLevels[level]?.customRingtone : null
         }
       }
     }));
   };
 
-  const handleFlowLevelTimeChange = (level, time) => {
-    setNotificationData(prev => ({
-      ...prev,
-      flowLevels: {
-        ...prev.flowLevels,
-        [level]: {
-          ...prev.flowLevels[level],
-          time
-        }
-      }
-    }));
-  };
 
-  const handleFlowLevelApproachChange = (level, approach) => {
-    setNotificationData(prev => ({
-      ...prev,
-      flowLevels: {
-        ...prev.flowLevels,
-        [level]: {
-          ...prev.flowLevels[level],
-          approach
-        }
-      }
-    }));
-  };
-
-  const getApproachDisplayName = (approach) => {
-    const approachMap = {
-      'gentle': 'Gentle Reminder',
-      'moderate': 'Moderate Push',
-      'intensive': 'Intensive Motivation'
-    };
-    return approachMap[approach] || 'Gentle Reminder';
-  };
-
-  const getLevelDescription = (level) => {
-    const descriptions = {
-      'level1': 'Light reminders to help you stay on track',
-      'level2': 'Moderate encouragement to maintain momentum',
-      'level3': 'Intensive motivation for breakthrough moments'
-    };
-    return descriptions[level] || '';
-  };
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -557,6 +582,58 @@ const NotificationSettings = () => {
       color: themeColors.primaryText,
       marginRight: 4,
     },
+    levelSection: {
+      backgroundColor: themeColors.surface || '#F8F9FA',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    levelHeader: {
+      flex: 1,
+      marginBottom: 8,
+    },
+    levelTitle: {
+      fontSize: typography.sizes.body,
+      fontWeight: typography.weights.semibold,
+      color: themeColors.primaryText,
+      marginBottom: 4,
+    },
+    levelDescription: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.secondaryText,
+      lineHeight: 18,
+    },
+    levelControls: {
+      alignItems: 'flex-end',
+    },
+    ringtoneOptions: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 8,
+    },
+    ringtoneOption: {
+      flex: 1,
+      padding: 12,
+      backgroundColor: themeColors.background,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+      alignItems: 'center',
+    },
+    ringtoneOptionSelected: {
+      backgroundColor: themeColors.primaryOrange,
+      borderColor: themeColors.primaryOrange,
+    },
+    ringtoneOptionText: {
+      fontSize: typography.sizes.caption1,
+      color: themeColors.primaryText,
+      fontWeight: typography.weights.medium,
+    },
+    ringtoneOptionTextSelected: {
+      color: '#fff',
+    },
   });
 
   if (loading && !settings || initializing || notificationLoading) {
@@ -622,10 +699,38 @@ const NotificationSettings = () => {
             </Text>
             <TouchableOpacity 
               style={dynamicStyles.testButton}
+              onPress={handleTestLevelNotifications}
+            >
+              <Ionicons name="notifications-outline" size={20} color="#fff" />
+              <Text style={dynamicStyles.testButtonText}>
+                Test Level Notifications
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={dynamicStyles.testButton}
               onPress={handleTestNotification}
             >
               <Text style={dynamicStyles.testButtonText}>
                 Send Test Notification
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[dynamicStyles.testButton, { marginTop: 8 }]}
+              onPress={handleTestFlowLevelRingtones}
+            >
+              <Text style={dynamicStyles.testButtonText}>
+                Test Flow Level Ringtones
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[dynamicStyles.testButton, { marginTop: 8 }]}
+              onPress={handleTestQuietHours}
+            >
+              <Text style={dynamicStyles.testButtonText}>
+                Test Quiet Hours
               </Text>
             </TouchableOpacity>
           </View>
@@ -696,204 +801,102 @@ const NotificationSettings = () => {
           </View>
         </View>
 
-        {/* Flow Level Notifications */}
-        <View style={dynamicStyles.section}>
-          <Text style={dynamicStyles.sectionTitle}>Flow Level Notifications</Text>
-          <Text style={dynamicStyles.sectionDescription}>
-            Configure different notification approaches for your flow levels
-          </Text>
-          
-          {/* Level 1 */}
-          <View style={dynamicStyles.flowLevelSection}>
-            <View style={dynamicStyles.flowLevelHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={dynamicStyles.flowLevelTitle}>Level 1 - Gentle</Text>
-                <Text style={dynamicStyles.flowLevelDescription}>
-                  {getLevelDescription('level1')}
-                </Text>
-              </View>
-              <Switch
-                value={notificationData.flowLevels.level1.enabled}
-                onValueChange={(value) => handleFlowLevelToggle('level1', value)}
-                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                thumbColor={notificationData.flowLevels.level1.enabled ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-            
-            {notificationData.flowLevels.level1.enabled && (
-              <View style={dynamicStyles.flowLevelOptions}>
-                <View style={dynamicStyles.flowLevelOption}>
-                  <Text style={dynamicStyles.flowLevelOptionLabel}>Time</Text>
-                  <TouchableOpacity 
-                    style={dynamicStyles.timeButton}
-                    onPress={() => {/* TODO: Add time picker for level 1 */}}
-                  >
-                    <Text style={dynamicStyles.timeButtonText}>
-                      {notificationData.flowLevels.level1.time}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={dynamicStyles.flowLevelOption}>
-                  <Text style={dynamicStyles.flowLevelOptionLabel}>Approach</Text>
-                  <TouchableOpacity 
-                    style={dynamicStyles.approachButton}
-                    onPress={() => {
-                      Alert.alert(
-                        'Select Approach',
-                        'Choose notification approach for Level 1',
-                        [
-                          { text: 'Gentle Reminder', onPress: () => handleFlowLevelApproachChange('level1', 'gentle') },
-                          { text: 'Moderate Push', onPress: () => handleFlowLevelApproachChange('level1', 'moderate') },
-                          { text: 'Intensive Motivation', onPress: () => handleFlowLevelApproachChange('level1', 'intensive') },
-                          { text: 'Cancel', style: 'cancel' }
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={dynamicStyles.approachButtonText}>
-                      {getApproachDisplayName(notificationData.flowLevels.level1.approach)}
-                    </Text>
-                    <Ionicons name="chevron-down" size={16} color={themeColors.secondaryText} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Level 2 */}
-          <View style={dynamicStyles.flowLevelSection}>
-            <View style={dynamicStyles.flowLevelHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={dynamicStyles.flowLevelTitle}>Level 2 - Moderate</Text>
-                <Text style={dynamicStyles.flowLevelDescription}>
-                  {getLevelDescription('level2')}
-                </Text>
-              </View>
-              <Switch
-                value={notificationData.flowLevels.level2.enabled}
-                onValueChange={(value) => handleFlowLevelToggle('level2', value)}
-                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                thumbColor={notificationData.flowLevels.level2.enabled ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-            
-            {notificationData.flowLevels.level2.enabled && (
-              <View style={dynamicStyles.flowLevelOptions}>
-                <View style={dynamicStyles.flowLevelOption}>
-                  <Text style={dynamicStyles.flowLevelOptionLabel}>Time</Text>
-                  <TouchableOpacity 
-                    style={dynamicStyles.timeButton}
-                    onPress={() => {/* TODO: Add time picker for level 2 */}}
-                  >
-                    <Text style={dynamicStyles.timeButtonText}>
-                      {notificationData.flowLevels.level2.time}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={dynamicStyles.flowLevelOption}>
-                  <Text style={dynamicStyles.flowLevelOptionLabel}>Approach</Text>
-                  <TouchableOpacity 
-                    style={dynamicStyles.approachButton}
-                    onPress={() => {
-                      Alert.alert(
-                        'Select Approach',
-                        'Choose notification approach for Level 2',
-                        [
-                          { text: 'Gentle Reminder', onPress: () => handleFlowLevelApproachChange('level2', 'gentle') },
-                          { text: 'Moderate Push', onPress: () => handleFlowLevelApproachChange('level2', 'moderate') },
-                          { text: 'Intensive Motivation', onPress: () => handleFlowLevelApproachChange('level2', 'intensive') },
-                          { text: 'Cancel', style: 'cancel' }
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={dynamicStyles.approachButtonText}>
-                      {getApproachDisplayName(notificationData.flowLevels.level2.approach)}
-                    </Text>
-                    <Ionicons name="chevron-down" size={16} color={themeColors.secondaryText} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Level 3 */}
-          <View style={dynamicStyles.flowLevelSection}>
-            <View style={dynamicStyles.flowLevelHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={dynamicStyles.flowLevelTitle}>Level 3 - Intensive</Text>
-                <Text style={dynamicStyles.flowLevelDescription}>
-                  {getLevelDescription('level3')}
-                </Text>
-              </View>
-              <Switch
-                value={notificationData.flowLevels.level3.enabled}
-                onValueChange={(value) => handleFlowLevelToggle('level3', value)}
-                trackColor={{ false: '#767577', true: themeColors.primaryOrange }}
-                thumbColor={notificationData.flowLevels.level3.enabled ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-            
-            {notificationData.flowLevels.level3.enabled && (
-              <View style={dynamicStyles.flowLevelOptions}>
-                <View style={dynamicStyles.flowLevelOption}>
-                  <Text style={dynamicStyles.flowLevelOptionLabel}>Time</Text>
-                  <TouchableOpacity 
-                    style={dynamicStyles.timeButton}
-                    onPress={() => {/* TODO: Add time picker for level 3 */}}
-                  >
-                    <Text style={dynamicStyles.timeButtonText}>
-                      {notificationData.flowLevels.level3.time}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={dynamicStyles.flowLevelOption}>
-                  <Text style={dynamicStyles.flowLevelOptionLabel}>Approach</Text>
-                  <TouchableOpacity 
-                    style={dynamicStyles.approachButton}
-                    onPress={() => {
-                      Alert.alert(
-                        'Select Approach',
-                        'Choose notification approach for Level 3',
-                        [
-                          { text: 'Gentle Reminder', onPress: () => handleFlowLevelApproachChange('level3', 'gentle') },
-                          { text: 'Moderate Push', onPress: () => handleFlowLevelApproachChange('level3', 'moderate') },
-                          { text: 'Intensive Motivation', onPress: () => handleFlowLevelApproachChange('level3', 'intensive') },
-                          { text: 'Cancel', style: 'cancel' }
-                        ]
-                      );
-                    }}
-                  >
-                    <Text style={dynamicStyles.approachButtonText}>
-                      {getApproachDisplayName(notificationData.flowLevels.level3.approach)}
-                    </Text>
-                    <Ionicons name="chevron-down" size={16} color={themeColors.secondaryText} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </View>
-        </View>
 
         {/* Timing */}
         <View style={dynamicStyles.section}>
-          <Text style={dynamicStyles.sectionTitle}>Timing</Text>
+          <Text style={dynamicStyles.sectionTitle}>Flow Level Ringtones</Text>
+          <Text style={dynamicStyles.sectionDescription}>
+            Configure ringtones for Level 2 and Level 3 notifications
+          </Text>
           
-          <View style={dynamicStyles.toggleItem}>
-            <View style={{ flex: 1 }}>
-              <Text style={dynamicStyles.toggleLabel}>Reminder Time</Text>
-              <Text style={dynamicStyles.toggleDescription}>
-                When to send daily reminders
+          {/* Level 1 - No Settings */}
+          <View style={dynamicStyles.levelSection}>
+            <View style={dynamicStyles.levelHeader}>
+              <Text style={dynamicStyles.levelTitle}>🌱 Level 1 - Gentle Notification</Text>
+              <Text style={dynamicStyles.levelDescription}>
+                Standard notification sound (no settings required)
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setShowReminderTimePicker(true)}>
-              <Text style={dynamicStyles.timeDisplay}>
-                {notificationData.reminderTime}
+          </View>
+
+          {/* Level 2 - Ringtone Selection */}
+          <View style={dynamicStyles.levelSection}>
+            <View style={dynamicStyles.levelHeader}>
+              <Text style={dynamicStyles.levelTitle}>🔔 Level 2 - Moderate Push</Text>
+              <Text style={dynamicStyles.levelDescription}>
+                Choose ringtone for moderate notifications
               </Text>
-            </TouchableOpacity>
+            </View>
+            <View style={dynamicStyles.ringtoneOptions}>
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.ringtoneOption,
+                  notificationData.flowLevels?.level2?.ringtone === 'default' && dynamicStyles.ringtoneOptionSelected
+                ]}
+                onPress={() => handleRingtoneChange('level2', 'default')}
+              >
+                <Text style={[
+                  dynamicStyles.ringtoneOptionText,
+                  notificationData.flowLevels?.level2?.ringtone === 'default' && dynamicStyles.ringtoneOptionTextSelected
+                ]}>
+                  Default Ringtone
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.ringtoneOption,
+                  notificationData.flowLevels?.level2?.ringtone === 'custom' && dynamicStyles.ringtoneOptionSelected
+                ]}
+                onPress={() => handleRingtoneChange('level2', 'custom')}
+              >
+                <Text style={[
+                  dynamicStyles.ringtoneOptionText,
+                  notificationData.flowLevels?.level2?.ringtone === 'custom' && dynamicStyles.ringtoneOptionTextSelected
+                ]}>
+                  Choose Custom File
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Level 3 - Ringtone Selection */}
+          <View style={dynamicStyles.levelSection}>
+            <View style={dynamicStyles.levelHeader}>
+              <Text style={dynamicStyles.levelTitle}>🚨 Level 3 - Urgent Alarm</Text>
+              <Text style={dynamicStyles.levelDescription}>
+                Choose ringtone for urgent alarms (repeats until completed)
+              </Text>
+            </View>
+            <View style={dynamicStyles.ringtoneOptions}>
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.ringtoneOption,
+                  notificationData.flowLevels?.level3?.ringtone === 'default' && dynamicStyles.ringtoneOptionSelected
+                ]}
+                onPress={() => handleRingtoneChange('level3', 'default')}
+              >
+                <Text style={[
+                  dynamicStyles.ringtoneOptionText,
+                  notificationData.flowLevels?.level3?.ringtone === 'default' && dynamicStyles.ringtoneOptionTextSelected
+                ]}>
+                  Default Ringtone
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.ringtoneOption,
+                  notificationData.flowLevels?.level3?.ringtone === 'custom' && dynamicStyles.ringtoneOptionSelected
+                ]}
+                onPress={() => handleRingtoneChange('level3', 'custom')}
+              >
+                <Text style={[
+                  dynamicStyles.ringtoneOptionText,
+                  notificationData.flowLevels?.level3?.ringtone === 'custom' && dynamicStyles.ringtoneOptionTextSelected
+                ]}>
+                  Choose Custom File
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={dynamicStyles.quietHoursSection}>

@@ -11,32 +11,33 @@ spec:
       annotations:
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/cpu-throttling: "false"
-        autoscaling.knative.dev/maxScale: "5"
+        autoscaling.knative.dev/maxScale: "1"
         autoscaling.knative.dev/minScale: "0"
         run.googleapis.com/timeout: "300s"
     spec:
       containerConcurrency: 80
       timeoutSeconds: 300
       containers:
-      - image: us-central1-docker.pkg.dev/PROJECT_ID/flow-registry/flow-api:latest
+      - image: us-central1-docker.pkg.dev/quick-doodad-472200-k0/flow-registry/flow-api:latest
         ports:
         - containerPort: 8080
         env:
         - name: NODE_ENV
           value: "production"
-        - name: PORT
-          value: "8080"
         - name: HOST
           value: "0.0.0.0"
         - name: DB_HOST
-          valueFrom:
-            secretKeyRef:
-              name: db-host
-              key: latest
+          value: "34.63.78.153"
         - name: DB_NAME
           value: "flow"
         - name: DB_USER
           value: "flow_user"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_SSL
+          value: "false"
+        - name: PGSSLMODE
+          value: "disable"
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -74,6 +75,8 @@ spec:
               key: latest
         - name: AUTH_PROVIDER
           value: "firebase"
+        - name: ALLOW_UNAUTHENTICATED
+          value: "true"
         - name: VALID_API_KEYS
           valueFrom:
             secretKeyRef:
@@ -88,11 +91,11 @@ spec:
           value: "info"
         resources:
           limits:
-            cpu: "1000m"
-            memory: "1Gi"
+            cpu: "200m"
+            memory: "256Mi"
           requests:
             cpu: "100m"
-            memory: "256Mi"
+            memory: "128Mi"
         livenessProbe:
           httpGet:
             path: /health
@@ -100,12 +103,4 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 5
-          failureThreshold: 3
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 5
-          periodSeconds: 10
-          timeoutSeconds: 3
           failureThreshold: 3

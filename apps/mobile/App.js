@@ -2,10 +2,12 @@
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { View, Text } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { PlanProvider } from './src/context/PlanContext';
 import { FlowsProvider } from './src/context/FlowContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { AuthProvider } from './src/context/AuthContext';
 
 // Create QueryClient instance with proper configuration
 const queryClient = new QueryClient({
@@ -24,17 +26,32 @@ const queryClient = new QueryClient({
 
 // Main App component that wraps everything with QueryClientProvider
 export default function App() {
-  return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <FlowsProvider>
-            <PlanProvider>
-              <AppNavigator />
-            </PlanProvider>
-          </FlowsProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
-  );
+  console.log('🔍 App: Starting to render');
+  
+  try {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <AuthProvider>
+              <FlowsProvider>
+                <PlanProvider>
+                  <AppNavigator />
+                </PlanProvider>
+              </FlowsProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    );
+  } catch (error) {
+    console.error('App Error:', error);
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ fontSize: 18, color: 'red', textAlign: 'center' }}>
+          App Error: {error.message}
+        </Text>
+      </View>
+    );
+  }
 }

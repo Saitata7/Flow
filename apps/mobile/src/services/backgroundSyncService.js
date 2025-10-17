@@ -135,6 +135,13 @@ class BackgroundSyncService {
     try {
       console.log('🔄 Starting background sync...');
       
+      // Double-check authentication before making any API calls
+      const isAuthenticated = await apiService.isUserAuthenticated();
+      if (!isAuthenticated) {
+        console.log('⏸️ Background sync skipped - user not authenticated');
+        return;
+      }
+      
       // Check if we can sync
       if (!(await apiService.canSync())) {
         console.log('⏸️ Background sync skipped - not authenticated or offline');

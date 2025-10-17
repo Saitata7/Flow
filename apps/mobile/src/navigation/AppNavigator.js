@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StatusBar, ActivityIndicator, View, StyleSheet } from 'react-native';
+import { StatusBar, ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import AuthNavigator from './AuthNavigator';
@@ -10,12 +10,7 @@ import TabNavigator from './TabNavigator';
 import Splash from '../screens/info/Splash';
 import Onboarding from '../screens/info/Onboarding';
 import Firsttime from '../screens/info/Firsttime';
-import { AuthProvider, useAuth } from '../context/AuthContext';
-import useFirstTime from '../hooks/useFirstTime';
-import { FlowsProvider } from '../context/FlowContext';
-import { ThemeProvider } from '../context/ThemeContext';
-import { ActivityProvider } from '../context/ActivityContext';
-import { SettingsProvider } from '../context/SettingsContext';
+import { useAuth } from '../context/JWTAuthContext';
 import backgroundSyncService from '../services/backgroundSyncService';
 import { colors } from '../../styles';
 
@@ -42,89 +37,95 @@ const screenOptions = {
 
 const Stack = createNativeStackNavigator();
 
-const AppNavigatorContent = () => {
-  const { user, isLoading: authLoading } = useAuth();
-  const { isFirstLaunch, isLoading: firstTimeLoading } = useFirstTime();
 
-  useEffect(() => {
-    Haptics.selectionAsync();
-    
-    // Initialize background sync service
-    console.log('🔄 Initializing background sync service...');
-    backgroundSyncService.init();
-  }, []);
+const AppNavigator = () => {
+  try {
+    const { user, isLoading: authLoading } = useAuth();
 
-  // Show loading while checking auth and first time status
-  if (authLoading || firstTimeLoading) {
+    useEffect(() => {
+      Haptics.selectionAsync();
+      
+      // Initialize background sync service
+      try {
+        backgroundSyncService.init();
+      } catch (error) {
+        console.error('❌ Error initializing background sync service:', error);
+      }
+    }, []);
+
+    // Show loading while checking auth status
+    if (authLoading) {
+      return (
+        <SafeAreaProvider>
+          <StatusBar
+            translucent
+            backgroundColor="transparent"
+            barStyle="dark-content"
+          />
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.light.primaryOrange} />
+            <Text style={{ marginTop: 20, color: colors.light.primaryText }}>
+              Loading...
+            </Text>
+          </View>
+        </SafeAreaProvider>
+      );
+    }
+
+    // Determine initial route based on authentication and guest mode
+    const getInitialRoute = () => {
+      // Only go to Main if we have a REAL authenticated user
+      if (user && user.id && user.email && !user.isGuest) {
+        return 'Main';
+      }
+      
+      // Default to Auth screen for ANY uncertainty
+      return 'Auth';
+    };
+
+    const initialRoute = getInitialRoute();
+
+    // FIXED: Use single NavigationContainer with all routes
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.light.primaryOrange} />
+      <SafeAreaProvider>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="dark-content"
+        />
+        <NavigationContainer>
+          <Stack.Navigator 
+            screenOptions={screenOptions}
+            initialRouteName={initialRoute}
+          >
+            {/* Show splash screen first */}
+            <Stack.Screen name="Splash" component={Splash} />
+            
+            {/* Show onboarding for first time users */}
+            <Stack.Screen name="Onboarding" component={Onboarding} />
+            
+            {/* Show first time welcome screen */}
+            <Stack.Screen name="Firsttime" component={Firsttime} />
+            
+            {/* Auth navigation */}
+            <Stack.Screen name="Auth" component={AuthNavigator} />
+            
+            {/* Main app navigation */}
+            <Stack.Screen name="Main" component={TabNavigator} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    );
+  } catch (error) {
+    console.error('❌ AppNavigator Error:', error);
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+        <Text style={{ fontSize: 18, color: 'red', textAlign: 'center' }}>
+          Navigation Error: {error.message}
+        </Text>
       </View>
     );
   }
-
-  // Determine initial route based on authentication and first-time status
-  const getInitialRoute = () => {
-    // If user is already logged in, go directly to main app
-    if (user) {
-      return 'Main';
-    }
-    
-    // If it's first launch, show onboarding
-    if (isFirstLaunch) {
-      return 'Onboarding';
-    }
-    
-    // Otherwise, show auth (login/register)
-    return 'Auth';
-  };
-
-  return (
-    <ThemeProvider>
-      <SettingsProvider>
-        <FlowsProvider>
-          <ActivityProvider>
-            <SafeAreaProvider>
-            <StatusBar
-              translucent
-              backgroundColor="transparent"
-              barStyle="dark-content"
-            />
-            <NavigationContainer>
-              <Stack.Navigator 
-                screenOptions={screenOptions}
-                initialRouteName={getInitialRoute()}
-              >
-                {/* Show splash screen first */}
-                <Stack.Screen name="Splash" component={Splash} />
-                
-                {/* Show onboarding for first time users */}
-                <Stack.Screen name="Onboarding" component={Onboarding} />
-                
-                {/* Show first time welcome screen */}
-                <Stack.Screen name="Firsttime" component={Firsttime} />
-                
-                {/* Auth navigation */}
-                <Stack.Screen name="Auth" component={AuthNavigator} />
-                
-                {/* Main app navigation */}
-                <Stack.Screen name="Main" component={TabNavigator} />
-              </Stack.Navigator>
-            </NavigationContainer>
-            </SafeAreaProvider>
-          </ActivityProvider>
-        </FlowsProvider>
-      </SettingsProvider>
-    </ThemeProvider>
-  );
-};
-
-const AppNavigator = () => {
-  return (
-    <AuthProvider>
-      <AppNavigatorContent />
-    </AuthProvider>
-  );
 };
 
 const styles = StyleSheet.create({

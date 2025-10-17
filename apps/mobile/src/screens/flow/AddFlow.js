@@ -18,11 +18,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import TimePicker from '../../components/TimePicker';
 import { FlowsContext } from '../../context/FlowContext';
 import { useRoute } from '@react-navigation/native';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../context/JWTAuthContext';
+import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { validateNumericInput } from '../../utils/validation';
-import Card from '../../components/common/card';
+import apiService from '../../services/apiService';
+import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 import { colors, typography, layout } from '../../../styles';
@@ -68,6 +70,7 @@ export default function AddFlow({ navigation }) {
   const [reminderTime, setReminderTime] = useState(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [reminderLevel, setReminderLevel] = useState('1');
+  const [customSound, setCustomSound] = useState(null);
   const [unitText, setUnitText] = useState('');
   const [selectedUnit, setSelectedUnit] = useState('');
   const [showUnitDropdown, setShowUnitDropdown] = useState(false);
@@ -398,6 +401,7 @@ export default function AddFlow({ navigation }) {
       daysOfWeek: frequency === 'Daily' || frequency === 'Monthly' ? selectedDays : [],
       reminderTime: reminderTimeEnabled && reminderTime ? reminderTime.toISOString() : null,
       reminderLevel,
+      customSound: reminderLevel === '3' ? customSound : null,
       unitText: trackingType === 'Quantitative' ? unitText : undefined,
       hours: trackingType === 'Time-based' ? hours : undefined,
       minutes: trackingType === 'Time-based' ? minutes : undefined,
@@ -781,10 +785,25 @@ export default function AddFlow({ navigation }) {
                   </Text>
                   <View style={styles.reminderLevelButtons}>
                     {[
-                      { level: '1', label: 'Notification', description: 'Gentle notification' },
-                      { level: '2', label: 'Alert', description: 'Persistent alert with sound' },
-                      { level: '3', label: 'Alarm', description: 'Loud alarm with snooze' }
-                    ].map(({ level, label, description }) => (
+                      { 
+                        level: '1', 
+                        label: 'Gentle Reminder', 
+                        description: '🌱 Soft notification with gentle chime',
+                        details: 'Light vibration, easy to dismiss'
+                      },
+                      { 
+                        level: '2', 
+                        label: 'Moderate Push', 
+                        description: '🔔 Standard notification with sound',
+                        details: 'Medium vibration, persistent until completed'
+                      },
+                      { 
+                        level: '3', 
+                        label: 'Urgent Alarm', 
+                        description: '🚨 Loud alarm with custom music',
+                        details: 'Strong vibration, requires user interaction'
+                      }
+                    ].map(({ level, label, description, details }) => (
                       <TouchableOpacity
                         key={level}
                         style={[
@@ -807,10 +826,56 @@ export default function AddFlow({ navigation }) {
                         ]}>
                           {description}
                         </Text>
+                        <Text style={[
+                          styles.reminderLevelButtonDetails,
+                          reminderLevel === level && styles.reminderLevelButtonDetailsSelected
+                        ]}>
+                          {details}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </View>
+                
+                {/* Custom Sound Selection for Level 3 */}
+                {reminderLevel === '3' && (
+                  <View style={styles.customSoundSection}>
+                    <Text style={styles.customSoundLabel}>Alarm Sound</Text>
+                    <Text style={styles.customSoundDescription}>
+                      Choose your alarm sound for urgent reminders
+                    </Text>
+                    <View style={styles.soundOptions}>
+                      {[
+                        { id: 'default', name: 'Default Alarm', description: 'Built-in alarm sound' },
+                        { id: 'gentle', name: 'Gentle Chime', description: 'Soft chime sound' },
+                        { id: 'classic', name: 'Classic Bell', description: 'Traditional bell sound' },
+                        { id: 'modern', name: 'Modern Beep', description: 'Digital beep sound' },
+                      ].map((sound) => (
+                        <TouchableOpacity
+                          key={sound.id}
+                          style={[
+                            styles.soundOption,
+                            customSound === sound.id && styles.soundOptionSelected
+                          ]}
+                          onPress={() => setCustomSound(sound.id)}
+                        >
+                          <Text style={[
+                            styles.soundOptionName,
+                            customSound === sound.id && styles.soundOptionNameSelected
+                          ]}>
+                            {sound.name}
+                          </Text>
+                          <Text style={[
+                            styles.soundOptionDescription,
+                            customSound === sound.id && styles.soundOptionDescriptionSelected
+                          ]}>
+                            {sound.description}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </>
             )}
           </Card>
@@ -1232,5 +1297,72 @@ const styles = StyleSheet.create({
   },
   reminderLevelButtonDescriptionSelected: {
     color: colors.light.primaryOrange,
+  },
+  reminderLevelButtonDetails: {
+    fontSize: 11,
+    color: colors.light.secondaryText,
+    marginTop: 2,
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  reminderLevelButtonDetailsSelected: {
+    color: colors.light.primaryOrange,
+    opacity: 1,
+  },
+  customSoundSection: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: colors.light.cardBackground,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.light.border,
+  },
+  customSoundLabel: {
+    fontSize: typography.styles.body.fontSize,
+    fontWeight: '600',
+    color: colors.light.primaryText,
+    marginBottom: 4,
+  },
+  customSoundDescription: {
+    fontSize: typography.styles.caption.fontSize,
+    color: colors.light.secondaryText,
+    marginBottom: 12,
+  },
+  soundOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  soundOption: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 12,
+    backgroundColor: colors.light.background,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.light.border,
+    alignItems: 'center',
+  },
+  soundOptionSelected: {
+    backgroundColor: colors.light.primaryOrange,
+    borderColor: colors.light.primaryOrange,
+  },
+  soundOptionName: {
+    fontSize: typography.styles.caption.fontSize,
+    fontWeight: '500',
+    color: colors.light.primaryText,
+    marginBottom: 2,
+  },
+  soundOptionNameSelected: {
+    color: '#fff',
+  },
+  soundOptionDescription: {
+    fontSize: 11,
+    color: colors.light.secondaryText,
+    textAlign: 'center',
+  },
+  soundOptionDescriptionSelected: {
+    color: '#fff',
+    opacity: 0.9,
   },
 });

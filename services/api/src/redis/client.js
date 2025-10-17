@@ -9,7 +9,7 @@ class RedisClient {
   async connect() {
     try {
       this.client = new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
+        host: process.env.REDIS_HOST || '10.58.145.227', // GCP MemoryStore IP
         port: process.env.REDIS_PORT || 6379,
         password: process.env.REDIS_PASSWORD || undefined,
         db: process.env.REDIS_DB || 0,

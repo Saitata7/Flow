@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useSettings } from '../../hooks/useSettings';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../context/JWTAuthContext';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
@@ -35,12 +35,11 @@ const AccountSettings = () => {
     updateSettings 
   } = useSettings();
 
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const [formData, setFormData] = useState({
     profile: {
       email: '',
-      password: '',
       phoneNumber: ''
     },
     dataPrivacy: {
@@ -60,7 +59,6 @@ const AccountSettings = () => {
       setFormData({
         profile: {
           email: user?.email || '',
-          password: '',
           phoneNumber: user?.phoneNumber || ''
         },
         dataPrivacy: {
@@ -105,15 +103,7 @@ const AccountSettings = () => {
   const validateForm = () => {
     const newErrors = {};
     
-    // Validate email
-    if (formData.profile.email && !isValidEmail(formData.profile.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-    
-    // Validate password (if provided)
-    if (formData.profile.password && formData.profile.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long';
-    }
+    // Email is read-only, no validation needed
     
     // Phone number is optional, no validation needed
     
@@ -139,33 +129,6 @@ const AccountSettings = () => {
       console.error('Error saving account settings:', error);
       Alert.alert('Error', 'Failed to save settings. Please try again.');
     }
-  };
-
-  const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Sign Out', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await logout();
-              // Navigate to auth screen after logout
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Auth' }],
-              });
-            } catch (error) {
-              console.error('Error signing out:', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
-          }
-        }
-      ]
-    );
   };
 
   const handleDeactivateAccount = () => {
@@ -283,6 +246,33 @@ const AccountSettings = () => {
       fontSize: typography.sizes.caption1,
       color: themeColors.error,
       marginTop: 4,
+    },
+    enhancedProfileButton: {
+      backgroundColor: themeColors.cardBackground,
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 20,
+      borderWidth: 1,
+      borderColor: themeColors.border,
+    },
+    enhancedProfileContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    enhancedProfileText: {
+      flex: 1,
+    },
+    enhancedProfileTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: themeColors.primaryText,
+      marginBottom: 4,
+    },
+    enhancedProfileSubtitle: {
+      fontSize: 14,
+      color: themeColors.secondaryText,
+      lineHeight: 20,
     },
     toggleItem: {
       flexDirection: 'row',
@@ -548,34 +538,37 @@ const AccountSettings = () => {
           <View style={dynamicStyles.section}>
             <Text style={dynamicStyles.sectionTitle}>Profile Information</Text>
             
+            {/* Enhanced Profile Link */}
+            <TouchableOpacity
+              style={dynamicStyles.enhancedProfileButton}
+              onPress={() => navigation.navigate('EnhancedProfileSettings')}
+            >
+              <View style={dynamicStyles.enhancedProfileContent}>
+                <View style={dynamicStyles.enhancedProfileText}>
+                  <Text style={dynamicStyles.enhancedProfileTitle}>Complete Your Profile</Text>
+                  <Text style={dynamicStyles.enhancedProfileSubtitle}>
+                    Add personal information, demographics, and privacy preferences
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={themeColors.secondaryText} />
+              </View>
+            </TouchableOpacity>
+            
             <View style={dynamicStyles.inputGroup}>
               <Text style={dynamicStyles.label}>Email Address</Text>
               <TextInput
-                style={[dynamicStyles.input, errors.email && { borderColor: themeColors.error }]}
+                style={[dynamicStyles.input, { backgroundColor: themeColors.surface, color: themeColors.secondaryText }]}
                 value={formData.profile.email}
-                onChangeText={(value) => handleInputChange('profile', 'email', value)}
-                placeholder="Enter your email"
+                placeholder="Email address"
                 placeholderTextColor={themeColors.secondaryText}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={false}
               />
-              {errors.email && <Text style={dynamicStyles.errorText}>{errors.email}</Text>}
-            </View>
-
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.label}>Password</Text>
-              <TextInput
-                style={[dynamicStyles.input, errors.password && { borderColor: themeColors.error }]}
-                value={formData.profile.password}
-                onChangeText={(value) => handleInputChange('profile', 'password', value)}
-                placeholder="Enter new password"
-                placeholderTextColor={themeColors.secondaryText}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {errors.password && <Text style={dynamicStyles.errorText}>{errors.password}</Text>}
+              <Text style={[dynamicStyles.errorText, { color: themeColors.secondaryText, fontSize: 12 }]}>
+                Email address cannot be changed
+              </Text>
             </View>
 
             <View style={dynamicStyles.inputGroup}>
@@ -658,33 +651,6 @@ const AccountSettings = () => {
             disabled={updating}
           />
 
-          {/* Authentication Section */}
-          <View style={dynamicStyles.section}>
-            <Text style={dynamicStyles.sectionTitle}>Authentication</Text>
-            
-            {user ? (
-              <View style={dynamicStyles.authSection}>
-                <Button
-                  title="Sign Out"
-                  onPress={handleSignOut}
-                  variant="secondary"
-                  style={dynamicStyles.signOutButton}
-                />
-              </View>
-            ) : (
-              <View style={dynamicStyles.authSection}>
-                <Text style={dynamicStyles.authPrompt}>
-                  Sign in to sync your data across devices and access premium features.
-                </Text>
-                <Button
-                  title="Sign In"
-                  onPress={() => navigation.navigate('Auth')}
-                  variant="primary"
-                  style={dynamicStyles.signInButton}
-                />
-              </View>
-            )}
-          </View>
 
           {/* Danger Zone */}
           <View style={dynamicStyles.dangerSection}>

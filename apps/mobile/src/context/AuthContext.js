@@ -2,27 +2,38 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import auth from '@react-native-firebase/auth';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
+import apiService from '../services/apiService';
+import sessionManager from '../utils/sessionManager';
+import { clearJWTToken } from '../utils/jwtAuth';
 
 const AuthContext = createContext({});
 
 // Firebase error code mapping to user-friendly messages
 const getErrorMessage = (errorCode) => {
   const errorMessages = {
-    'auth/user-not-found': 'No account exists for this email.',
-    'auth/wrong-password': 'Incorrect password.',
-    'auth/invalid-email': 'Invalid email format.',
-    'auth/user-disabled': 'This account has been disabled.',
-    'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Please check your connection.',
+    'auth/user-not-found': 'No account found with this email address. Please check your email or create a new account.',
+    'auth/wrong-password': 'Incorrect password. Please try again or reset your password.',
+    'auth/invalid-email': 'Please enter a valid email address.',
+    'auth/user-disabled': 'This account has been disabled. Please contact support.',
+    'auth/too-many-requests': 'Too many failed login attempts. Please try again later.',
+    'auth/network-request-failed': 'Network error. Please check your internet connection and try again.',
     'auth/weak-password': 'Password should be at least 6 characters.',
     'auth/email-already-in-use': 'An account with this email already exists.',
     'auth/operation-not-allowed': 'This sign-in method is not enabled.',
-    'auth/invalid-credential': 'Invalid email or password.',
+    'auth/invalid-credential': 'Invalid email or password. Please check your credentials.',
     'auth/requires-recent-login': 'Please sign in again to complete this action.',
+    'auth/invalid-verification-code': 'Invalid verification code.',
+    'auth/invalid-verification-id': 'Invalid verification ID.',
+    'auth/missing-email': 'Please enter your email address.',
+    'auth/missing-password': 'Please enter your password.',
+    'auth/quota-exceeded': 'Service temporarily unavailable. Please try again later.',
+    'auth/timeout': 'Request timed out. Please try again.',
+    'auth/unverified-email': 'Please verify your email address before signing in.',
   };
   
-  return errorMessages[errorCode] || 'An error occurred. Please try again.';
+  return errorMessages[errorCode] || 'Login failed. Please check your credentials and try again.';
 };
 
 export const AuthProvider = ({ children }) => {
@@ -34,27 +45,42 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuthState = async () => {
       try {
-        // Check if user data exists in SecureStore
-        const storedUser = await SecureStore.getItemAsync('user_data');
-        const storedToken = await SecureStore.getItemAsync('auth_token');
+        // Initialize session manager with strict validation
+        const sessionResult = await sessionManager.initialize();
         
-        if (storedUser && storedToken) {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
-          console.log('✅ User session restored from SecureStore');
+        if (sessionResult.type === 'user' && sessionResult.data && sessionResult.data.userData) {
+          const { userData } = sessionResult.data;
+          // STRICT VALIDATION - Only restore if we have real user data
+          if (userData.uid && userData.email && !userData.isGuest) {
+            setUser(userData);
+          } else {
+            await sessionManager.clearSession();
+          }
+        } else {
+          // Ensure clean state
+          setUser(null);
         }
       } catch (error) {
         console.error('Error checking stored session:', error);
-        Alert.alert('Storage Error', 'Failed to restore user session. Please login again.');
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
     checkAuthState();
+    
+    // Safety timeout - force loading to false after 5 seconds
+    const timeoutId = setTimeout(() => {
+      setIsLoading(false);
+    }, 5000);
+    
+    return () => clearTimeout(timeoutId);
+  }, []);
 
-          // Listen for Firebase auth state changes
-          const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
+  // Listen for Firebase auth state changes
+  useEffect(() => {
+    const unsubscribe = auth().onAuthStateChanged(async (firebaseUser) => {
       try {
         if (firebaseUser) {
           // User is signed in
@@ -71,27 +97,25 @@ export const AuthProvider = ({ children }) => {
             },
             providerData: firebaseUser.providerData,
           };
-
-          // Get fresh token
-          const token = await firebaseUser.getIdToken();
-          
-          // Store user data and token securely
-          await SecureStore.setItemAsync('user_data', JSON.stringify(userData));
-          await SecureStore.setItemAsync('auth_token', token);
           
           setUser(userData);
-          setError(null);
-          console.log('✅ User signed in:', userData.email);
+          
+          // Get Firebase token and store session
+          try {
+            const token = await firebaseUser.getIdToken();
+            await sessionManager.storeSession(userData, token);
+          } catch (tokenError) {
+            console.error('Error getting Firebase token:', tokenError);
+            // Still store session without token
+            await sessionManager.storeSession(userData, null);
+          }
         } else {
           // User is signed out
-          await SecureStore.deleteItemAsync('user_data');
-          await SecureStore.deleteItemAsync('auth_token');
+          await sessionManager.clearSession();
           setUser(null);
-          setError(null);
-          console.log('✅ User signed out');
         }
       } catch (error) {
-        console.error('Auth state change error:', error);
+        console.error('Error handling auth state change:', error);
         setError('Authentication error occurred');
         Alert.alert('Authentication Error', 'An error occurred with authentication. Please try again.');
       }
@@ -101,25 +125,19 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login with email and password
-        const login = async (email, password) => {
-          try {
-            setIsLoading(true);
-            setError(null);
-            
-            const userCredential = await auth().signInWithEmailAndPassword(email, password);
-            
-            // Auth state change listener will handle the rest
-            return { success: true, user: userCredential.user };
-          } catch (error) {
+  const login = async (email, password) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const userCredential = await auth().signInWithEmailAndPassword(email, password);
+      
+      // Auth state change listener will handle the rest
+      return { success: true, user: userCredential.user };
+    } catch (error) {
+      console.error('Login error:', error);
       const errorMessage = getErrorMessage(error.code);
       setError(errorMessage);
-      console.error('Login error:', error);
-      
-      // Show error popup
-      Alert.alert('Login Failed', errorMessage, [
-        { text: 'OK', style: 'default' }
-      ]);
-      
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
@@ -127,108 +145,142 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Register with email and password
-        const register = async (email, password, displayName = null) => {
-          try {
-            setIsLoading(true);
-            setError(null);
-            
-            const userCredential = await auth().createUserWithEmailAndPassword(email, password);
-            
-            // Update profile with display name if provided
-            if (displayName) {
-              await userCredential.user.updateProfile({ displayName });
-            }
-            
-            // Auth state change listener will handle the rest
-            return { success: true, user: userCredential.user };
-          } catch (error) {
-      const errorMessage = getErrorMessage(error.code);
-      setError(errorMessage);
-      console.error('Registration error:', error);
-      
-      // Show error popup
-      Alert.alert('Registration Failed', errorMessage, [
-        { text: 'OK', style: 'default' }
-      ]);
-      
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Logout
-        const logout = async () => {
-          try {
-            setIsLoading(true);
-            setError(null);
-            
-            await auth().signOut();
-            
-            // Auth state change listener will handle clearing stored data
-            return { success: true };
-          } catch (error) {
-      const errorMessage = getErrorMessage(error.code) || 'Logout failed. Please try again.';
-      setError(errorMessage);
-      console.error('Logout error:', error);
-      
-      // Show error popup
-      Alert.alert('Logout Failed', errorMessage, [
-        { text: 'OK', style: 'default' }
-      ]);
-      
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Send password reset email
-        const resetPassword = async (email) => {
-          try {
-            setIsLoading(true);
-            setError(null);
-            
-            await auth().sendPasswordResetEmail(email);
-            
-            // Show success popup
-            Alert.alert('Password Reset', 'Password reset email sent! Check your inbox.', [
-              { text: 'OK', style: 'default' }
-            ]);
-            
-            return { success: true };
-          } catch (error) {
-      const errorMessage = getErrorMessage(error.code);
-      setError(errorMessage);
-      console.error('Password reset error:', error);
-      
-      // Show error popup
-      Alert.alert('Password Reset Failed', errorMessage, [
-        { text: 'OK', style: 'default' }
-      ]);
-      
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Check if user is authenticated
-  const isAuthenticated = () => {
-    return user !== null;
-  };
-
-  // Get current user token
-  const getToken = async () => {
+  const register = async (email, password, displayName = null) => {
     try {
-      if (user && auth().currentUser) {
-        return await auth().currentUser.getIdToken();
+      setIsLoading(true);
+      setError(null);
+      
+      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
+      
+      // Update display name if provided
+      if (displayName) {
+        await userCredential.user.updateProfile({ displayName });
       }
-      return null;
+      
+      // Auth state change listener will handle the rest
+      return { success: true, user: userCredential.user };
     } catch (error) {
-      console.error('Error getting token:', error);
-      Alert.alert('Token Error', 'Failed to get authentication token. Please login again.');
-      return null;
+      console.error('Registration error:', error);
+      const errorMessage = getErrorMessage(error.code);
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Sign out
+  const signOut = async () => {
+    try {
+      setIsLoading(true);
+      await auth().signOut();
+      await sessionManager.clearSession();
+      await clearJWTToken(); // Clear JWT token as well
+      setUser(null);
+      setError(null);
+      return { success: true };
+    } catch (error) {
+      console.error('Sign out error:', error);
+      setError('Sign out failed. Please try again.');
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Reset password
+  const resetPassword = async (email) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      await auth().sendPasswordResetEmail(email);
+      return { success: true };
+    } catch (error) {
+      console.error('Password reset error:', error);
+      const errorMessage = getErrorMessage(error.code);
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Update user profile
+  const updateProfile = async (updates) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+      
+      await currentUser.updateProfile(updates);
+      
+      // Update local state
+      const updatedUserData = {
+        ...user,
+        ...updates,
+      };
+      setUser(updatedUserData);
+      await sessionManager.storeSession(updatedUserData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Profile update error:', error);
+      setError('Profile update failed. Please try again.');
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Send email verification
+  const sendEmailVerification = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+      
+      await currentUser.sendEmailVerification();
+      return { success: true };
+    } catch (error) {
+      console.error('Email verification error:', error);
+      setError('Failed to send verification email. Please try again.');
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Delete user account
+  const deleteAccount = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        throw new Error('No user logged in');
+      }
+      
+      await currentUser.delete();
+      await sessionManager.clearSession();
+      setUser(null);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Account deletion error:', error);
+      setError('Account deletion failed. Please try again.');
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -237,17 +289,61 @@ export const AuthProvider = ({ children }) => {
     setError(null);
   };
 
+  // Test authentication system
+  const testAuthSystem = async () => {
+    try {
+      const testEmail = 'test@example.com';
+      const testPassword = 'testpassword123';
+      
+      // Test registration
+      const registerResult = await register(testEmail, testPassword, 'Test User');
+      if (!registerResult.success) {
+        return { success: false, error: 'Registration test failed' };
+      }
+      
+      // Test login
+      const loginResult = await login(testEmail, testPassword);
+      if (!loginResult.success) {
+        return { success: false, error: 'Login test failed' };
+      }
+      
+      // Test sign out
+      const signOutResult = await signOut();
+      if (!signOutResult.success) {
+        return { success: false, error: 'Sign out test failed' };
+      }
+      
+      return { success: true, message: 'All authentication tests passed' };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Test password reset
+  const testPasswordReset = async (email) => {
+    try {
+      const result = await resetPassword(email);
+      return result;
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  };
+
   const value = {
     user,
     isLoading,
     error,
+    isAuthenticated: !!user,
     login,
     register,
-    logout,
+    signOut,
     resetPassword,
-    isAuthenticated,
-    getToken,
+    updateProfile,
+    sendEmailVerification,
+    deleteAccount,
     clearError,
+    testAuthSystem,
+    testPasswordReset,
   };
 
   return (
@@ -264,5 +360,3 @@ export const useAuth = () => {
   }
   return context;
 };
-
-export default AuthContext;

@@ -1,267 +1,326 @@
 # Flow API Service
 
-Backend API service for Flow v1 - A habit tracking and personal development application.
+Backend API service for Flow - A modern habit tracking and personal development application.
 
-## Overview
+## 🚀 Features
 
-This is the main API service for the Flow application, built with Node.js and Fastify. It provides RESTful endpoints for managing flows, entries, plans, user profiles, settings, and statistics.
+- **JWT Authentication**: Secure token-based authentication system
+- **Flow Management**: Create, track, and manage daily habits and flows
+- **Statistics & Analytics**: Comprehensive stats with real-time calculations
+- **Profile Management**: User profiles with validation and completeness checks
+- **Settings & Preferences**: Customizable user settings and preferences
+- **Offline Sync**: Queue-based sync for offline-first functionality
+- **Redis Caching**: High-performance caching for stats and leaderboards
+- **Rate Limiting**: Built-in protection against abuse
+- **Health Monitoring**: Comprehensive health checks and monitoring
 
-## Features
+## 🛠 Tech Stack
 
-- **Fastify Framework**: High-performance web framework
-- **Redis Caching**: Leaderboards, public data, and performance optimization
-- **Authentication**: JWT-based authentication with role-based access control
-- **Validation**: AJV schema validation for all requests/responses
-- **Rate Limiting**: Per-user and global rate limiting
-- **OpenAPI Documentation**: Auto-generated API documentation
-- **Health Checks**: Service monitoring and status endpoints
-- **Error Handling**: Comprehensive error handling with proper HTTP status codes
+- **Node.js** 18+ with Fastify framework
+- **JWT** for authentication (Firebase disabled for local development)
+- **Redis** for caching and session management
+- **PostgreSQL** for data persistence (when implemented)
+- **AJV** for request/response validation
+- **Swagger/OpenAPI** for API documentation
 
-## Architecture
+## 📱 API Endpoints
+
+### Authentication
+- `POST /v1/auth/login-simple` - Simple login with email
+- `POST /v1/auth/verify-simple` - Verify JWT token
+- `GET /v1/auth/check-username/:username` - Check username availability
+
+### Flows
+- `GET /v1/flows` - Get user's flows
+- `POST /v1/flows` - Create new flow
+- `GET /v1/flows/:id` - Get flow by ID
+- `PUT /v1/flows/:id` - Update flow
+- `DELETE /v1/flows/:id` - Delete flow
+
+### Flow Entries
+- `GET /v1/flow-entries` - Get flow entries
+- `POST /v1/flow-entries` - Create flow entry
+- `PUT /v1/flow-entries/:id` - Update flow entry
+- `DELETE /v1/flow-entries/:id` - Delete flow entry
+
+### Statistics
+- `GET /v1/stats/users/:userId` - Get user statistics
+- `GET /v1/stats/flows/:flowId/scoreboard` - Get flow scoreboard
+- `GET /v1/stats/flows/:flowId/activity` - Get flow activity stats
+- `GET /v1/stats/flows/:flowId/emotional` - Get emotional activity
+
+### Profile & Settings
+- `GET /v1/profile` - Get user profile
+- `PUT /v1/profile` - Update user profile
+- `GET /v1/profile/completeness` - Check profile completeness
+- `GET /v1/settings` - Get user settings
+- `PUT /v1/settings` - Update user settings
+
+### Health & Monitoring
+- `GET /health` - Service health check
+- `GET /health/redis` - Redis connection status
+
+## 🏗 Project Structure
 
 ```
 services/api/
 ├── src/
-│   ├── controllers/       # Route handlers per domain
-│   ├── routes/            # Route definitions and schemas
-│   ├── middleware/        # Auth, validation, error handling
-│   ├── redis/             # Redis client and utilities
-│   ├── services/          # Business logic
-│   ├── utils/             # Helper functions
-│   └── index.js           # Server bootstrap
-├── tests/                 # Unit and integration tests
-├── openapi/               # OpenAPI specifications
-├── migrations/            # Database migrations
+│   ├── controllers/          # Route handlers
+│   │   ├── flows.controller.js
+│   │   ├── flowEntries.controller.js
+│   │   ├── stats.controller.js
+│   │   ├── profile.controller.js
+│   │   └── settings.controller.js
+│   ├── routes/               # Route definitions
+│   │   ├── auth.js
+│   │   ├── flows.js
+│   │   ├── flowEntries.js
+│   │   ├── stats.js
+│   │   ├── profile.js
+│   │   └── settings.js
+│   ├── middleware/           # Middleware functions
+│   │   ├── auth.js          # JWT authentication
+│   │   ├── errorHandler.js  # Error handling
+│   │   └── requestLogger.js # Request logging
+│   ├── services/            # Business logic
+│   │   ├── notificationService.js
+│   │   ├── schedulerService.js
+│   │   └── syncQueueService.js
+│   ├── redis/               # Redis client
+│   │   ├── client.js
+│   │   └── enhanced-client.js
+│   ├── utils/               # Utility functions
+│   │   └── profileValidation.js
+│   └── index.js             # Main server file
+├── complete-server.js       # Standalone server with all endpoints
+├── migrations/              # Database migrations
+├── scripts/                 # Utility scripts
+├── tests/                   # Test files
 └── package.json
 ```
 
-## API Endpoints
-
-### Flows
-- `POST /v1/flows` - Create a new flow
-- `GET /v1/flows` - Get user's flows (paginated)
-- `GET /v1/flows/search` - Search flows
-- `GET /v1/flows/:id` - Get flow by ID
-- `PUT /v1/flows/:id` - Update flow
-- `PATCH /v1/flows/:id/archive` - Archive flow
-- `DELETE /v1/flows/:id` - Delete flow (soft delete)
-- `GET /v1/flows/:id/stats` - Get flow statistics
-
-### Flow Entries
-- `POST /v1/entries` - Create flow entry
-- `GET /v1/entries` - Get user's entries
-- `GET /v1/entries/:id` - Get entry by ID
-- `PUT /v1/entries/:id` - Update entry
-- `DELETE /v1/entries/:id` - Delete entry
-
-### Plans
-- `POST /v1/plans` - Create plan
-- `GET /v1/plans` - Get plans
-- `GET /v1/plans/:id` - Get plan by ID
-- `PUT /v1/plans/:id` - Update plan
-- `POST /v1/plans/:id/join` - Join plan
-- `POST /v1/plans/:id/leave` - Leave plan
-
-### Profiles
-- `GET /v1/profiles/:id` - Get user profile
-- `PUT /v1/profiles/:id` - Update profile
-- `GET /v1/profiles/:id/public` - Get public profile
-
-### Settings
-- `GET /v1/settings` - Get user settings
-- `PUT /v1/settings` - Update settings
-
-### Statistics
-- `GET /v1/stats/leaderboard` - Get leaderboard
-- `GET /v1/stats/user/:id` - Get user statistics
-- `GET /v1/stats/trends` - Get trend data
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
-
-- Node.js 18+ 
-- Redis server
+- Node.js 18+
+- Redis server (optional, falls back to in-memory storage)
 - npm or yarn
 
 ### Installation
 
-1. Install dependencies:
+1. **Install dependencies:**
 ```bash
-yarn install
+npm install
 ```
 
-2. Set environment variables:
+2. **Set up environment:**
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+cp env.template.secure .env.local
+# Edit .env.local with your configuration
 ```
 
-3. Start Redis server:
+3. **Start Redis (optional):**
 ```bash
 redis-server
 ```
 
-4. Start the development server:
+4. **Start the server:**
 ```bash
-yarn dev
+# Development mode
+npm run dev
+
+# Production mode
+npm start
+
+# Standalone server (includes all endpoints)
+node complete-server.js
 ```
 
-The API will be available at `http://localhost:4000`
+The API will be available at `http://localhost:4003`
 
-## Environment Variables
+## 🔧 Environment Configuration
 
+### Local Development (.env.local)
 ```bash
 # Server Configuration
-PORT=4000
-HOST=0.0.0.0
 NODE_ENV=development
+HOST=0.0.0.0
+PORT=4003
+LOG_LEVEL=debug
 
-# Redis Configuration
+# Database Configuration (Local PostgreSQL)
+DB_NAME=flow_dev
+DB_USER=postgres
+DB_PASSWORD=password
+DB_HOST=localhost
+DB_PORT=5432
+DB_SSL=false
+PGSSLMODE=disable
+
+# Redis Configuration (Local Redis)
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=
 REDIS_DB=0
 
-# Authentication
-JWT_SECRET=your-jwt-secret
+# Authentication - JWT is the primary method
+AUTH_PROVIDER=jwt-only
+JWT_SECRET=Flow-dev-secret-key-2024
 JWT_EXPIRES_IN=7d
+PRIORITIZE_JWT=true
 
-# Database (when implemented)
-DATABASE_URL=postgresql://user:password@localhost:5432/flow
+# Firebase Configuration (Disabled for local development)
+# FIREBASE_PROJECT_ID=your_project_id_here
+# FIREBASE_CLIENT_EMAIL=your_service_account_email_here
+# FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour Firebase Private Key\n-----END PRIVATE KEY-----\n"
 
-# External Services
-FIREBASE_PROJECT_ID=your-firebase-project
-FIREBASE_PRIVATE_KEY=your-firebase-private-key
+# API Configuration
+VALID_API_KEYS=dev-api-key-123
+API_RATE_LIMIT_MAX=1000
+API_RATE_LIMIT_WINDOW=60000
+
+# CORS Configuration (Allow localhost for development)
+CORS_ORIGIN=http://localhost:3000,http://localhost:8081,exp://localhost:8081
+
+# Cache Configuration
+CACHE_TTL_FLOW=3600
+CACHE_TTL_USER=1800
+CACHE_TTL_LEADERBOARD=86400
+
+# Logging
+LOG_FORMAT=json
 ```
 
-## Development
+## 🔐 Authentication
 
-### Available Scripts
-
-- `yarn dev` - Start development server with hot reload
-- `yarn start` - Start production server
-- `yarn lint` - Run ESLint
-- `yarn test` - Run tests
-- `yarn test:watch` - Run tests in watch mode
-- `yarn test:coverage` - Run tests with coverage
-- `yarn clean` - Clean build artifacts
-
-### Project Structure
-
-#### Controllers
-Controllers handle HTTP requests and responses. They should be thin and delegate business logic to services.
-
-```javascript
-// Example controller method
-const createFlow = async (request, reply) => {
-  const { user } = request;
-  const flowData = request.body;
-  
-  const flow = await flowService.createFlow(user.id, flowData);
-  
-  return reply.status(201).send({
-    success: true,
-    data: flow,
-    message: 'Flow created successfully'
-  });
-};
-```
-
-#### Routes
-Routes define API endpoints with validation schemas and middleware.
-
-```javascript
-// Example route definition
-fastify.post('/', {
-  preHandler: [requireAuth, validateFlowData],
-  schema: {
-    description: 'Create a new flow',
-    tags: ['flows'],
-    body: {
-      type: 'object',
-      required: ['title', 'trackingType'],
-      properties: {
-        title: { type: 'string', minLength: 1 },
-        trackingType: { type: 'string', enum: ['Binary', 'Quantitative'] }
-      }
-    }
-  }
-}, createFlow);
-```
-
-#### Middleware
-Middleware handles cross-cutting concerns like authentication, validation, and error handling.
-
-#### Services
-Services contain business logic and data access. They should be database-agnostic and testable.
-
-#### Redis Utilities
-Redis utilities provide caching and session management.
-
-## Testing
-
-### Unit Tests
-Test individual functions and services:
-
-```bash
-yarn test src/services/flowService.test.js
-```
-
-### Integration Tests
-Test API endpoints:
-
-```bash
-yarn test tests/integration/flows.test.js
-```
-
-### Test Coverage
-Generate coverage reports:
-
-```bash
-yarn test:coverage
-```
-
-## API Documentation
-
-### Swagger UI
-Visit `http://localhost:4000/docs` for interactive API documentation.
-
-### OpenAPI Specification
-The OpenAPI specification is auto-generated and available at:
-- JSON: `http://localhost:4000/docs/json`
-- YAML: `http://localhost:4000/docs/yaml`
-
-## Authentication
-
-### JWT Tokens
+### JWT Authentication
 The API uses JWT tokens for authentication. Include the token in the Authorization header:
 
 ```bash
 curl -H "Authorization: Bearer your-jwt-token" \
-     http://localhost:4000/v1/flows
+     http://localhost:4003/v1/flows
 ```
 
-### Mock Authentication
-For development, the API includes mock authentication with these test tokens:
-- `valid-user-token` - Regular user
-- `valid-admin-token` - Admin user
+### Simple Login Flow
+1. User provides email (password ignored in simple login)
+2. Server generates JWT token with user ID
+3. Client stores token and includes in subsequent requests
+4. Server validates token on each request
 
-## Error Handling
+### User ID Generation
+User IDs are generated using MD5 hash of email for consistency:
+```javascript
+const userId = crypto.createHash('md5').update(email).digest('hex');
+```
 
-The API returns consistent error responses:
+## 📊 Data Storage
 
+### Current Implementation
+- **File-based storage**: `data.json` for development
+- **In-memory storage**: Fallback when Redis unavailable
+- **Redis caching**: For performance optimization
+
+### Future Implementation
+- **PostgreSQL**: For production data persistence
+- **Redis**: For caching and session management
+- **Cloud SQL**: For production deployment
+
+## 🧪 Testing
+
+### Run Tests
+```bash
+# All tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# Coverage
+npm run test:coverage
+
+# Configuration tests
+npm run test:config
+```
+
+### Test Structure
+- `tests/unit/` - Unit tests for individual functions
+- `tests/integration/` - Integration tests for API endpoints
+- `tests/config/` - Configuration and environment tests
+
+## 📈 Monitoring & Health Checks
+
+### Health Endpoints
+- `GET /health` - Basic service health
+- `GET /health/redis` - Redis connection status
+- `GET /health/db` - Database connection status (when implemented)
+
+### Logging
+- Structured JSON logging
+- Request/response logging
+- Error tracking and monitoring
+
+## 🚀 Deployment
+
+### Development
+```bash
+# Start with file-based storage
+node complete-server.js
+
+# Start with Redis
+REDIS_HOST=localhost node complete-server.js
+```
+
+### Production
+```bash
+# Build and start
+npm run build
+npm start
+
+# With environment variables
+NODE_ENV=production npm start
+```
+
+### Docker
+```bash
+# Build image
+docker build -t flow-api .
+
+# Run container
+docker run -p 4003:4003 flow-api
+```
+
+## 🔧 Development Scripts
+
+- `npm run dev` - Start development server with hot reload
+- `npm start` - Start production server
+- `npm run lint` - Run ESLint
+- `npm test` - Run tests
+- `npm run test:watch` - Run tests in watch mode
+- `npm run test:coverage` - Run tests with coverage
+- `npm run clean` - Clean build artifacts
+- `npm run openapi:generate` - Generate OpenAPI documentation
+
+## 📝 API Documentation
+
+### Swagger UI
+Visit `http://localhost:4003/docs` for interactive API documentation.
+
+### OpenAPI Specification
+- JSON: `http://localhost:4003/docs/json`
+- YAML: `http://localhost:4003/docs/yaml`
+
+## 🔍 Error Handling
+
+### Error Response Format
 ```json
 {
   "success": false,
-  "error": "Validation failed",
-  "message": "Invalid request data",
-  "errors": ["title is required"],
-  "code": "VALIDATION_ERROR"
+  "error": "Error type",
+  "message": "Human-readable error message",
+  "code": "ERROR_CODE"
 }
 ```
 
-### Error Codes
+### Common Error Codes
 - `VALIDATION_ERROR` - Request validation failed
 - `NOT_FOUND` - Resource not found
 - `UNAUTHORIZED` - Authentication required
@@ -270,67 +329,17 @@ The API returns consistent error responses:
 - `RATE_LIMIT_EXCEEDED` - Too many requests
 - `INTERNAL_ERROR` - Server error
 
-## Rate Limiting
+## 🚀 Recent Updates
 
-The API implements rate limiting:
-- Global: 100 requests per minute
-- Per user: Configurable per endpoint
-- Redis-backed for distributed systems
+- ✅ **JWT-only authentication** - Firebase disabled for local development
+- ✅ **Consistent user IDs** - MD5-based user identification
+- ✅ **Profile validation** - Username uniqueness and completeness checks
+- ✅ **Comprehensive stats** - Real-time statistics and analytics
+- ✅ **Offline sync** - Queue-based sync for offline functionality
+- ✅ **Redis caching** - Performance optimization with fallback
+- ✅ **Health monitoring** - Comprehensive health checks
+- ✅ **Code cleanup** - Removed outdated documentation and scripts
 
-## Caching
+## 📄 License
 
-### Redis Cache Keys
-- `flow:{id}` - Individual flows (1 hour TTL)
-- `user:{id}:flows` - User's flows (30 minutes TTL)
-- `leaderboard:global` - Global leaderboard (24 hours TTL)
-- `stats:{userId}` - User statistics (1 hour TTL)
-
-### Cache Strategy
-- Write-through for critical data
-- TTL-based expiration
-- Cache invalidation on updates
-
-## Deployment
-
-### Production Build
-```bash
-yarn build
-yarn start
-```
-
-### Docker
-```bash
-docker build -t flow-api .
-docker run -p 4000:4000 flow-api
-```
-
-### Environment Setup
-1. Set `NODE_ENV=production`
-2. Configure Redis cluster
-3. Set up database connections
-4. Configure monitoring and logging
-
-## Monitoring
-
-### Health Checks
-- `GET /health` - Service health status
-- `GET /health/redis` - Redis connection status
-- `GET /health/db` - Database connection status
-
-### Metrics
-- Request count and duration
-- Error rates
-- Cache hit/miss ratios
-- Database query performance
-
-## Contributing
-
-1. Follow the coding guidelines in `prompt/CODING_GUIDELINES.md`
-2. Write tests for new features
-3. Update API documentation
-4. Ensure all tests pass
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
+This project is part of the Flow ecosystem. See the main project README for license information.

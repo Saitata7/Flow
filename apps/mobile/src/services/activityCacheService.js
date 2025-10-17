@@ -142,6 +142,14 @@ class ActivityCacheService {
 
       // Download updated cache from backend
       console.log('📥 Downloading updated activity cache from backend...');
+      
+      // Check authentication before making API call
+      const isAuthenticated = await apiService.isUserAuthenticated();
+      if (!isAuthenticated) {
+        console.log('User not authenticated, skipping activity cache download');
+        return;
+      }
+      
       const downloadResponse = await apiService.getUserSettings();
       
       if (downloadResponse.success && downloadResponse.data.activityCache) {

@@ -57,9 +57,9 @@ describe('Environment Configuration Tests', () => {
   });
 
   describe('Database Configuration', () => {
-    test('should have Cloud SQL format for DB_HOST', () => {
-      expect(testEnv.DB_HOST).toMatch(/^\/cloudsql\/.+/);
-      expect(testEnv.DB_HOST).toBe('/cloudsql/quick-doodad-472200-k0:us-central1:db-f1-micro');
+    test('should have Cloud SQL IP for DB_HOST', () => {
+      expect(testEnv.DB_HOST).toMatch(/^\d+\.\d+\.\d+\.\d+$/);
+      expect(testEnv.DB_HOST).toBe('34.63.78.153');
     });
 
     test('should have correct database port', () => {
@@ -67,11 +67,11 @@ describe('Environment Configuration Tests', () => {
     });
 
     test('should have database name', () => {
-      expect(testEnv.DB_NAME).toBe('flow_prod');
+      expect(testEnv.DB_NAME).toBe('flow');
     });
 
     test('should have database user', () => {
-      expect(testEnv.DB_USER).toBe('db_f1_micro');
+      expect(testEnv.DB_USER).toBe('flow_user');
     });
 
     test('should have database password', () => {
@@ -79,8 +79,8 @@ describe('Environment Configuration Tests', () => {
       expect(testEnv.DB_PASSWORD.length).toBeGreaterThan(0);
     });
 
-    test('should have SSL enabled', () => {
-      expect(testEnv.DB_SSL).toBe('true');
+    test('should have SSL disabled', () => {
+      expect(testEnv.DB_SSL).toBe('false');
     });
   });
 

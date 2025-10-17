@@ -1,0 +1,282 @@
+{
+  "id": "flow-api-production-env",
+  "name": "Flow API - Production Environment",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "https://flow-api-891963913698.us-central1.run.app",
+      "type": "default",
+      "enabled": true,
+      "description": "Production Cloud Run API URL"
+    },
+    {
+      "key": "api_version",
+      "value": "v1",
+      "type": "default",
+      "enabled": true,
+      "description": "API version prefix"
+    },
+    {
+      "key": "auth_token",
+      "value": "{{firebase_token}}",
+      "type": "secret",
+      "enabled": true,
+      "description": "Firebase ID token for authentication (use firebase_token variable)"
+    },
+    {
+      "key": "firebase_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true,
+      "description": "Firebase ID token from mobile app (get from Firebase Auth console or mobile app logs)"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true,
+      "description": "JWT token for fallback authentication"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Real user ID from Firebase Auth (extracted from token)"
+    },
+    {
+      "key": "user_email",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "User email from Firebase Auth"
+    },
+    {
+      "key": "flow_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Flow ID (auto-set when creating flows)"
+    },
+    {
+      "key": "plan_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Plan ID (auto-set when creating plans)"
+    },
+    {
+      "key": "flow_entry_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Flow entry ID (auto-set when creating entries)"
+    },
+    {
+      "key": "notification_id",
+      "value": "",
+      "type": "default",
+      "enabled": true,
+      "description": "Notification ID (auto-set when getting notifications)"
+    },
+    {
+      "key": "firebase_project_id",
+      "value": "quick-doodad-472200-k0",
+      "type": "default",
+      "enabled": true,
+      "description": "Firebase project ID"
+    },
+    {
+      "key": "gcp_project_id",
+      "value": "quick-doodad-472200-k0",
+      "type": "default",
+      "enabled": true,
+      "description": "GCP project ID"
+    },
+    {
+      "key": "gcp_region",
+      "value": "us-central1",
+      "type": "default",
+      "enabled": true,
+      "description": "GCP region for Cloud Run and other services"
+    },
+    {
+      "key": "cloud_run_service",
+      "value": "flow-prod",
+      "type": "default",
+      "enabled": true,
+      "description": "Cloud Run service name"
+    },
+    {
+      "key": "cloud_run_url",
+      "value": "https://flow-api-891963913698.us-central1.run.app",
+      "type": "default",
+      "enabled": true,
+      "description": "Full Cloud Run service URL"
+    },
+    {
+      "key": "cloud_sql_host",
+      "value": "34.63.78.153",
+      "type": "default",
+      "enabled": true,
+      "description": "Cloud SQL instance host (PostgreSQL)"
+    },
+    {
+      "key": "cloud_sql_port",
+      "value": "5432",
+      "type": "default",
+      "enabled": true,
+      "description": "Cloud SQL instance port"
+    },
+    {
+      "key": "cloud_sql_database",
+      "value": "flow",
+      "type": "default",
+      "enabled": true,
+      "description": "Cloud SQL database name"
+    },
+    {
+      "key": "cloud_sql_user",
+      "value": "flow_user",
+      "type": "default",
+      "enabled": true,
+      "description": "Cloud SQL database user"
+    },
+    {
+      "key": "redis_host",
+      "value": "10.58.145.227",
+      "type": "default",
+      "enabled": true,
+      "description": "Redis MemoryStore host"
+    },
+    {
+      "key": "redis_port",
+      "value": "6379",
+      "type": "default",
+      "enabled": true,
+      "description": "Redis MemoryStore port"
+    },
+    {
+      "key": "redis_db",
+      "value": "0",
+      "type": "default",
+      "enabled": true,
+      "description": "Redis database number"
+    },
+    {
+      "key": "api_key",
+      "value": "flow-prod-api-key-2024",
+      "type": "secret",
+      "enabled": true,
+      "description": "API key for production access"
+    },
+    {
+      "key": "jwt_secret",
+      "value": "Flow-prod-secret-key-2024",
+      "type": "secret",
+      "enabled": true,
+      "description": "JWT secret key for token signing"
+    },
+    {
+      "key": "cors_origin",
+      "value": "https://flow.app,https://app.flow.com",
+      "type": "default",
+      "enabled": true,
+      "description": "Allowed CORS origins"
+    },
+    {
+      "key": "cache_ttl_flow",
+      "value": "3600",
+      "type": "default",
+      "enabled": true,
+      "description": "Flow cache TTL in seconds"
+    },
+    {
+      "key": "cache_ttl_user",
+      "value": "1800",
+      "type": "default",
+      "enabled": true,
+      "description": "User cache TTL in seconds"
+    },
+    {
+      "key": "cache_ttl_leaderboard",
+      "value": "86400",
+      "type": "default",
+      "enabled": true,
+      "description": "Leaderboard cache TTL in seconds"
+    },
+    {
+      "key": "test_flow_title",
+      "value": "Real Flow {{$timestamp}}",
+      "type": "default",
+      "enabled": true,
+      "description": "Real flow title with timestamp for testing"
+    },
+    {
+      "key": "test_plan_title",
+      "value": "Real Plan {{$timestamp}}",
+      "type": "default",
+      "enabled": true,
+      "description": "Real plan title with timestamp for testing"
+    },
+    {
+      "key": "test_flow_description",
+      "value": "Real flow description for testing API endpoints",
+      "type": "default",
+      "enabled": true,
+      "description": "Test flow description"
+    },
+    {
+      "key": "test_plan_description",
+      "value": "Real plan description for testing API endpoints",
+      "type": "default",
+      "enabled": true,
+      "description": "Test plan description"
+    },
+    {
+      "key": "auth_provider",
+      "value": "firebase",
+      "type": "default",
+      "enabled": true,
+      "description": "Authentication provider (firebase/jwt)"
+    },
+    {
+      "key": "allow_unauthenticated",
+      "value": "false",
+      "type": "default",
+      "enabled": true,
+      "description": "Whether to allow unauthenticated requests"
+    },
+    {
+      "key": "node_env",
+      "value": "production",
+      "type": "default",
+      "enabled": true,
+      "description": "Node.js environment"
+    },
+    {
+      "key": "log_level",
+      "value": "info",
+      "type": "default",
+      "enabled": true,
+      "description": "Logging level"
+    },
+    {
+      "key": "port",
+      "value": "8080",
+      "type": "default",
+      "enabled": true,
+      "description": "Server port"
+    },
+    {
+      "key": "host",
+      "value": "0.0.0.0",
+      "type": "default",
+      "enabled": true,
+      "description": "Server host"
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2025-01-07T21:30:00.000Z",
+  "_postman_exported_using": "Postman/10.0.0"
+}

@@ -5,16 +5,19 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import auth from '@react-native-firebase/auth';
+import auth, { getApp } from '@react-native-firebase/auth';
+import apiClient from './apiClient'; // Use the new auto-refresh API client
+import { config } from '../config/environment';
+import logger from '../utils/logger';
 
 // API Configuration
 const API_CONFIG = {
-  baseURL: __DEV__ 
-    ? 'http://10.0.10.94:4000/v1'  // Local development server
-    : 'https://api.flow.app/v1',  // Production custom domain
-  timeout: 15000,
+  baseURL: config.API_BASE_URL,  // Use environment configuration
+  timeout: 30000,  // Increased timeout to 30 seconds
   retryAttempts: 3,
   retryDelay: 1000,
+  // Dev token for development testing only
+  DEV_TOKEN: 'dev-token',
 };
 
 // Storage keys for offline data
@@ -43,29 +46,34 @@ class ApiService {
    * Initialize axios client with interceptors
    */
   initializeClient() {
-    this.client = axios.create({
-      baseURL: API_CONFIG.baseURL,
-      timeout: API_CONFIG.timeout,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Client-Version': '1.0.0',
-        'X-Platform': 'mobile',
-      },
-    });
+    logger.log('🌐 Initializing API client with baseURL:', API_CONFIG.baseURL);
+    logger.log('🌐 Environment:', __DEV__ ? 'DEVELOPMENT' : 'PRODUCTION');
+    
+    // Use the validated apiClient instead of creating our own
+    this.client = apiClient;
 
     // Request interceptor - Add auth token
     this.client.interceptors.request.use(
       async (config) => {
+        logger.log('🚀 Making API request to:', config.url);
+        logger.log('🚀 Full URL:', config.baseURL + config.url);
+        
         try {
-          const token = await this.getAuthToken();
+          // Get JWT auth token
+          const token = await this.getAuthToken(false);
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-            console.log('API Request: Added auth token:', token.substring(0, 10) + '...');
+            logger.log('✅ API Request: Added JWT auth token:', token.substring(0, 10) + '...');
           } else {
-            console.log('API Request: No auth token available');
+            logger.log('ℹ️ API Request: No JWT auth token available - skipping auth token');
+            // Don't cancel the request, just skip adding auth token
+            return config;
           }
         } catch (error) {
-          console.error('Error getting auth token:', error);
+          logger.error('❌ Error getting auth token:', error);
+          // Don't cancel the request, just skip adding auth token
+          logger.log('ℹ️ API Request: Skipping auth token due to error, continuing with request');
+          return config;
         }
         return config;
       },
@@ -76,17 +84,35 @@ class ApiService {
     this.client.interceptors.response.use(
       (response) => response,
       async (error) => {
+        // Don't log CanceledError as it's expected behavior when not authenticated
+        if (error.name === 'CanceledError') {
+          return Promise.reject(error);
+        }
+        
         // Handle 401 errors with token refresh
         if (error.response?.status === 401 && !error.config._retry) {
+          logger.log('🔄 401 error detected, attempting token refresh...');
           try {
             const refreshedToken = await this.getAuthToken(true);
             if (refreshedToken) {
+              logger.log('✅ Token refreshed successfully, retrying request');
               error.config.headers.Authorization = `Bearer ${refreshedToken}`;
               error.config._retry = true;
               return this.client.request(error.config);
+            } else {
+              logger.log('ℹ️ Token refresh failed - user not authenticated (expected)');
+              // Don't treat this as an error if user is not authenticated
+              const cancelError = new Error('Request canceled - user not authenticated');
+              cancelError.name = 'CanceledError';
+              cancelError.code = 'CANCELED';
+              return Promise.reject(cancelError);
             }
           } catch (refreshError) {
-            console.error('Token refresh failed:', refreshError);
+            logger.log('ℹ️ Token refresh failed - user not authenticated (expected)');
+            const cancelError = new Error('Request canceled - user not authenticated');
+            cancelError.name = 'CanceledError';
+            cancelError.code = 'CANCELED';
+            return Promise.reject(cancelError);
           }
         }
         
@@ -99,18 +125,63 @@ class ApiService {
   }
 
   /**
+   * Test API connection and token validation
+   */
+  async testApiConnection() {
+    try {
+      logger.log('🧪 Testing API connection...');
+      const token = await this.getAuthToken(false);
+      if (!token) {
+        logger.log('❌ No token available for API test');
+        return { success: false, error: 'No authentication token' };
+      }
+
+      const response = await this.client.get('/health');
+      logger.log('✅ API connection test successful:', response.data);
+      return { success: true, data: response.data };
+    } catch (error) {
+      logger.error('❌ API connection test failed:', error);
+      return { 
+        success: false, 
+        error: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      };
+    }
+  }
+
+  /**
+   * Check if user is authenticated
+   */
+  async isAuthenticated() {
+    try {
+      const token = await this.getAuthToken();
+      return !!token;
+    } catch (error) {
+      logger.error('Error checking authentication:', error);
+      return false;
+    }
+  }
+
+  /**
    * Setup network connectivity listener
    */
   setupNetworkListener() {
-    NetInfo.addEventListener(state => {
+    NetInfo.addEventListener(async (state) => {
       const wasOnline = this.isOnline;
       this.isOnline = state.isConnected && state.isInternetReachable;
       
       if (!wasOnline && this.isOnline) {
-        console.log('🌐 Network connected - triggering sync');
-        this.triggerSync();
+        logger.log('🌐 Network connected - checking if sync is possible');
+        // Only trigger sync if user is authenticated
+        if (await this.canSync()) {
+          logger.log('🌐 Network connected - triggering sync');
+          this.triggerSync();
+        } else {
+          logger.log('🌐 Network connected - sync skipped (not authenticated)');
+        }
       } else if (wasOnline && !this.isOnline) {
-        console.log('📱 Network disconnected - switching to offline mode');
+        logger.log('📱 Network disconnected - switching to offline mode');
       }
     });
   }
@@ -128,42 +199,135 @@ class ApiService {
       this.syncEnabled = syncEnabled !== 'false';
       this.lastSyncTime = lastSync ? new Date(lastSync) : null;
       
-      console.log('📱 Sync settings loaded:', { 
+      logger.log('📱 Sync settings loaded:', { 
         enabled: this.syncEnabled, 
         lastSync: this.lastSyncTime 
       });
     } catch (error) {
-      console.error('Error loading sync settings:', error);
+      logger.error('Error loading sync settings:', error);
     }
   }
 
   /**
-   * Get authentication token from Firebase Auth with automatic refresh
+   * Debug authentication state
+   */
+  async debugAuthState() {
+    logger.log('🔍 === AUTHENTICATION DEBUG ===');
+    
+    try {
+      const currentUser = auth().currentUser;
+      logger.log('🔍 Firebase currentUser:', currentUser ? {
+        uid: currentUser.uid,
+        email: currentUser.email,
+        emailVerified: currentUser.emailVerified
+      } : 'null');
+      
+      const token = await this.getAuthToken();
+      logger.log('🔍 Auth token:', token ? `${token.substring(0, 20)}...` : 'null');
+      
+      const isAuth = await this.isUserAuthenticated();
+      logger.log('🔍 Is authenticated:', isAuth);
+      
+      logger.log('🔍 === END AUTH DEBUG ===');
+      
+      return {
+        hasFirebaseUser: !!currentUser,
+        hasToken: !!token,
+        isAuthenticated: isAuth
+      };
+    } catch (error) {
+      logger.error('🔍 Auth debug error:', error);
+      return {
+        hasFirebaseUser: false,
+        hasToken: false,
+        isAuthenticated: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Check if user is properly authenticated
+   */
+  async isUserAuthenticated() {
+    try {
+      logger.log('🔍 === JWT AUTHENTICATION CHECK START ===');
+      
+      // Check if we have a valid JWT token
+      const { getJWTTokenInfo } = require('../utils/jwtAuth');
+      const tokenInfo = await getJWTTokenInfo();
+      
+      if (!tokenInfo || !tokenInfo.valid) {
+        logger.log('❌ JWT Authentication check: No valid JWT token');
+        logger.log('❌ SOLUTION: User must login with JWT authentication');
+        logger.log('❌ Go to Login screen and enter email/password');
+        return false;
+      }
+
+      logger.log('✅ JWT token found:', {
+        userId: tokenInfo.userData?.id,
+        email: tokenInfo.userData?.email,
+        valid: tokenInfo.valid,
+        expiresAt: tokenInfo.expiresAt
+      });
+
+      // Check if user has required data
+      if (!tokenInfo.userData?.id || !tokenInfo.userData?.email) {
+        logger.log('❌ JWT Authentication check: User data incomplete');
+        logger.log('❌ SOLUTION: User must login again');
+        return false;
+      }
+
+      logger.log('✅ JWT Authentication check: User is properly authenticated');
+      logger.log('🔍 === JWT AUTHENTICATION CHECK END ===');
+      return true;
+      
+    } catch (error) {
+      logger.error('❌ JWT Authentication check failed:', error);
+      logger.error('❌ SOLUTION: Check JWT configuration and user login');
+      return false;
+    }
+  }
+
+  /**
+   * Wait for JWT authentication to be ready
+   */
+  async waitForAuthReady() {
+    try {
+      // Check if JWT token is available
+      const token = await this.getAuthToken();
+      if (token) {
+        logger.log('🔍 JWT token available');
+        return { id: 'jwt-user', email: 'jwt@user.com' }; // Return a mock user object
+      } else {
+        logger.log('🔍 No JWT token available');
+        return null;
+      }
+    } catch (error) {
+      logger.error('Error waiting for auth ready:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get authentication token from Firebase Auth with strict validation
    */
   async getAuthToken(forceRefresh = false) {
     try {
-      const user = auth().currentUser;
-      if (user) {
-        const token = await user.getIdToken(forceRefresh);
+      // Get JWT token from storage
+      const { getStoredJWTToken } = require('../utils/jwtAuth');
+      const token = await getStoredJWTToken();
+      
+      if (token) {
+        logger.log('✅ JWT token retrieved successfully, length:', token.length);
+        logger.log('✅ Token preview:', token.substring(0, 20) + '...');
         return token;
+      } else {
+        logger.log('ℹ️ No JWT token found in storage');
+        return null;
       }
-      
-      // For development, use dev-token when no Firebase user is available
-      if (__DEV__) {
-        console.log('No Firebase user available, using dev-token for development');
-        return 'dev-token';
-      }
-      
-      return null;
     } catch (error) {
-      console.error('Error getting auth token:', error);
-      
-      // For development, fallback to dev-token on error
-      if (__DEV__) {
-        console.log('Firebase auth error, using dev-token for development');
-        return 'dev-token';
-      }
-      
+      logger.error('❌ Error getting JWT token:', error);
       return null;
     }
   }
@@ -193,7 +357,7 @@ class ApiService {
     this.retryCount++;
     const delay = API_CONFIG.retryDelay * Math.pow(2, this.retryCount - 1);
     
-    console.log(`🔄 Retrying request (attempt ${this.retryCount}/${API_CONFIG.retryAttempts}) in ${delay}ms`);
+    logger.log(`🔄 Retrying request (attempt ${this.retryCount}/${API_CONFIG.retryAttempts}) in ${delay}ms`);
     
     await new Promise(resolve => setTimeout(resolve, delay));
     return this.client.request(config);
@@ -203,6 +367,15 @@ class ApiService {
    * Handle API errors with user-friendly messages
    */
   handleError(error) {
+    logger.log('🔍 Full error details:', {
+      message: error.message,
+      code: error.code,
+      request: error.request,
+      response: error.response,
+      config: error.config,
+      stack: error.stack
+    });
+    
     const errorResponse = {
       message: 'An error occurred',
       code: error.code || 'UNKNOWN_ERROR',
@@ -248,7 +421,15 @@ class ApiService {
       errorResponse.code = 'NETWORK_ERROR';
     } else {
       // Other error
-      errorResponse.message = error.message || 'Unknown error occurred';
+      if (error.message === 'No authentication token available' || error.message === 'Request canceled - no authentication token') {
+        errorResponse.message = 'User not authenticated';
+        errorResponse.code = 'NOT_AUTHENTICATED';
+      } else if (error.code === 'CANCELED') {
+        errorResponse.message = 'Request canceled - no authentication';
+        errorResponse.code = 'CANCELED';
+      } else {
+        errorResponse.message = error.message || 'Unknown error occurred';
+      }
     }
 
     return errorResponse;
@@ -262,7 +443,14 @@ class ApiService {
     await AsyncStorage.setItem(STORAGE_KEYS.SYNC_ENABLED, enabled.toString());
     
     if (enabled && this.isOnline) {
-      this.triggerSync();
+      logger.log('🔄 Sync enabled - checking if sync is possible');
+      // Only trigger sync if user is authenticated
+      if (await this.canSync()) {
+        logger.log('🔄 Sync enabled - triggering sync');
+        this.triggerSync();
+      } else {
+        logger.log('🔄 Sync enabled - sync skipped (not authenticated)');
+      }
     }
   }
 
@@ -270,8 +458,21 @@ class ApiService {
    * Check if sync is enabled and user is authenticated
    */
   async canSync() {
+    // Wait for Firebase auth to be ready
+    await this.waitForAuthReady();
+    
     const token = await this.getAuthToken();
-    return this.syncEnabled && this.isOnline && !!token;
+    const canSyncResult = this.syncEnabled && this.isOnline && !!token;
+    
+    logger.log('🔍 ApiService.canSync() detailed check:', {
+      syncEnabled: this.syncEnabled,
+      isOnline: this.isOnline,
+      hasToken: !!token,
+      tokenPreview: token ? token.substring(0, 20) + '...' : 'null',
+      canSync: canSyncResult
+    });
+    
+    return canSyncResult;
   }
 
   /**
@@ -288,14 +489,14 @@ class ApiService {
       });
       
       await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SYNC, JSON.stringify(queue));
-      console.log('📝 Added to sync queue:', operation.type);
+      logger.log('📝 Added to sync queue:', operation.type);
       
       // Trigger sync if online
       if (await this.canSync()) {
         this.triggerSync();
       }
     } catch (error) {
-      console.error('Error adding to sync queue:', error);
+      logger.error('Error adding to sync queue:', error);
     }
   }
 
@@ -307,7 +508,7 @@ class ApiService {
       const queueData = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SYNC);
       return queueData ? JSON.parse(queueData) : [];
     } catch (error) {
-      console.error('Error getting sync queue:', error);
+      logger.error('Error getting sync queue:', error);
       return [];
     }
   }
@@ -318,9 +519,9 @@ class ApiService {
   async clearSyncQueue() {
     try {
       await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_SYNC);
-      console.log('🧹 Sync queue cleared');
+      logger.log('🧹 Sync queue cleared');
     } catch (error) {
-      console.error('Error clearing sync queue:', error);
+      logger.error('Error clearing sync queue:', error);
     }
   }
 
@@ -329,12 +530,12 @@ class ApiService {
    */
   async triggerSync() {
     if (!(await this.canSync())) {
-      console.log('⏸️ Sync skipped - not online or disabled');
+      logger.log('⏸️ Sync skipped - not online or disabled');
       return;
     }
 
     try {
-      console.log('🔄 Starting sync process...');
+      logger.log('🔄 Starting sync process...');
       
       // Process sync queue
       await this.processSyncQueue();
@@ -346,9 +547,9 @@ class ApiService {
       this.lastSyncTime = new Date();
       await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC, this.lastSyncTime.toISOString());
       
-      console.log('✅ Sync completed successfully');
+      logger.log('✅ Sync completed successfully');
     } catch (error) {
-      console.error('❌ Sync failed:', error);
+      logger.error('❌ Sync failed:', error);
     }
   }
 
@@ -359,7 +560,7 @@ class ApiService {
     const queue = await this.getSyncQueue();
     if (queue.length === 0) return;
 
-    console.log(`📤 Processing ${queue.length} pending operations...`);
+    logger.log(`📤 Processing ${queue.length} pending operations...`);
 
     for (const operation of queue) {
       try {
@@ -369,9 +570,9 @@ class ApiService {
         const updatedQueue = queue.filter(op => op.id !== operation.id);
         await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SYNC, JSON.stringify(updatedQueue));
         
-        console.log(`✅ Synced operation: ${operation.type}`);
+        logger.log(`✅ Synced operation: ${operation.type}`);
       } catch (error) {
-        console.error(`❌ Failed to sync operation ${operation.type}:`, error);
+        logger.error(`❌ Failed to sync operation ${operation.type}:`, error);
         
         // Increment retry count
         operation.retryCount = (operation.retryCount || 0) + 1;
@@ -380,7 +581,7 @@ class ApiService {
         if (operation.retryCount >= 3) {
           const updatedQueue = queue.filter(op => op.id !== operation.id);
           await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SYNC, JSON.stringify(updatedQueue));
-          console.log(`🗑️ Removed failed operation after max retries: ${operation.type}`);
+          logger.log(`🗑️ Removed failed operation after max retries: ${operation.type}`);
         }
       }
     }
@@ -421,14 +622,14 @@ class ApiService {
    */
   async pullLatestData() {
     try {
-      console.log('📥 Pulling latest data from server...');
+      logger.log('📥 Pulling latest data from server...');
       
       // Get flows
       const flowsResponse = await this.getFlows();
       if (flowsResponse.success) {
         // Update local storage with server data
         await AsyncStorage.setItem('flows', JSON.stringify(flowsResponse.data));
-        console.log(`📥 Synced ${flowsResponse.data.length} flows from server`);
+        logger.log(`📥 Synced ${flowsResponse.data.length} flows from server`);
       }
       
       // Get flow entries for last 30 days
@@ -440,11 +641,11 @@ class ApiService {
       if (entriesResponse.success) {
         // Merge entries with local flows
         await this.mergeFlowEntries(entriesResponse.data);
-        console.log(`📥 Synced ${entriesResponse.data.length} flow entries from server`);
+        logger.log(`📥 Synced ${entriesResponse.data.length} flow entries from server`);
       }
       
     } catch (error) {
-      console.error('Error pulling latest data:', error);
+      logger.error('Error pulling latest data:', error);
     }
   }
 
@@ -476,7 +677,7 @@ class ApiService {
 
       await AsyncStorage.setItem('flows', JSON.stringify(flows));
     } catch (error) {
-      console.error('Error merging flow entries:', error);
+      logger.error('Error merging flow entries:', error);
     }
   }
 
@@ -487,20 +688,47 @@ class ApiService {
    */
   async getFlows(params = {}) {
     try {
+      // Check authentication before making the request
+      const isAuthenticated = await this.isUserAuthenticated();
+      if (!isAuthenticated) {
+        logger.log('❌ getFlows: User not authenticated, skipping API call');
+        logger.log('ℹ️ This is expected if user just logged in and auth state is still updating');
+        return { 
+          success: false, 
+          error: { 
+            message: 'Please login to access your flows', 
+            code: 'NOT_AUTHENTICATED',
+            action: 'LOGIN_REQUIRED'
+          } 
+        };
+      }
+
+      logger.log('✅ getFlows: User authenticated, making API call');
+      
+      // Try a simple test request first
+      logger.log('🧪 Testing API connection...');
+      try {
+        const testResponse = await this.client.get('/health', { timeout: 5000 });
+        logger.log('✅ Health check successful:', testResponse.status);
+      } catch (testError) {
+        logger.log('❌ Health check failed:', testError.message);
+        logger.log('ℹ️ Continuing with flows request anyway...');
+      }
+      
       // Add cache-busting parameter to ensure fresh data
       const cacheBustParams = {
         ...params,
         _t: Date.now(), // Timestamp to bust cache
       };
       
-      const response = await this.client.get('/flows', { params: cacheBustParams });
+      const response = await this.client.get('/v1/flows', { params: cacheBustParams });
       return {
         success: true,
         data: response.data.data,
         pagination: response.data.pagination,
       };
     } catch (error) {
-      console.error('Error getting flows:', error);
+      logger.error('Error getting flows:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -510,14 +738,14 @@ class ApiService {
    */
   async createFlow(flowData) {
     try {
-      const response = await this.client.post('/flows', flowData);
+      const response = await this.client.post('/v1/flows', flowData);
       return {
         success: true,
         data: response.data.data,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error creating flow:', error);
+      logger.error('Error creating flow:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -527,14 +755,14 @@ class ApiService {
    */
   async updateFlow(flowId, updates) {
     try {
-      const response = await this.client.put(`/flows/${flowId}`, updates);
+      const response = await this.client.put(`/v1/flows/${flowId}`, updates);
       return {
         success: true,
         data: response.data.data,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error updating flow:', error);
+      logger.error('Error updating flow:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -544,13 +772,13 @@ class ApiService {
    */
   async deleteFlow(flowId) {
     try {
-      const response = await this.client.delete(`/flows/${flowId}`);
+      const response = await this.client.delete(`/v1/flows/${flowId}`);
       return {
         success: true,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error deleting flow:', error);
+      logger.error('Error deleting flow:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -560,13 +788,13 @@ class ApiService {
    */
   async getFlow(flowId) {
     try {
-      const response = await this.client.get(`/flows/${flowId}`);
+      const response = await this.client.get(`/v1/flows/${flowId}`);
       return {
         success: true,
         data: response.data.data,
       };
     } catch (error) {
-      console.error('Error getting flow:', error);
+      logger.error('Error getting flow:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -576,14 +804,175 @@ class ApiService {
    */
   async archiveFlow(flowId) {
     try {
-      const response = await this.client.patch(`/flows/${flowId}/archive`);
+      const response = await this.client.patch(`/v1/flows/${flowId}/archive`);
       return {
         success: true,
         data: response.data.data,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error archiving flow:', error);
+      logger.error('Error archiving flow:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  // ==================== PROFILE OPERATIONS ====================
+
+  /**
+   * Get user profile
+   */
+  async getProfile() {
+    try {
+      // Check authentication before making the request
+      const isAuthenticated = await this.isUserAuthenticated();
+      if (!isAuthenticated) {
+        logger.log('❌ getProfile: User not authenticated, skipping API call');
+        return {
+          success: false,
+          error: {
+            message: 'Please login to access your profile',
+            code: 'NOT_AUTHENTICATED',
+            action: 'LOGIN_REQUIRED'
+          }
+        };
+      }
+
+      logger.log('✅ getProfile: User authenticated, making API call');
+      logger.log('✅ getProfile: Calling GET /v1/profile...');
+      const response = await this.client.get('/v1/profile');
+      logger.log('✅ getProfile: API response received:', response.data);
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('Error getting profile:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Check username availability
+   */
+  async checkUsernameAvailability(username) {
+    try {
+      logger.log('🔍 checkUsernameAvailability: Checking username:', username);
+      
+      const response = await this.client.get(`/v1/auth/check-username/${encodeURIComponent(username)}`);
+      logger.log('✅ checkUsernameAvailability: Response received:', response.data);
+      
+      return {
+        success: true,
+        data: response.data.data
+      };
+    } catch (error) {
+      logger.error('❌ checkUsernameAvailability: Error:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(profileData) {
+    try {
+      // Check authentication before making the request
+      const isAuthenticated = await this.isUserAuthenticated();
+      if (!isAuthenticated) {
+        logger.log('❌ updateProfile: User not authenticated, skipping API call');
+        return {
+          success: false,
+          error: {
+            message: 'Please login to update your profile',
+            code: 'NOT_AUTHENTICATED',
+            action: 'LOGIN_REQUIRED'
+          }
+        };
+      }
+
+      logger.log('✅ updateProfile: User authenticated, making API call');
+      logger.log('✅ updateProfile: Calling PUT /v1/profile...');
+      logger.log('✅ updateProfile: Profile data:', profileData);
+      const response = await this.client.put('/v1/profile', profileData);
+      logger.log('✅ updateProfile: API response received:', response.data);
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('Error updating profile:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Get profile statistics
+   */
+  async getProfileStats() {
+    try {
+      // Check authentication before making the request
+      const isAuthenticated = await this.isUserAuthenticated();
+      if (!isAuthenticated) {
+        logger.log('❌ getProfileStats: User not authenticated, skipping API call');
+        return {
+          success: false,
+          error: {
+            message: 'Please login to access your profile statistics',
+            code: 'NOT_AUTHENTICATED',
+            action: 'LOGIN_REQUIRED'
+          }
+        };
+      }
+
+      logger.log('✅ getProfileStats: User authenticated, making API call');
+      logger.log('✅ getProfileStats: Calling GET /v1/profile/stats...');
+      const response = await this.client.get('/v1/profile/stats');
+      logger.log('✅ getProfileStats: API response received:', response.data);
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('Error getting profile stats:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  // ==================== STATISTICS OPERATIONS ====================
+
+  /**
+   * Get statistics
+   */
+  async getStats() {
+    try {
+      // Check authentication before making the request
+      const isAuthenticated = await this.isUserAuthenticated();
+      if (!isAuthenticated) {
+        logger.log('❌ getStats: User not authenticated, skipping API call');
+        return {
+          success: false,
+          error: {
+            message: 'Please login to access your statistics',
+            code: 'NOT_AUTHENTICATED',
+            action: 'LOGIN_REQUIRED'
+          }
+        };
+      }
+
+      logger.log('✅ getStats: User authenticated, making API call');
+      logger.log('✅ getStats: Calling GET /v1/stats...');
+      const response = await this.client.get('/v1/stats');
+      logger.log('✅ getStats: API response received:', response.data);
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('Error getting stats:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -595,14 +984,29 @@ class ApiService {
    */
   async getFlowEntries(params = {}) {
     try {
-      const response = await this.client.get('/flow-entries', { params });
+      // Check authentication before making the request
+      const isAuthenticated = await this.isUserAuthenticated();
+      if (!isAuthenticated) {
+        logger.log('❌ getFlowEntries: User not authenticated, skipping API call');
+        return {
+          success: false,
+          error: {
+            message: 'Please login to access your flow entries',
+            code: 'NOT_AUTHENTICATED',
+            action: 'LOGIN_REQUIRED'
+          }
+        };
+      }
+
+      logger.log('✅ getFlowEntries: User authenticated, making API call');
+      const response = await this.client.get('/v1/flow-entries', { params });
       return {
         success: true,
         data: response.data.data,
         pagination: response.data.pagination,
       };
     } catch (error) {
-      console.error('Error getting flow entries:', error);
+      logger.error('Error getting flow entries:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -612,14 +1016,14 @@ class ApiService {
    */
   async createFlowEntry(entryData) {
     try {
-      const response = await this.client.post('/flow-entries', entryData);
+      const response = await this.client.post('/v1/flow-entries', entryData);
       return {
         success: true,
         data: response.data.data,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error creating flow entry:', error);
+      logger.error('Error creating flow entry:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -629,14 +1033,14 @@ class ApiService {
    */
   async updateFlowEntry(entryId, updates) {
     try {
-      const response = await this.client.put(`/flow-entries/${entryId}`, updates);
+      const response = await this.client.put(`/v1/flow-entries/${entryId}`, updates);
       return {
         success: true,
         data: response.data.data,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error updating flow entry:', error);
+      logger.error('Error updating flow entry:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -646,18 +1050,66 @@ class ApiService {
    */
   async deleteFlowEntry(entryId) {
     try {
-      const response = await this.client.delete(`/flow-entries/${entryId}`);
+      const response = await this.client.delete(`/v1/flow-entries/${entryId}`);
       return {
         success: true,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error deleting flow entry:', error);
+      logger.error('Error deleting flow entry:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
 
   // ==================== STATS OPERATIONS ====================
+
+  /**
+   * Get flow scoreboard data (for ActivityContext)
+   */
+  async getFlowScoreboard(flowId, params = {}) {
+    try {
+      const response = await this.client.get(`/stats/flows/${flowId}/scoreboard`, { params });
+      return {
+        success: true,
+        data: response.data.data,
+      };
+    } catch (error) {
+      logger.error('Error getting flow scoreboard:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Get flow activity stats (for ActivityContext)
+   */
+  async getFlowActivityStats(flowId, params = {}) {
+    try {
+      const response = await this.client.get(`/stats/flows/${flowId}/activity`, { params });
+      return {
+        success: true,
+        data: response.data.data,
+      };
+    } catch (error) {
+      logger.error('Error getting flow activity stats:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Get flow emotional activity (for ActivityContext)
+   */
+  async getFlowEmotionalActivity(flowId, params = {}) {
+    try {
+      const response = await this.client.get(`/stats/flows/${flowId}/emotional`, { params });
+      return {
+        success: true,
+        data: response.data.data,
+      };
+    } catch (error) {
+      logger.error('Error getting flow emotional activity:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
 
   /**
    * Get flow statistics
@@ -670,7 +1122,7 @@ class ApiService {
         data: response.data.data,
       };
     } catch (error) {
-      console.error('Error getting flow stats:', error);
+      logger.error('Error getting flow stats:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -680,13 +1132,13 @@ class ApiService {
    */
   async getOverallStats(params = {}) {
     try {
-      const response = await this.client.get('/stats/overall', { params });
+      const response = await this.client.get('/v1/stats/overall', { params });
       return {
         success: true,
         data: response.data.data,
       };
     } catch (error) {
-      console.error('Error getting overall stats:', error);
+      logger.error('Error getting overall stats:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -698,13 +1150,28 @@ class ApiService {
    */
   async getUserSettings() {
     try {
-      const response = await this.client.get('/settings');
+      // Check authentication before making the request
+      const isAuthenticated = await this.isUserAuthenticated();
+      if (!isAuthenticated) {
+        logger.log('❌ getUserSettings: User not authenticated, skipping API call');
+        return { 
+          success: false, 
+          error: { 
+            message: 'Please login to access your settings', 
+            code: 'NOT_AUTHENTICATED',
+            action: 'LOGIN_REQUIRED'
+          } 
+        };
+      }
+
+      logger.log('✅ getUserSettings: User authenticated, making API call');
+      const response = await this.client.get('/v1/settings');
       return {
         success: true,
         data: response.data.data,
       };
     } catch (error) {
-      console.error('Error getting user settings:', error);
+      logger.error('Error getting user settings:', error);
       return { success: false, error: this.handleError(error) };
     }
   }
@@ -714,15 +1181,128 @@ class ApiService {
    */
   async updateUserSettings(settings) {
     try {
-      const response = await this.client.put('/settings', settings);
+      const response = await this.client.put('/v1/settings', settings);
       return {
         success: true,
         data: response.data.data,
         message: response.data.message,
       };
     } catch (error) {
-      console.error('Error updating user settings:', error);
+      logger.error('Error updating user settings:', error);
       return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Get notification settings
+   */
+  async getNotificationSettings() {
+    try {
+      const response = await this.client.get('/v1/notifications/settings');
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('Error getting notification settings:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Update notification settings
+   */
+  async updateNotificationSettings(settings) {
+    try {
+      const response = await this.client.patch('/notifications/settings', settings);
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('Error updating notification settings:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  /**
+   * Get notification logs
+   */
+  async getNotificationLogs(params = {}) {
+    try {
+      const response = await this.client.get('/v1/notifications/logs', { params });
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('Error getting notification logs:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  // Register device for notifications
+  async registerDevice(deviceData) {
+    try {
+      logger.log('📱 Registering device with data:', deviceData);
+      const response = await this.client.post('/v1/notifications/registerDevice', deviceData);
+      logger.log('📱 Device registration response:', response.data);
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message,
+      };
+    } catch (error) {
+      logger.error('❌ Error registering device:', error);
+      return { success: false, error: this.handleError(error) };
+    }
+  }
+
+  // ==================== DEBUG METHODS ====================
+
+  /**
+   * Debug authentication state
+   */
+  async debugAuthState() {
+    logger.log('🔍 === AUTHENTICATION DEBUG START ===');
+    
+    try {
+      // Check Firebase user
+      const firebaseUser = auth().currentUser;
+      logger.log('🔍 Firebase current user:', {
+        exists: !!firebaseUser,
+        uid: firebaseUser?.uid,
+        email: firebaseUser?.email,
+        emailVerified: firebaseUser?.emailVerified,
+        isAnonymous: firebaseUser?.isAnonymous
+      });
+
+      // Check if user is authenticated
+      const isAuthenticated = await this.isUserAuthenticated();
+      logger.log('🔍 Is user authenticated:', isAuthenticated);
+
+      // Try to get token
+      const token = await this.getAuthToken();
+      logger.log('🔍 Auth token available:', !!token);
+
+      // Test API call
+      const testResult = await this.healthCheck();
+      logger.log('🔍 API test result:', testResult);
+
+      logger.log('🔍 === AUTHENTICATION DEBUG END ===');
+      
+      return {
+        firebaseUser: !!firebaseUser,
+        isAuthenticated,
+        hasToken: !!token,
+        apiTest: testResult
+      };
+    } catch (error) {
+      logger.error('❌ Auth debug error:', error);
+      return { error: error.message };
     }
   }
 
@@ -739,7 +1319,7 @@ class ApiService {
         data: response.data,
       };
     } catch (error) {
-      console.error('Health check failed:', error);
+      logger.error('Health check failed:', error);
       return { success: false, error: this.handleError(error) };
     }
   }

@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import moment from 'moment';
 import * as Haptics from 'expo-haptics';
 import { MaterialIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlowsContext } from '../../../context/FlowContext';
 import { useNavigation } from '@react-navigation/native';
 import { colors, hslUtils } from '../../../../styles';
@@ -114,9 +115,9 @@ const UnifiedFlowCard = ({ flow }) => {
   if (!flow) return null;
 
   const navigation = useNavigation();
-  const { updateFlowStatus, updateCount, updateTimeBased } = useContext(FlowsContext);
+  const { flows, setFlows, updateFlowStatus, updateCount, updateTimeBased } = useContext(FlowsContext);
   const todayKey = moment().format('YYYY-MM-DD');
-  const status = flow.status?.[todayKey]?.symbol || '/';
+  const status = flow.status?.[todayKey]?.symbol || null; // Don't default to skipped
   const emotion = flow.status?.[todayKey]?.emotion || '';
   const note = flow.status?.[todayKey]?.note || '';
   
@@ -177,9 +178,11 @@ const UnifiedFlowCard = ({ flow }) => {
   const maxBreaks = 5;
 
   // Status determination
-  const isPending = status === '/';
+  const isPending = status === null; // No status yet - pending
+  const isSkipped = status === '/';
   const isCompleted = status === '+';
   const isMissed = status === '-';
+  const isPartial = status === '*';
   const hasResponse = status === '+' || status === '-' || status === '*' || status === '/';
   
   // Debug logging
@@ -187,6 +190,8 @@ const UnifiedFlowCard = ({ flow }) => {
     flowId: flow.id,
     flowTitle: flow.title,
     status: status,
+    isPending: isPending,
+    isSkipped: isSkipped,
     hasResponse: hasResponse,
     isCompleted: isCompleted,
     isMissed: isMissed
@@ -410,47 +415,38 @@ const UnifiedFlowCard = ({ flow }) => {
 
     triggerHaptic();
     try {
-      // Reset based on tracking type
-      if (flow.trackingType === 'Binary') {
-        await updateFlowStatus(flow.id, todayKey, {
-          symbol: '/',
-          emotion: '',
-          note: '',
-          timestamp: null
-        });
-      } else if (flow.trackingType === 'Quantitative') {
-        await updateFlowStatus(flow.id, todayKey, {
-          symbol: '/',
-          emotion: '',
-          note: '',
-          quantitative: { count: 0, unitText: flow.status?.[todayKey]?.quantitative?.unitText || '' },
-          timestamp: null
-        });
-        setCount(0);
-      } else if (flow.trackingType === 'Time-based') {
-        const resetTimebased = {
-          startTime: null,
-          pauses: [],
-          endTime: null,
-          totalDuration: 0,
-          pausesCount: 0
+      // Completely remove the status entry to show "no status"
+      const updatedFlows = flows.map((f) => {
+        if (f.id !== flow.id) return f;
+        
+        const newStatus = { ...f.status };
+        delete newStatus[todayKey]; // Remove the status entry completely
+        
+        return {
+          ...f,
+          updatedAt: new Date().toISOString(),
+          status: newStatus
         };
-        await updateFlowStatus(flow.id, todayKey, {
-          symbol: '/',
-          emotion: '',
-          note: '',
-          timebased: resetTimebased,
-          timestamp: null
-        });
-      }
+      });
+
+      // Update local storage
+      await AsyncStorage.setItem('flows', JSON.stringify(updatedFlows));
       
+      // Update context
+      setFlows(updatedFlows);
+      
+      // Reset local state
       setTempEmotion('');
       setTempNote('');
-      console.log('Flow reset successfully');
+      if (flow.trackingType === 'Quantitative') {
+        setCount(0);
+      }
+      
+      console.log('Flow status completely reset - no status entry');
     } catch (error) {
       console.error('Error resetting flow:', error);
     }
-  }, [updateFlowStatus, flow.id, todayKey, flow.trackingType, triggerHaptic]);
+  }, [flow.id, flow.cheatMode, flow.trackingType, todayKey, flows, triggerHaptic]);
 
   // Real-time timer effect for time-based flows
   useEffect(() => {

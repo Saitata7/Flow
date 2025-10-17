@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../../components/common/Button';
 import Toast from '../../components/common/Toast';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
-import { useAuth } from '../../context/AuthContext';
-import { validateEmail, validatePassword, validateUsername } from '../../utils/validation';
+import { useAuth } from '../../context/JWTAuthContext';
+import { validateInput } from '../../utils/validation';
 import { colors, typography, layout, useAppTheme } from '../../../styles';
 
 const fallbackColors = {
@@ -32,7 +32,12 @@ const fallbackColors = {
 };
 
 const Register = ({ navigation }) => {
-  const { register, isLoading, error, clearError } = useAuth();
+  const { 
+    register, 
+    isLoading, 
+    error, 
+    clearError 
+  } = useAuth();
   const { colors: themeColors } = useAppTheme();
   const [formData, setFormData] = useState({
     name: '',
@@ -66,19 +71,17 @@ const Register = ({ navigation }) => {
   }, []);
 
   const handleRegister = async () => {
-    // Validate form
-    const nameValidation = validateUsername(formData.name);
-    const emailValidation = validateEmail(formData.email);
-    const passwordValidation = validatePassword(formData.password);
-    const confirmPasswordValidation = formData.password === formData.confirmPassword 
-      ? { valid: true } 
-      : { valid: false, error: 'Passwords do not match' };
-    const termsValidation = formData.acceptTerms 
-      ? { valid: true } 
-      : { valid: false, error: 'You must accept the terms and conditions' };
+    console.log('🔍 Register: handleRegister button pressed!');
+    // Validate form using enhanced validation functions
+    const nameValidation = validateInput('title', formData.name);
+    const emailValidation = validateInput('email', formData.email);
+    const passwordValidation = validateInput('password', formData.password);
+    const confirmPasswordValidation = validateInput('password', formData.confirmPassword);
+    const termsValidation = { valid: formData.acceptTerms, error: formData.acceptTerms ? null : 'You must accept the terms and conditions' };
 
     if (!nameValidation.valid || !emailValidation.valid || !passwordValidation.valid || 
         !confirmPasswordValidation.valid || !termsValidation.valid) {
+      console.log('🔍 Register: Validation failed, showing errors');
       setFormErrors({
         name: nameValidation.error,
         email: emailValidation.error,
@@ -91,23 +94,24 @@ const Register = ({ navigation }) => {
     }
 
     try {
+      console.log('🔍 Register: Starting registration process');
       // Clear previous errors
       clearError();
       
       const result = await register(formData.email, formData.password, formData.name);
+      console.log('🔍 Register: Registration result:', result);
       
       if (result.success) {
+        console.log('🔍 Register: Registration successful, navigating to Main');
         // Navigate to main app after successful registration
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Main' }],
-        });
+        navigation.navigate('Main');
       } else {
+        console.log('🔍 Register: Registration failed, showing error');
         // Show error toast
         setShowToast(true);
       }
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error('❌ Registration error:', err);
       setShowToast(true);
     }
   };
@@ -365,7 +369,6 @@ const Register = ({ navigation }) => {
               onPress={handleRegister}
               loading={isLoading}
               style={styles.registerButton}
-              testID="register-button"
             />
 
             {/* Divider */}
@@ -381,7 +384,10 @@ const Register = ({ navigation }) => {
             <Button
               variant="secondary"
               title="Already have an account? Sign In"
-              onPress={() => navigation.navigate('Login')}
+              onPress={() => {
+                console.log('🔍 Register: Sign In button pressed!');
+                navigation.navigate('Login');
+              }}
               style={styles.signinButton}
             />
           </Animated.View>

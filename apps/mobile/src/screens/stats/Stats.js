@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo, useEffect } from 'react';
+import React, { useContext, useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import { FlowsContext } from '../../context/FlowContext';
 import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import Card from '../../components/common/card';
+import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { colors, typography, layout } from '../../../styles';
 
@@ -29,15 +29,15 @@ const StatsScreen = ({ navigation }) => {
   const [currentMonth, setCurrentMonth] = useState(moment().startOf('month'));
   const [stats, setStats] = useState(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
-
   const themeColors = theme === 'light' ? colors.light : colors.dark;
   const isDark = theme === 'dark';
 
   // Calculate comprehensive stats using ActivityContext
   useEffect(() => {
     const calculateStats = async () => {
-      console.log('Stats calculation - flows:', flows);
-      console.log('Stats calculation - flows length:', flows?.length);
+      console.log('📊 Stats.js: Starting stats calculation...');
+      console.log('📊 Stats.js: Flows:', flows);
+      console.log('📊 Stats.js: Flows length:', flows?.length);
       
       setIsLoadingStats(true);
       
@@ -73,6 +73,7 @@ const StatsScreen = ({ navigation }) => {
       }
 
       try {
+        console.log('📊 Stats.js: About to call getAllStats...');
         const allStats = await getAllStats({
           timeframe: 'all',
           currentMonth: currentMonth,
@@ -80,7 +81,16 @@ const StatsScreen = ({ navigation }) => {
           includeDeleted: false
         });
 
-        console.log('Stats calculation - allStats:', allStats);
+        console.log('📊 Stats.js: getAllStats returned:', allStats);
+        console.log('📊 Stats.js: API data structure:', {
+          hasOverall: !!allStats.overall,
+          overallKeys: allStats.overall ? Object.keys(allStats.overall) : 'No overall',
+          totalCompleted: allStats.totalCompleted,
+          totalScheduled: allStats.totalScheduled,
+          successRate: allStats.successMetrics?.successRate,
+          averageCompletionRate: allStats.averageCompletionRate,
+          flowSummariesCount: allStats.flowSummaries?.length || 0
+        });
 
         // Defensive check for invalid allStats
         if (!allStats || typeof allStats !== 'object' || !allStats.flowSummaries) {
@@ -114,20 +124,20 @@ const StatsScreen = ({ navigation }) => {
         // Transform ActivityContext data to match the expected format
         const transformedStats = {
           overall: {
-            totalCompleted: allStats.totalCompleted || 0,
-            totalScheduled: allStats.totalScheduledDays || 0,
-            totalPoints: allStats.totalPoints || 0,
-            totalFlows: allStats.totalFlows || flows.length,
-            activeFlows: flows.filter(f => !f.archived && !f.deletedAt).length,
-            successRate: allStats.successMetrics?.successRate || allStats.averageCompletionRate || 0,
-            pureCompletionRate: allStats.successMetrics?.pureCompletionRate || allStats.pureCompletionRate || 0,
-            avgDailyCompletion: allStats.successMetrics?.successRate || allStats.averageCompletionRate || 0,
-            dailyData: allStats.weeklyTrends || [],
-            successMetrics: allStats.successMetrics || {
-              totalSuccessfulDays: (allStats.totalCompleted || 0) + (allStats.totalPartial || 0),
-              totalFailedDays: (allStats.totalFailed || 0) + (allStats.totalSkipped || 0),
-              successRate: allStats.averageCompletionRate || 0,
-              pureCompletionRate: allStats.pureCompletionRate || 0,
+            totalCompleted: allStats.overall?.totalCompleted || allStats.totalCompleted || 0,
+            totalScheduled: allStats.overall?.totalScheduled || allStats.totalScheduled || 0,
+            totalPoints: allStats.overall?.totalPoints || allStats.totalPoints || 0,
+            totalFlows: allStats.overall?.totalFlows || allStats.totalFlows || (flows ? flows.length : 0),
+            activeFlows: flows ? flows.filter(f => !f.archived && !f.deletedAt).length : 0,
+            successRate: allStats.overall?.successMetrics?.successRate || allStats.successMetrics?.successRate || allStats.averageCompletionRate || 0,
+            pureCompletionRate: allStats.overall?.successMetrics?.pureCompletionRate || allStats.successMetrics?.pureCompletionRate || allStats.pureCompletionRate || 0,
+            avgDailyCompletion: allStats.overall?.successMetrics?.successRate || allStats.successMetrics?.successRate || allStats.averageCompletionRate || 0,
+            dailyData: allStats.overall?.dailyData || allStats.weeklyTrends || [],
+            successMetrics: allStats.overall?.successMetrics || allStats.successMetrics || {
+              totalSuccessfulDays: (allStats.overall?.totalCompleted || allStats.totalCompleted || 0) + (allStats.overall?.totalPartial || allStats.totalPartial || 0),
+              totalFailedDays: (allStats.overall?.totalFailed || allStats.totalFailed || 0) + (allStats.overall?.totalSkipped || allStats.totalSkipped || 0),
+              successRate: allStats.overall?.averageCompletionRate || allStats.averageCompletionRate || 0,
+              pureCompletionRate: allStats.overall?.pureCompletionRate || allStats.pureCompletionRate || 0,
               partialSuccessRate: 0,
               failureRate: 0,
               skipRate: 0,
@@ -143,7 +153,14 @@ const StatsScreen = ({ navigation }) => {
             performance: flow.completionRate
           })),
           weeklyTrends: allStats.weeklyTrends || [],
-          achievements: allStats.achievements || [],
+          achievements: (allStats.achievements || []).map(achievement => ({
+            title: achievement.title || achievement.type || 'Achievement',
+            description: achievement.description || 'Great job!',
+            icon: achievement.icon || '🏆',
+            color: achievement.color || themeColors.success,
+            progress: achievement.progress || achievement.value || 100,
+            target: achievement.target || 100
+          })),
           heatMapData: allStats.heatMapData || { contributionData: [], maxCount: 0 }
         };
         
@@ -279,7 +296,7 @@ const StatsScreen = ({ navigation }) => {
       style={[styles.flowCard, { backgroundColor: themeColors.cardBackground }]}
       activeOpacity={0.8}
       onPress={() => navigation.navigate('FlowStatsDetail', { flowId: flow.id })}
-      accessibilityLabel={`${flow.name} performance: ${flow.performance.toFixed(0)}%`}
+      accessibilityLabel={`${flow.name} performance: ${flow.performance?.toFixed(0) || '0'}%`}
       accessibilityHint={`View detailed statistics for ${flow.name}`}
     >
       <View style={styles.flowCardHeader}>
@@ -298,7 +315,7 @@ const StatsScreen = ({ navigation }) => {
           </View>
         </View>
         <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? themeColors.success : flow.performance >= 60 ? '#F2A005' : themeColors.error }]}>
-          <Text style={styles.performanceText}>{flow.performance.toFixed(0)}%</Text>
+          <Text style={styles.performanceText}>{flow.performance?.toFixed(0) || '0'}%</Text>
         </View>
       </View>
 
@@ -369,13 +386,44 @@ const StatsScreen = ({ navigation }) => {
     return themeColors.success;
   };
 
+  // Safe number validation helper
+  const safeNumber = (value, defaultValue = 0) => {
+    if (typeof value === 'number' && !isNaN(value) && isFinite(value)) {
+      return value;
+    }
+    return defaultValue;
+  };
+
   // Process chart data based on timeframe
   const processChartData = (dailyData, timeframe) => {
+    console.log('📊 Stats.js: processChartData input:', {
+      timeframe,
+      dailyDataLength: dailyData?.length || 0,
+      dailyDataSample: dailyData?.[0],
+      dailyDataType: typeof dailyData?.[0]
+    });
+
     if (timeframe === 'weekly') {
-      return {
-        labels: (dailyData || []).map(d => d.displayDate).slice(-7),
-        data: (dailyData || []).map(d => d.percentage).slice(-7)
-      };
+      const labels = (dailyData || []).map(d => {
+        // Handle different data structures
+        if (d.displayDate) return d.displayDate;
+        if (d.date) return moment(d.date).format('MMM DD');
+        if (d.week) return d.week;
+        return 'Unknown';
+      }).slice(-7);
+      
+      const data = (dailyData || []).map(d => {
+        // Handle different data structures
+        if (typeof d.percentage === 'number') return safeNumber(d.percentage, 0);
+        if (typeof d.completionRate === 'number') return safeNumber(d.completionRate, 0);
+        if (typeof d.completed === 'number' && typeof d.total === 'number') {
+          return safeNumber((d.completed / d.total) * 100, 0);
+        }
+        return 0;
+      }).slice(-7);
+      
+      console.log('📊 Stats.js: Weekly chart data:', { labels, data });
+      return { labels, data };
     } else if (timeframe === 'monthly') {
       // Group by actual calendar weeks within months
       const weeklyData = [];
@@ -396,15 +444,18 @@ const StatsScreen = ({ navigation }) => {
             label: `${month}(W${weekOfMonth})`
           };
         }
-        weekGroups[weekKey].percentages.push(day.percentage);
+        weekGroups[weekKey].percentages.push(safeNumber(day.percentage, 0));
       });
       
       // Convert to array and calculate averages
       Object.values(weekGroups).forEach(weekGroup => {
-        const avgPercentage = weekGroup.percentages.reduce((sum, p) => sum + p, 0) / weekGroup.percentages.length;
+        const validPercentages = weekGroup.percentages.filter(p => typeof p === 'number' && !isNaN(p) && isFinite(p));
+        const avgPercentage = validPercentages.length > 0 
+          ? validPercentages.reduce((sum, p) => sum + p, 0) / validPercentages.length 
+          : 0;
         weeklyData.push({
           label: weekGroup.label,
-          percentage: avgPercentage
+          percentage: safeNumber(avgPercentage, 0)
         });
       });
       
@@ -423,7 +474,7 @@ const StatsScreen = ({ navigation }) => {
       
       return {
         labels: (weeklyData || []).map(w => w.label),
-        data: (weeklyData || []).map(w => w.percentage)
+        data: (weeklyData || []).map(w => safeNumber(w.percentage, 0))
       };
     } else if (timeframe === 'yearly') {
       // Group by actual calendar months
@@ -441,15 +492,18 @@ const StatsScreen = ({ navigation }) => {
             percentages: []
           };
         }
-        monthGroups[monthKey].percentages.push(day.percentage);
+        monthGroups[monthKey].percentages.push(safeNumber(day.percentage, 0));
       });
       
       // Convert to array and calculate averages
       Object.values(monthGroups).forEach(monthGroup => {
-        const avgPercentage = monthGroup.percentages.reduce((sum, p) => sum + p, 0) / monthGroup.percentages.length;
+        const validPercentages = monthGroup.percentages.filter(p => typeof p === 'number' && !isNaN(p) && isFinite(p));
+        const avgPercentage = validPercentages.length > 0 
+          ? validPercentages.reduce((sum, p) => sum + p, 0) / validPercentages.length 
+          : 0;
         monthlyData.push({
           label: monthGroup.month,
-          percentage: avgPercentage
+          percentage: safeNumber(avgPercentage, 0)
         });
       });
       
@@ -462,18 +516,30 @@ const StatsScreen = ({ navigation }) => {
       
       return {
         labels: (monthlyData || []).map(m => m.label),
-        data: (monthlyData || []).map(m => m.percentage)
+        data: (monthlyData || []).map(m => safeNumber(m.percentage, 0))
       };
     }
     
     // Default to weekly
     return {
       labels: (dailyData || []).map(d => d.displayDate).slice(-7),
-      data: (dailyData || []).map(d => d.percentage).slice(-7)
+      data: (dailyData || []).map(d => safeNumber(d.percentage, 0)).slice(-7)
     };
   };
 
-  const chartData = processChartData(stats.overall.dailyData, selectedTimeframe);
+  const chartData = processChartData(stats.overall.dailyData || stats.weeklyTrends || [], selectedTimeframe);
+  
+  console.log('📊 Stats.js: Chart data processing:', {
+    hasDailyData: !!stats.overall.dailyData,
+    hasWeeklyTrends: !!stats.weeklyTrends,
+    dailyDataLength: stats.overall.dailyData?.length || 0,
+    weeklyTrendsLength: stats.weeklyTrends?.length || 0,
+    dailyDataSample: stats.overall.dailyData?.[0],
+    weeklyTrendsSample: stats.weeklyTrends?.[0],
+    chartLabels: chartData.labels,
+    chartData: chartData.data,
+    selectedTimeframe
+  });
 
   const performanceChartData = {
     labels: chartData.labels,
@@ -489,14 +555,14 @@ const StatsScreen = ({ navigation }) => {
   const activityDistributionData = [
     {
       name: 'Completed',
-      population: stats.overall.totalCompleted,
+      population: safeNumber(stats.overall.totalCompleted, 0),
       color: themeColors.success,
       legendFontColor: themeColors.primaryText,
       legendFontSize: 12,
     },
     {
       name: 'Missed',
-      population: Math.max(0, stats.overall.totalScheduled - stats.overall.totalCompleted),
+      population: Math.max(0, safeNumber(stats.overall.totalScheduled, 0) - safeNumber(stats.overall.totalCompleted, 0)),
       color: themeColors.error,
       legendFontColor: themeColors.primaryText,
       legendFontSize: 12,
@@ -511,10 +577,14 @@ const StatsScreen = ({ navigation }) => {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.headerTitle, { color: themeColors.primaryText }]}>Statistics</Text>
-          <Text style={[styles.headerSubtitle, { color: themeColors.secondaryText }]}>
-            Track your progress and discover insights
-          </Text>
+          <View style={styles.headerTop}>
+            <View>
+              <Text style={[styles.headerTitle, { color: themeColors.primaryText }]}>Statistics</Text>
+              <Text style={[styles.headerSubtitle, { color: themeColors.secondaryText }]}>
+                Track your progress and discover insights
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Analytics */}
@@ -522,7 +592,7 @@ const StatsScreen = ({ navigation }) => {
         <View style={styles.metricsGrid}>
           <MetricCard
             title="Success Rate"
-            value={`${stats.overall.successRate.toFixed(1)}%`}
+            value={`${stats.overall.successRate?.toFixed(1) || '0.0'}%`}
             subtitle={`${stats.overall.successMetrics?.totalSuccessfulDays || stats.overall.totalCompleted}/${stats.overall.totalScheduled} successful`}
             icon="checkmark-circle"
             color={themeColors.success || '#4CAF50'}
@@ -577,13 +647,13 @@ const StatsScreen = ({ navigation }) => {
             <View style={styles.chartStats}>
               <View style={styles.chartStatItem}>
                 <Text style={[styles.chartStatValue, { color: themeColors.primaryText }]}>
-                  {stats.overall.avgDailyCompletion.toFixed(1)}%
+                  {stats.overall.avgDailyCompletion?.toFixed(1) || '0.0'}%
                 </Text>
                 <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Avg</Text>
               </View>
               <View style={styles.chartStatItem}>
                 <Text style={[styles.chartStatValue, { color: themeColors.success }]}>
-                  {stats.overall.dailyData.length > 0 ? Math.max(...(stats.overall.dailyData || []).map(d => d.percentage)).toFixed(1) : '0.0'}%
+                  {stats.overall.dailyData?.length > 0 ? (Math.max(...(stats.overall.dailyData || []).map(d => d.percentage || 0)) || 0).toFixed(1) : '0.0'}%
                 </Text>
                 <Text style={[styles.chartStatLabel, { color: themeColors.secondaryText }]}>Best</Text>
               </View>
@@ -619,9 +689,9 @@ const StatsScreen = ({ navigation }) => {
 
         {/* Flow Performance */}
         <View style={styles.sectionWrapper}>
-          <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Flow Performance ({stats.flowPerformance.length})</Text>
+          <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Flow Performance ({stats.flowPerformance ? stats.flowPerformance.length : 0})</Text>
           <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
-            {stats.flowPerformance.length === 0 ? (
+            {!stats.flowPerformance || stats.flowPerformance.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
                 <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>No flows to display</Text>
@@ -640,7 +710,7 @@ const StatsScreen = ({ navigation }) => {
         <View style={styles.sectionWrapper}>
           <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Achievements</Text>
           <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
-            {stats.achievements.length === 0 ? (
+            {!stats.achievements || stats.achievements.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>🏆</Text>
                 <Text style={[styles.emptyText, { color: themeColors.secondaryText }]}>No achievements yet</Text>
@@ -674,7 +744,7 @@ const StatsScreen = ({ navigation }) => {
               <View style={styles.successRow}>
                 <Text style={[styles.successLabel, { color: themeColors.primaryText }]}>Overall Success Rate</Text>
                 <Text style={[styles.successValue, { color: themeColors.success }]}>
-                  {stats.overall.successRate.toFixed(1)}%
+                  {stats.overall.successRate?.toFixed(1) || '0.0'}%
                 </Text>
               </View>
               <View style={styles.successRow}>
@@ -712,7 +782,7 @@ const StatsScreen = ({ navigation }) => {
                 <View style={styles.insightItem}>
                   <Ionicons name="trophy" size={20} color={themeColors.success} />
                   <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                    Excellent consistency! You're maintaining a {stats.overall.successRate.toFixed(1)}% success rate.
+                    Excellent consistency! You're maintaining a {stats.overall.successRate?.toFixed(1) || '0.0'}% success rate.
                   </Text>
                 </View>
               )}
@@ -720,7 +790,7 @@ const StatsScreen = ({ navigation }) => {
                 <View style={styles.insightItem}>
                   <Ionicons name="trending-up" size={20} color="#F2A005" />
                   <Text style={[styles.insightText, { color: themeColors.primaryText }]}>
-                    Consider focusing on consistency. Your daily average is {stats.overall.avgDailyCompletion.toFixed(1)}%.
+                    Consider focusing on consistency. Your daily average is {stats.overall.avgDailyCompletion?.toFixed(1) || '0.0'}%.
                   </Text>
                 </View>
               )}
@@ -758,6 +828,12 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: layout.spacing.md,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
   },
   headerTitle: {
     ...typography.styles.title1,

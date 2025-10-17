@@ -171,8 +171,8 @@ const TodaysFlows = ({ visibleFlows }) => {
 
   const sortedFlows = [...visibleFlows].sort((a, b) => {
     const todayKey = moment().format('YYYY-MM-DD');
-    const statusA = a.status?.[todayKey]?.symbol || '/';
-    const statusB = b.status?.[todayKey]?.symbol || '/';
+    const statusA = a.status?.[todayKey]?.symbol || null; // Don't default to skipped
+    const statusB = b.status?.[todayKey]?.symbol || null; // Don't default to skipped
     
     // Check if tasks are completed (any completion status)
     const isCompletedA = statusA === '+';

@@ -1,3 +1,6 @@
+// Load environment variables first
+require('dotenv').config();
+
 const Fastify = require('fastify');
 const cors = require('@fastify/cors');
 const helmet = require('@fastify/helmet');
@@ -9,6 +12,7 @@ const { errorHandler } = require('./middleware/errorHandler');
 const { requestLogger } = require('./middleware/requestLogger');
 const { authMiddleware } = require('./middleware/auth');
 const { testConnection, closePool } = require('./db/config');
+const authRoutes = require('./routes/auth');
 const flowsRoutes = require('./routes/flows');
 const flowEntriesRoutes = require('./routes/flowEntries');
 const plansRoutes = require('./routes/plans');
@@ -86,10 +90,8 @@ const registerPlugins = async () => {
       },
       servers: [
         {
-          url: NODE_ENV === 'production' 
-            ? 'https://api.flow.app/v1'
-            : `http://localhost:${PORT}/v1`,
-          description: NODE_ENV === 'production' ? 'Production' : 'Development',
+          url: 'https://api.flow.app/v1',
+          description: 'Production GCP API',
         },
       ],
       components: {
@@ -141,8 +143,8 @@ const registerMiddleware = async () => {
   // Request logging
   await fastify.register(requestLogger);
 
-  // Authentication (optional for some routes)
-  await fastify.register(authMiddleware);
+  // Authentication (optional for some routes) - DISABLED FOR DEBUGGING
+  // await fastify.register(authMiddleware);
 };
 
 // Register routes
@@ -275,6 +277,19 @@ const registerRoutes = async () => {
     return reply.status(statusCode).send(health);
   });
 
+  // Debug endpoint to check environment variables
+  fastify.get('/debug/env', async (request, reply) => {
+    return {
+      DB_HOST: process.env.DB_HOST,
+      DB_PORT: process.env.DB_PORT,
+      DB_NAME: process.env.DB_NAME,
+      DB_USER: process.env.DB_USER,
+      DB_SSL: process.env.DB_SSL,
+      NODE_ENV: process.env.NODE_ENV,
+      timestamp: new Date().toISOString()
+    };
+  });
+
   // Debug endpoint to check mobile app connectivity (no auth required)
   fastify.get('/debug/flows', async (request, reply) => {
     const { FlowModel } = require('./db/models');
@@ -314,12 +329,58 @@ const registerRoutes = async () => {
     }
   });
 
+  // 🔍 TEMPORARY DIAGNOSTIC ENDPOINT - Remove after debugging
+  fastify.get('/_diag/dbinfo', async (request, reply) => {
+    try {
+      const { query } = require('./db/config');
+      const { rows } = await query(`
+        SELECT 
+          current_user, 
+          current_database(), 
+          inet_server_addr() AS server_ip,
+          CASE 
+            WHEN EXISTS (SELECT 1 FROM pg_stat_ssl WHERE pid = pg_backend_pid()) 
+            THEN (SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid())
+            ELSE false 
+          END AS ssl_used,
+          version() AS postgres_version
+        LIMIT 1
+      `);
+      
+      return reply.json({ 
+        ok: true, 
+        timestamp: new Date().toISOString(),
+        connection_info: rows[0],
+        env_check: {
+          DB_HOST: process.env.DB_HOST,
+          DB_USER: process.env.DB_USER,
+          DB_NAME: process.env.DB_NAME,
+          PGSSLMODE: process.env.PGSSLMODE || 'not set'
+        }
+      });
+    } catch (err) {
+      return reply.status(500).json({ 
+        ok: false, 
+        error: err.message, 
+        timestamp: new Date().toISOString(),
+        stack: err.stack ? err.stack.split('\n').slice(0, 5) : 'No stack trace',
+        env_check: {
+          DB_HOST: process.env.DB_HOST,
+          DB_USER: process.env.DB_USER,
+          DB_NAME: process.env.DB_NAME,
+          PGSSLMODE: process.env.PGSSLMODE || 'not set'
+        }
+      });
+    }
+  });
+
   // API routes with versioning
   await fastify.register(async (fastify) => {
     // Add Redis to request context
     fastify.decorate('redis', redis);
 
     // Register domain routes
+    await fastify.register(authRoutes, { prefix: '/auth' });
     await fastify.register(flowsRoutes, { prefix: '/flows' });
     await fastify.register(flowEntriesRoutes, { prefix: '/flow-entries' });
     await fastify.register(plansRoutes, { prefix: '/plans' });

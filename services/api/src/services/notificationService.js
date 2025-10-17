@@ -10,13 +10,25 @@ class NotificationService {
 
   async initializeFirebase() {
     try {
-      if (!admin.apps.length) {
-        // Initialize Firebase Admin SDK
-        const serviceAccount = require('../../keys/firebase-adminsdk-config.json');
+      if (process.env.AUTH_PROVIDER === 'jwt-only') {
+        console.log('🔐 JWT-only mode: NotificationService Firebase initialization disabled');
+        this.firebaseApp = null;
+        return;
+      }
+      
+      if (!admin.apps.length && process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
+        // Initialize Firebase Admin SDK using environment variables
         this.firebaseApp = admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-          projectId: serviceAccount.project_id,
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          }),
+          projectId: process.env.FIREBASE_PROJECT_ID,
         });
+        console.log('✅ NotificationService: Firebase Admin SDK initialized');
+      } else if (!admin.apps.length) {
+        console.warn('⚠️ NotificationService: Firebase Admin SDK not initialized - missing environment variables');
       } else {
         this.firebaseApp = admin.app();
       }

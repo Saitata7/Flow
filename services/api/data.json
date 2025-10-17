@@ -1,0 +1,65 @@
+{
+  "profiles": {},
+  "settings": {},
+  "flows": [
+    {
+      "id": "flow-1760685256275",
+      "title": "Habit",
+      "description": "Habit",
+      "trackingType": "Binary",
+      "frequency": "Daily",
+      "goal": 1,
+      "unitText": "",
+      "ownerId": "user-a4bbe3ceefc1814743c7d27447c91289",
+      "createdAt": "2025-10-17T07:14:16.275Z",
+      "updatedAt": "2025-10-17T09:45:23.517Z",
+      "status": {},
+      "everyDay": true,
+      "daysOfWeek": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "cheatMode": true
+    }
+  ],
+  "flowEntries": [
+    {
+      "id": "entry-1760685273496",
+      "flowId": "1760685255947",
+      "date": "2025-10-17",
+      "symbol": "+",
+      "emotion": null,
+      "moodScore": 3,
+      "note": null,
+      "quantitative": null,
+      "timebased": null,
+      "ownerId": "user-a4bbe3ceefc1814743c7d27447c91289",
+      "createdAt": "2025-10-17T07:14:33.496Z",
+      "updatedAt": "2025-10-17T07:14:33.496Z",
+      "edited": true,
+      "editedBy": "user-a4bbe3ceefc1814743c7d27447c91289"
+    },
+    {
+      "id": "entry-1760691031294",
+      "flowId": "flow-1760685256275",
+      "date": "2025-10-17",
+      "symbol": "+",
+      "emotion": null,
+      "moodScore": 3,
+      "note": null,
+      "quantitative": null,
+      "timebased": null,
+      "ownerId": "user-a4bbe3ceefc1814743c7d27447c91289",
+      "createdAt": "2025-10-17T08:50:31.294Z",
+      "updatedAt": "2025-10-17T11:03:06.025Z",
+      "edited": true,
+      "editedBy": "user-a4bbe3ceefc1814743c7d27447c91289"
+    }
+  ],
+  "lastUpdated": "2025-10-17T11:03:06.026Z"
+}

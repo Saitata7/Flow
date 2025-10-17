@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../context/JWTAuthContext';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isTablet = screenWidth >= 768;
@@ -24,7 +24,7 @@ const SettingsMenu = ({ visible, onClose }) => {
   const navigation = useNavigation();
   const { theme } = useContext(ThemeContext) || { theme: 'light' };
   const themeColors = colors[theme] || colors.light;
-  const { user, logout } = useAuth();
+  const { user, signOut } = useAuth();
 
   const settingsCategories = [
     {
@@ -32,55 +32,63 @@ const SettingsMenu = ({ visible, onClose }) => {
       title: 'Account',
       icon: 'person-outline',
       description: 'Security and account settings',
-      screen: 'AccountSettings'
+      screen: 'AccountSettings',
+      disabled: false
     },
-    // Privacy option removed from menu (keeping file for future use)
-    // {
-    //   id: 'privacy',
-    //   title: 'Privacy',
-    //   icon: 'shield-outline',
-    //   description: 'Control what others can see',
-    //   screen: 'PrivacySettings'
-    // },
     {
       id: 'notifications',
       title: 'Notifications',
       icon: 'notifications-outline',
       description: 'Manage your notification preferences',
-      screen: 'NotificationSettings'
+      screen: 'NotificationSettings',
+      disabled: false
     },
-    // Location option removed from menu (keeping file, location settings moved to Account section)
-    // {
-    //   id: 'location',
-    //   title: 'Location',
-    //   icon: 'location-outline',
-    //   description: 'Location services and permissions',
-    //   screen: 'LocationSettings'
-    // },
     {
       id: 'importexport',
       title: 'Import & Export',
       icon: 'download-outline',
       description: 'Export data and import from files',
-      screen: 'ImportExportSettings'
+      screen: 'ImportExportSettings',
+      disabled: false
     },
     {
       id: 'help',
       title: 'Help & About',
       icon: 'help-circle-outline',
       description: 'Support, privacy policy, and app info',
-      screen: 'HelpAbout'
+      screen: 'HelpAbout',
+      disabled: false
     },
     {
       id: 'cheat',
       title: 'Cheat Mode',
       icon: 'settings-outline',
       description: 'Developer and testing options',
-      screen: 'CheatModeSettings'
+      screen: 'CheatModeSettings',
+      disabled: false
     }
   ];
 
   const handleCategoryPress = (category) => {
+    if (category.disabled) {
+      Alert.alert(
+        'Sign In Required',
+        'Please sign in to access this feature. Your guest data will be preserved when you create an account.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Sign In', 
+            style: 'default',
+            onPress: () => {
+              onClose();
+              navigation.navigate('Auth');
+            }
+          }
+        ]
+      );
+      return;
+    }
+    
     console.log('SettingsMenu: Navigating to:', category.screen);
     onClose();
     // Navigate to SettingsStack first, then to the specific screen
@@ -98,12 +106,9 @@ const SettingsMenu = ({ visible, onClose }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await logout();
-              // Navigate to auth screen after logout
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Auth' }],
-              });
+              await signOut();
+              // FIXED: Navigate to auth screen after logout using parent navigator
+              navigation.getParent()?.navigate('Auth');
             } catch (error) {
               console.error('Error signing out:', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
@@ -213,6 +218,23 @@ const SettingsMenu = ({ visible, onClose }) => {
     signInSection: {
       marginTop: 20,
       paddingHorizontal: 16,
+    },
+    guestInfoContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: themeColors.background,
+      padding: 12,
+      borderRadius: 8,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: themeColors.primaryOrange,
+    },
+    guestInfoText: {
+      flex: 1,
+      fontSize: typography.sizes.caption1,
+      color: themeColors.primaryText,
+      marginLeft: 8,
+      lineHeight: 18,
     },
     signInButton: {
       backgroundColor: themeColors.primaryOrange,

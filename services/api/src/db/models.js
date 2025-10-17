@@ -1,16 +1,15 @@
 const knex = require('knex');
-const { Pool } = require('pg');
 
-// Knex configuration
+// Knex configuration for Cloud Run
 const knexConfig = {
   client: 'pg',
   connection: {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'flow_dev',
-    user: process.env.DB_USER || 'flow_user',
-    password: process.env.DB_PASSWORD || 'flow_password',
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    host: process.env.DB_HOST, // e.g. /cloudsql/project:region:instance
+    port: 5432,
+    ssl: false, // 🔥 CRITICAL: disable SSL for Cloud SQL socket connections
   },
   pool: {
     min: 2,
@@ -459,6 +458,134 @@ class StatsModel {
   }
 }
 
+// User Model for authentication
+class UserModel {
+  static tableName = 'users';
+
+  static async create(data) {
+    const [user] = await db(this.tableName).insert(data).returning('*');
+    return user;
+  }
+
+  static async findById(id) {
+    return db(this.tableName).where({ id }).first();
+  }
+
+  static async findByEmail(email) {
+    return db(this.tableName).where({ email }).first();
+  }
+
+  static async update(id, data) {
+    const [user] = await db(this.tableName)
+      .where({ id })
+      .update({ ...data, updated_at: new Date() })
+      .returning('*');
+    return user;
+  }
+
+  static async delete(id) {
+    return db(this.tableName).where({ id }).del();
+  }
+
+  static async findAll() {
+    return db(this.tableName).select('*');
+  }
+
+  // Enhanced profile methods
+  static async updateProfile(userId, profileData) {
+    try {
+      console.log('📋 UserModel: Updating profile for user:', userId);
+      
+      // Prepare update data
+      const updateData = {
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        email: profileData.email,
+        phone_number: profileData.phoneNumber || null,
+        date_of_birth: profileData.dateOfBirth ? new Date(profileData.dateOfBirth) : null,
+        gender: profileData.gender,
+        race: profileData.race || null,
+        ethnicity: profileData.ethnicity || null,
+        disability: profileData.disability || null,
+        preferred_language: profileData.preferredLanguage || 'en',
+        country: profileData.country || null,
+        timezone: profileData.timezone || null,
+        health_goals: JSON.stringify(profileData.healthGoals || []),
+        fitness_level: profileData.fitnessLevel || null,
+        medical_conditions: profileData.medicalConditions || null,
+        profile_visibility: profileData.profileVisibility || 'private',
+        data_sharing: JSON.stringify(profileData.dataSharing || {
+          analytics: true,
+          research: false,
+          marketing: false
+        }),
+        profile_updated_at: new Date(),
+        updated_at: new Date()
+      };
+      
+      const [updatedUser] = await db(this.tableName)
+        .where({ id: userId })
+        .update(updateData)
+        .returning('*');
+      
+      console.log('✅ UserModel: Profile updated successfully');
+      return updatedUser;
+    } catch (error) {
+      console.error('❌ UserModel: Error updating profile:', error);
+      throw error;
+    }
+  }
+
+  static async getProfile(userId) {
+    try {
+      console.log('📋 UserModel: Getting profile for user:', userId);
+      
+      const user = await db(this.tableName)
+        .where({ id: userId })
+        .first();
+      
+      if (!user) {
+        return null;
+      }
+      
+      // Parse JSON fields
+      const profile = {
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name || '',
+        lastName: user.last_name || '',
+        phoneNumber: user.phone_number || '',
+        dateOfBirth: user.date_of_birth,
+        gender: user.gender || '',
+        race: user.race || '',
+        ethnicity: user.ethnicity || '',
+        disability: user.disability || '',
+        preferredLanguage: user.preferred_language || 'en',
+        country: user.country || '',
+        timezone: user.timezone || '',
+        healthGoals: user.health_goals ? JSON.parse(user.health_goals) : [],
+        fitnessLevel: user.fitness_level || '',
+        medicalConditions: user.medical_conditions || '',
+        profileVisibility: user.profile_visibility || 'private',
+        dataSharing: user.data_sharing ? JSON.parse(user.data_sharing) : {
+          analytics: true,
+          research: false,
+          marketing: false
+        },
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+        profileUpdatedAt: user.profile_updated_at
+      };
+      
+      console.log('✅ UserModel: Profile retrieved successfully');
+      return profile;
+    } catch (error) {
+      console.error('❌ UserModel: Error getting profile:', error);
+      throw error;
+    }
+  }
+}
+
 module.exports = {
   db,
   FlowModel,
@@ -467,4 +594,5 @@ module.exports = {
   UserProfileModel,
   UserSettingsModel,
   StatsModel,
+  UserModel,
 };

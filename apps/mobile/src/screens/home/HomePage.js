@@ -11,13 +11,17 @@ import {
   FlatList,
   Animated,
   Easing,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../../context/ThemeContext';
 import { FlowsContext } from '../../context/FlowContext';
+import { useAuth } from '../../context/JWTAuthContext';
 import { useAchievements } from '../../hooks/useAchievements';
+import { canCreateFlows } from '../../utils/profileValidation';
+import apiService from '../../services/apiService';
 import moment from 'moment';
 import TodaysFlows from '../../components/flow/todayResponse/TodaysFlows';
 import FTUEOverlay from '../../components/home/FTUEOverlay';
@@ -32,38 +36,44 @@ import {
   commonStyles,
   useAppTheme,
 } from '../../../styles';
-import { Button, Card, Icon, FlowGrid } from '../../components';
+import { Button, Card, Icon } from '../../components';
+import FlowGrid from '../../components/home/FlowGrid';
 
 export default function HomePage({ navigation }) {
   console.log('HomePage: Component rendering...');
   
+  // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY EARLY RETURNS
   const [dayOffset, setDayOffset] = useState(0); // Controls which set of 3 days to show
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const insets = useSafeAreaInsets(); // Get safe area insets for proper positioning
   
-  console.log('HomePage: State initialized');
+  // Authentication guard
+  const { user, isLoading: authLoading } = useAuth();
   
-  // Animation for FAB subtle attention effect
+  // Animation refs
   const gentlePulse = useRef(new Animated.Value(1)).current;
   const subtleGlow = useRef(new Animated.Value(0)).current;
   const borderRotate = useRef(new Animated.Value(0)).current;
   
-  // FTUE (First-Time User Experience)
+  // Context hooks
   const { showFTUE, completeFTUE, startFTUE } = useFTUE();
-
-  const { flows, loadData } = useContext(FlowsContext) || { flows: [], loadData: () => {} };
+  const { flows = [], loadData } = useContext(FlowsContext) || { flows: [], loadData: () => {} };
   const { theme, textSize, highContrast, cheatMode } = useContext(ThemeContext) || {
     theme: 'light',
     textSize: 'medium',
     highContrast: false,
-    cheatMode: false,
+    cheatMode: false
   };
   const { processFlows } = useAchievements();
-
-  // Use centralized theme hook
   const { colors: themeColors, isDark } = useAppTheme();
-  console.log('HomePage: Theme loaded', { themeColors, isDark });
-
+  
+  console.log('HomePage: State initialized');
+  console.log('HomePage: Auth state - user:', !!user, 'authLoading:', authLoading);
+  console.log('HomePage: Flows count:', flows.length);
+  console.log('HomePage: Theme colors:', themeColors);
+  
+  // ALL EFFECTS AND HOOKS MUST BE CALLED HERE - BEFORE ANY EARLY RETURNS
+  
   // Refresh flows when home page comes into focus (only if flows are empty)
   useFocusEffect(
     React.useCallback(() => {
@@ -108,14 +118,14 @@ export default function HomePage({ navigation }) {
         Animated.sequence([
           Animated.timing(subtleGlow, {
             toValue: 0.3,
-            duration: 1500,
-            easing: Easing.out(Easing.ease),
+            duration: 3000,
+            easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
           Animated.timing(subtleGlow, {
             toValue: 0,
-            duration: 1500,
-            easing: Easing.in(Easing.ease),
+            duration: 3000,
+            easing: Easing.inOut(Easing.ease),
             useNativeDriver: true,
           }),
           Animated.delay(2000), // Longer pause between glows
@@ -123,23 +133,74 @@ export default function HomePage({ navigation }) {
       ).start();
     };
 
-    // Circular border rotation
-    const startBorderRotation = () => {
+    // Border rotation - very slow rotation
+    const startBorderRotate = () => {
       borderRotate.setValue(0);
       Animated.loop(
         Animated.timing(borderRotate, {
           toValue: 1,
-          duration: 3000, // 3 seconds per rotation
+          duration: 20000, // 20 seconds for full rotation
           easing: Easing.linear,
           useNativeDriver: true,
         })
       ).start();
     };
 
+    // Start all animations
     startGentlePulse();
     startSubtleGlow();
-    startBorderRotation();
-  }, [gentlePulse, subtleGlow, borderRotate]);
+    startBorderRotate();
+
+    // Cleanup function
+    return () => {
+      gentlePulse.stopAnimation();
+      subtleGlow.stopAnimation();
+      borderRotate.stopAnimation();
+    };
+  }, []);
+
+  // Process flows for achievements when flows change
+  useEffect(() => {
+    if (flows.length > 0) {
+      processFlows(flows);
+    }
+  }, [flows, processFlows]);
+  
+  // Show loading while checking auth state
+  if (authLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.light.background }]}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Show sign-in prompt if not properly authenticated
+  if (!user) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.light.background }]}>
+        <View style={styles.authPromptContainer}>
+          <View style={styles.authPromptCard}>
+            <Ionicons name="person-circle-outline" size={80} color={colors.light.primaryOrange} />
+            <Text style={styles.authPromptTitle}>Welcome to Flow</Text>
+            <Text style={styles.authPromptSubtitle}>
+              Sign in to sync your data across devices
+            </Text>
+            <View style={styles.authPromptButtons}>
+              <Button
+                variant="primary"
+                title="Sign In"
+                onPress={() => navigation.navigate('Auth')}
+                style={styles.authPromptButton}
+              />
+            </View>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const now = moment();
   const today = moment().format('ddd'); // e.g., 'Mon'
@@ -171,6 +232,8 @@ export default function HomePage({ navigation }) {
   };
 
   const getUserName = () => {
+    if (user?.displayName) return user.displayName;
+    if (user?.email) return user.email.split('@')[0];
     return 'there';
   };
 
@@ -181,7 +244,7 @@ export default function HomePage({ navigation }) {
     
     for (let i = 0; i < 30; i++) { // Check last 30 days
       const checkDate = moment().subtract(i, 'days').format('YYYY-MM-DD');
-      const hasCompletedFlow = flows.some(flow => {
+      const hasCompletedFlow = (flows || []).some(flow => {
         const status = flow.status?.[checkDate];
         return status?.symbol === '+';
       });
@@ -198,15 +261,82 @@ export default function HomePage({ navigation }) {
 
   const currentStreak = calculateStreak();
 
-  // Check for achievements when flows are loaded
-  useEffect(() => {
-    if (flows.length > 0) {
-      // Process flows to check for new achievements
-      processFlows(flows);
+  // Profile validation function for + button
+  const handleAddFlowPress = async () => {
+    try {
+      console.log('HomePage: + button pressed, checking profile...');
+      
+      // Load user profile
+      const result = await apiService.getProfile();
+      if (result.success) {
+        const profileData = result.data;
+        console.log('HomePage: Profile loaded:', profileData);
+        
+        // Validate profile completeness
+        const validation = canCreateFlows(user, profileData);
+        console.log('HomePage: Profile validation result:', validation);
+        
+        if (validation.canCreateFlows) {
+          // Profile is complete, navigate to AddFlow
+          console.log('HomePage: Profile complete, navigating to AddFlow');
+          navigation.navigate('AddFlow');
+        } else {
+          // Profile is incomplete, show alert and navigate to profile
+          console.log('HomePage: Profile incomplete:', validation.message);
+          Alert.alert(
+            'Profile Incomplete',
+            validation.message || 'Please complete your profile information first.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { 
+                text: 'Complete Profile', 
+                onPress: () => {
+                  console.log('HomePage: Navigating to SettingsStack -> EnhancedProfileSettings');
+                  navigation.navigate('SettingsStack', { screen: 'EnhancedProfileSettings' });
+                }
+              }
+            ]
+          );
+        }
+      } else {
+        console.log('HomePage: Failed to load profile:', result.error);
+        // Show error and navigate to profile
+        Alert.alert(
+          'Profile Error',
+          'Unable to load profile information. Please complete your profile first.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Complete Profile', 
+              onPress: () => {
+                console.log('HomePage: Navigating to SettingsStack -> EnhancedProfileSettings');
+                navigation.navigate('SettingsStack', { screen: 'EnhancedProfileSettings' });
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('HomePage: Error checking profile:', error);
+      // Show error and navigate to profile
+      Alert.alert(
+        'Profile Error',
+        'Error loading profile information. Please complete your profile first.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Complete Profile', 
+            onPress: () => {
+              console.log('HomePage: Navigating to SettingsStack -> EnhancedProfileSettings');
+              navigation.navigate('SettingsStack', { screen: 'EnhancedProfileSettings' });
+            }
+          }
+        ]
+      );
     }
-  }, [flows, processFlows]);
+  };
 
-  const visibleFlows = flows.filter((flow) => {
+  const visibleFlows = (flows || []).filter((flow) => {
     // First filter out deleted and archived flows
     if (flow.deletedAt || flow.archived) {
       return false;
@@ -247,8 +377,8 @@ export default function HomePage({ navigation }) {
     return true;
   });
 
-  console.log('HomePage: All flows:', flows.map(f => ({ id: f.id, title: f.title })));
-  console.log('HomePage: All flows with status:', flows.map(f => ({ 
+  console.log('HomePage: All flows:', (flows || []).map(f => ({ id: f.id, title: f.title })));
+  console.log('HomePage: All flows with status:', (flows || []).map(f => ({ 
     id: f.id, 
     title: f.title, 
     statusKeys: f.status ? Object.keys(f.status) : 'No status',
@@ -256,181 +386,180 @@ export default function HomePage({ navigation }) {
   })));
   console.log('HomePage: Todays flows:', visibleFlows.map(f => ({ id: f.id, title: f.title })));
 
-
   console.log('HomePage: About to render...');
   
   try {
     return (
-    <LinearGradient
-      colors={['#FFE3C3', '#FFFFFF']}
-      style={[commonStyles.container]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-    >
-      <SafeAreaView style={[commonStyles.container, { backgroundColor: 'transparent' }]} edges={['top']}>
-        <StatusBar
-          translucent
-          backgroundColor="transparent"
-          barStyle={isDark ? "light-content" : "dark-content"}
-        />
-        <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-          <View style={[commonStyles.container, { backgroundColor: 'transparent' }]}>
-            {/* Enhanced Header */}
-            <View style={[styles.headerContainer, { backgroundColor: 'transparent' }]}>
-            {/* Top Row - Logo and Icons */}
-            <View style={styles.headerTopRow}>
-              <View style={styles.logoContainer}>
-                <Text style={[styles.logoText, { color: themeColors.primaryOrange }]}>Flow</Text>
-              </View>
-              <View style={styles.headerIcons}>
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  onPress={() => setShowSettingsModal(true)}
-                  accessibilityLabel="Open settings"
-                  accessibilityHint="Tap to open app settings and preferences"
-                >
-                  <Ionicons name="settings-outline" size={24} color={themeColors.primaryText} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.headerIconButton}
-                  onPress={() => startFTUE()}
-                  testID="info-icon-button"
-                  accessibilityLabel="Show app information"
-                  accessibilityHint="Tap to view app information and help"
-                >
-                  <Ionicons name="information-circle-outline" size={24} color={themeColors.primaryText} />
-                </TouchableOpacity>
-              </View>
-            </View>
-            
-            {/* Greeting Section */}
-            <View style={styles.greetingSection}>
-              <Text style={[styles.greetingText, { color: themeColors.primaryText }]}>
-                {getGreeting()}, {getUserName()}! 👋
-              </Text>
-              <Text style={[styles.subtitleText, { color: themeColors.secondaryText }]}>
-                Track your daily flows and build better habits
-              </Text>
-              
-              {/* Achievement Streak Display */}
-              {currentStreak > 0 && (
-                <View style={styles.streakContainer}>
-                  <Ionicons name="flame" size={16} color={themeColors.primaryOrange} />
-                  <Text style={[styles.streakText, { color: themeColors.primaryOrange }]}>
-                    {currentStreak} day streak!
-                  </Text>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={['#FFE3C3', '#FFFFFF']}
+          style={styles.gradientContainer}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        >
+          <SafeAreaView style={styles.safeArea} edges={['top']}>
+            <StatusBar
+              translucent
+              backgroundColor="transparent"
+              barStyle={isDark ? "light-content" : "dark-content"}
+            />
+            <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+              <View style={styles.contentContainer}>
+                {/* Enhanced Header */}
+                <View style={styles.headerContainer}>
+                  {/* Top Row - Logo and Icons */}
+                  <View style={styles.headerTopRow}>
+                    <View style={styles.logoContainer}>
+                      <Text style={[styles.logoText, { color: themeColors.primaryOrange }]}>Flow</Text>
+                    </View>
+                    <View style={styles.headerIcons}>
+                      <TouchableOpacity
+                        style={styles.headerIconButton}
+                        onPress={() => setShowSettingsModal(true)}
+                        accessibilityLabel="Open settings"
+                        accessibilityHint="Tap to open app settings and preferences"
+                      >
+                        <Ionicons name="settings-outline" size={24} color={themeColors.primaryText} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.headerIconButton}
+                        onPress={() => startFTUE()}
+                        testID="info-icon-button"
+                        accessibilityLabel="Show app information"
+                        accessibilityHint="Tap to view app information and help"
+                      >
+                        <Ionicons name="information-circle-outline" size={24} color={themeColors.primaryText} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  
+                  {/* Greeting Section */}
+                  <View style={styles.greetingSection}>
+                    <Text style={[styles.greetingText, { color: themeColors.primaryText }]}>
+                      {getGreeting()}, {getUserName()}! 👋
+                    </Text>
+                    <Text style={[styles.subtitleText, { color: themeColors.secondaryText }]}>
+                      Track your daily flows and build better habits
+                    </Text>
+                    
+                    {/* Achievement Streak Display */}
+                    {currentStreak > 0 && (
+                      <View style={styles.streakContainer}>
+                        <Ionicons name="flame" size={16} color={themeColors.primaryOrange} />
+                        <Text style={[styles.streakText, { color: themeColors.primaryOrange }]}>
+                          {currentStreak} day streak!
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
-              )}
+                
+                {/* Flow Grid */}
+                <FlowGrid 
+                  onFlowPress={(flow) => {
+                    console.log('HomePage: FlowGrid onFlowPress called with:', {
+                      id: flow.id,
+                      title: flow.title,
+                      trackingType: flow.trackingType
+                    });
+                    navigation.navigate('FlowDetails', { flowId: flow.id });
+                  }}
+                  cheatMode={cheatMode}
+                />
+
+                {/* Today Flows */}
+                <View style={styles.todayContainer}>
+                  <View style={styles.todaySection}>
+                    <Text style={[typography.styles.title2, { color: themeColors.primaryText, marginBottom: layout.spacing.md }]}>Today Flows</Text>
+                    <TodaysFlows navigation={navigation} visibleFlows={visibleFlows} />
+                  </View>
+                  <View style={styles.bottomSpacing} />
+                </View>
+                
+                {/* Gradient continues to bottom */}
+                <View style={styles.whiteBackgroundExtension} />
+              </View>
+            </ScrollView>
+            
+            {/* Floating Action Button - Add Flow */}
+            <View style={[styles.fabContainer, { bottom: 60 + insets.bottom + layout.spacing.lg }]}>
+              {/* Circular Shining Border */}
+              <Animated.View
+                style={[
+                  styles.circularBorder,
+                  {
+                    transform: [
+                      {
+                        rotate: borderRotate.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '360deg'],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <LinearGradient
+                  colors={['#F7BA53', '#FFD700', '#FFA500', '#F7BA53']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.borderGradient}
+                />
+              </Animated.View>
+              
+              {/* Subtle Glow Effect */}
+              <Animated.View
+                style={[
+                  styles.subtleGlow,
+                  {
+                    opacity: subtleGlow,
+                    transform: [{ scale: gentlePulse }],
+                  },
+                ]}
+              />
+              
+              {/* Main FAB Button */}
+              <Animated.View
+                style={{
+                  transform: [{ scale: gentlePulse }],
+                }}
+              >
+                <TouchableOpacity
+                  style={styles.fabButton}
+                  onPress={handleAddFlowPress}
+                  activeOpacity={0.8}
+                >
+                  <LinearGradient
+                    colors={['#F7BA53', '#F7A053']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.fabGradient}
+                  >
+                    <Ionicons 
+                      name="add" 
+                      size={28} 
+                      color="#FFFFFF" 
+                    />
+                  </LinearGradient>
+                </TouchableOpacity>
+              </Animated.View>
             </View>
             
-          </View>
-          
-          
-          {/* Flow Grid */}
-          <FlowGrid 
-            onFlowPress={(flow) => {
-              console.log('HomePage: FlowGrid onFlowPress called with:', {
-                id: flow.id,
-                title: flow.title,
-                trackingType: flow.trackingType
-              });
-              navigation.navigate('FlowDetails', { flowId: flow.id });
-            }}
-            cheatMode={cheatMode}
-          />
-
-          {/* Today Flows - Moved inside ScrollView */}
-          <View style={[styles.todayContainer, { backgroundColor: 'transparent' }]}>
-            <View style={styles.todaySection}>
-              <Text style={[typography.styles.title2, { color: themeColors.primaryText, marginBottom: layout.spacing.md }]}>Today Flows</Text>
-              <TodaysFlows navigation={navigation} visibleFlows={visibleFlows} />
-            </View>
-            <View style={styles.bottomSpacing} />
-          </View>
-          
-          {/* Gradient continues to bottom */}
-          <View style={[styles.whiteBackgroundExtension, { backgroundColor: 'transparent' }]} />
-        </View>
-        </ScrollView>
-      
-      {/* Floating Action Button - Add Flow */}
-      <View style={[styles.fabContainer, { bottom: 60 + insets.bottom + layout.spacing.lg }]}>
-        {/* Circular Shining Border */}
-        <Animated.View
-          style={[
-            styles.circularBorder,
-            {
-              transform: [
-                {
-                  rotate: borderRotate.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '360deg'],
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <LinearGradient
-            colors={['#F7BA53', '#FFD700', '#FFA500', '#F7BA53']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.borderGradient}
-          />
-        </Animated.View>
-        
-        {/* Subtle Glow Effect */}
-        <Animated.View
-          style={[
-            styles.subtleGlow,
-            {
-              opacity: subtleGlow,
-              transform: [{ scale: gentlePulse }],
-            },
-          ]}
-        />
-        
-        {/* Main FAB Button */}
-        <Animated.View
-          style={{
-            transform: [{ scale: gentlePulse }],
-          }}
-        >
-          <TouchableOpacity
-            style={styles.fabButton}
-            onPress={() => navigation.navigate('AddFlow')}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#F7BA53', '#F7A053']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.fabGradient}
-            >
-              <Ionicons 
-                name="add" 
-                size={28} 
-                color="#FFFFFF" 
-              />
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+            {/* FTUE Overlay */}
+            <FTUEOverlay
+              visible={showFTUE}
+              onComplete={completeFTUE}
+            />
+            
+            {/* Settings Modal */}
+            <SettingsMenu 
+              visible={showSettingsModal}
+              onClose={() => setShowSettingsModal(false)}
+            />
+          </SafeAreaView>
+        </LinearGradient>
       </View>
-      
-      {/* FTUE Overlay */}
-      <FTUEOverlay
-        visible={showFTUE}
-        onComplete={completeFTUE}
-      />
-      
-      {/* Settings Modal */}
-      <SettingsMenu 
-        visible={showSettingsModal}
-        onClose={() => setShowSettingsModal(false)}
-      />
-      </SafeAreaView>
-    </LinearGradient>
-  );
+    );
   } catch (error) {
     console.error('HomePage: Render error:', error);
     return (
@@ -445,8 +574,75 @@ export default function HomePage({ navigation }) {
 
 // Refactored styles using centralized system
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.light.background,
+  },
+  gradientContainer: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
   scrollContainer: {
     flex: 1,
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: typography.sizes.body,
+    color: colors.light.primaryText,
+    marginTop: layout.spacing.md,
+  },
+  loadingButton: {
+    marginTop: layout.spacing.lg,
+  },
+  authPromptContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: layout.spacing.lg,
+  },
+  authPromptCard: {
+    backgroundColor: colors.light.cardBackground,
+    borderRadius: layout.radii.squircle,
+    padding: layout.spacing.xl,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    maxWidth: 400,
+    width: '100%',
+  },
+  authPromptTitle: {
+    fontSize: typography.sizes.title1,
+    fontWeight: typography.weights.bold,
+    color: colors.light.primaryText,
+    marginTop: layout.spacing.md,
+    marginBottom: layout.spacing.sm,
+    textAlign: 'center',
+  },
+  authPromptSubtitle: {
+    fontSize: typography.sizes.body,
+    color: colors.light.secondaryText,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: layout.spacing.xl,
+  },
+  authPromptButtons: {
+    width: '100%',
+    gap: layout.spacing.md,
+  },
+  authPromptButton: {
+    width: '100%',
   },
   headerContainer: {
     paddingTop: layout.spacing.xl,
@@ -457,7 +653,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: layout.spacing.md, // Reduced gap
+    marginBottom: layout.spacing.md,
   },
   logoContainer: {
     justifyContent: 'center',
@@ -478,16 +674,16 @@ const styles = StyleSheet.create({
   },
   greetingSection: {
     alignItems: 'center',
-    marginBottom: 0, // Remove gap after greetings
+    marginBottom: 0,
   },
   greetingText: {
-    fontSize: typography.sizes.title3, // Reduced size to match FlowGrid
+    fontSize: typography.sizes.title3,
     fontWeight: typography.weights.semibold,
     textAlign: 'center',
     marginBottom: layout.spacing.xs,
   },
   subtitleText: {
-    fontSize: typography.sizes.caption1, // Reduced size to match FlowGrid
+    fontSize: typography.sizes.caption1,
     textAlign: 'center',
     opacity: 0.8,
   },
@@ -508,27 +704,26 @@ const styles = StyleSheet.create({
   },
   todayContainer: {
     flex: 1,
-    marginTop: layout.spacing.x3l, // Use spacing token instead of hardcoded 40px
+    marginTop: layout.spacing.x3l,
     paddingHorizontal: layout.spacing.base,
   },
   todaySection: {
     marginBottom: layout.spacing.lg,
   },
   bottomSpacing: {
-    height: layout.spacing.x5l + layout.spacing.x2l, // Space for FAB button (64px + 32px padding)
+    height: layout.spacing.x5l + layout.spacing.x2l,
   },
   whiteBackgroundExtension: {
-    minHeight: layout.spacing.x5l * 3, // Ensure enough white background coverage (192px)
+    minHeight: layout.spacing.x5l * 3,
     flex: 1,
   },
   // Floating Action Button (FAB) - Right Corner
   fabContainer: {
     position: 'absolute',
-    // bottom: calculated dynamically with safe area
-    right: layout.spacing.lg, // Right corner positioning using spacing token
-    width: 68, // Larger to accommodate circular border
+    right: layout.spacing.lg,
+    width: 68,
     height: 68,
-    zIndex: 999, // Above content, below tab bar
+    zIndex: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -537,7 +732,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    padding: 2, // Border thickness
+    padding: 2,
   },
   borderGradient: {
     width: '100%',
@@ -549,8 +744,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(247, 186, 83, 0.2)', // Very subtle orange glow
-    // Soft shadow
+    backgroundColor: 'rgba(247, 186, 83, 0.2)',
     shadowColor: '#F7BA53',
     shadowOffset: {
       width: 0,
@@ -561,18 +755,17 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   fabButton: {
-    width: 56, // Standard FAB size (components.fab.size)
+    width: 56,
     height: 56,
-    borderRadius: 28, // Perfect circle (components.fab.borderRadius)
-    // Standard shadow for floating effect
+    borderRadius: 28,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.14, // elevation.high shadowOpacity
-    shadowRadius: 16, // elevation.high shadowRadius
-    elevation: 12, // elevation.high Android shadow
+    shadowOpacity: 0.14,
+    shadowRadius: 16,
+    elevation: 12,
   },
   fabGradient: {
     width: '100%',

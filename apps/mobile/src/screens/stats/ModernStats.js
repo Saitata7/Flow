@@ -7,7 +7,6 @@ import {
   Dimensions,
   TouchableOpacity,
   Animated,
-  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,7 +16,7 @@ import { FlowsContext } from '../../context/FlowContext';
 import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import Card from '../../components/common/card';
+import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import AnalyticsDashboard from '../../components/analytics/AnalyticsDashboard';
 import { colors, typography, layout } from '../../../styles';
@@ -26,10 +25,9 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const ModernStats = ({ navigation }) => {
   const { flows } = useContext(FlowsContext);
-  const { getAllStats, forceRefreshAnalytics } = useContext(ActivityContext);
+  const { getAllStats } = useContext(ActivityContext);
   const { theme = 'light' } = useContext(ThemeContext) || {};
   const [selectedTimeframe, setSelectedTimeframe] = useState('weekly');
-  const [refreshing, setRefreshing] = useState(false);
   const [animatedValue] = useState(new Animated.Value(0));
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,8 +48,6 @@ const ModernStats = ({ navigation }) => {
         setIsLoading(true);
         console.log('ModernStats: Loading stats using ActivityContext...');
         
-        // Force refresh analytics to ensure fresh data
-        await forceRefreshAnalytics();
         
         console.log('ModernStats: Calling getAllStats with timeframe:', selectedTimeframe);
         const allStats = await getAllStats({
@@ -82,7 +78,7 @@ const ModernStats = ({ navigation }) => {
     };
 
     loadStats();
-  }, [flows, selectedTimeframe, getAllStats, forceRefreshAnalytics]);
+  }, [flows, selectedTimeframe, getAllStats]);
 
   // Animate on mount
   React.useEffect(() => {
@@ -93,22 +89,6 @@ const ModernStats = ({ navigation }) => {
     }).start();
   }, []);
 
-  const onRefresh = React.useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await forceRefreshAnalytics();
-      const allStats = await getAllStats({
-        timeframe: selectedTimeframe,
-        includeArchived: false,
-        includeDeleted: false
-      });
-      setStats(allStats);
-    } catch (error) {
-      console.error('ModernStats: Refresh failed:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [selectedTimeframe, getAllStats, forceRefreshAnalytics]);
 
   // Show loading state
   if (isLoading) {
@@ -211,7 +191,7 @@ const ModernStats = ({ navigation }) => {
       <View style={styles.flowCardHeader}>
         <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
         <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? colors.light.success : flow.performance >= 60 ? colors.light.warning : colors.light.error }]}>
-          <Text style={styles.performanceText}>{flow.performance.toFixed(0)}%</Text>
+          <Text style={styles.performanceText}>{flow.performance?.toFixed(0) || '0'}%</Text>
         </View>
       </View>
       
@@ -251,9 +231,6 @@ const ModernStats = ({ navigation }) => {
       <ScrollView 
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
       >
         {/* Header */}
         <View style={styles.header}>

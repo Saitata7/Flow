@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "server": "node src/server.js",
     "lint": "eslint src/**/*.js --fix",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -15,7 +16,10 @@
     "test:config:manual": "node tests/config/test-all-configs.js",
     "clean": "rm -rf logs tmp node_modules/.cache",
     "openapi:generate": "node scripts/generate-openapi.js",
-    "migrate": "node migrations/migrate.js"
+    "migrate": "node scripts/migrate.js",
+    "migrate:up": "node scripts/migrate.js up",
+    "migrate:rollback": "node scripts/migrate.js rollback",
+    "migrate:reset": "node scripts/migrate.js reset"
   },
   "dependencies": {
     "@fastify/cors": "^8.4.0",

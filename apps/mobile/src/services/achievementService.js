@@ -100,7 +100,21 @@ class AchievementService {
       return null; // Already unlocked
     }
 
-    const achievement = ACHIEVEMENTS[achievementId];
+    // Map achievement ID to the correct key in ACHIEVEMENTS
+    const achievementKeyMap = {
+      'first_flow': 'FIRST_FLOW',
+      'week_streak': 'WEEK_STREAK',
+      'month_streak': 'MONTH_STREAK',
+      'hundred_flows': 'HUNDRED_FLOWS',
+      'perfect_week': 'PERFECT_WEEK',
+      'early_bird': 'EARLY_BIRD',
+      'night_owl': 'NIGHT_OWL',
+      'social_butterfly': 'SOCIAL_BUTTERFLY'
+    };
+
+    const achievementKey = achievementKeyMap[achievementId];
+    const achievement = achievementKey ? ACHIEVEMENTS[achievementKey] : null;
+    
     if (!achievement) {
       console.warn(`Unknown achievement: ${achievementId}`);
       return null;

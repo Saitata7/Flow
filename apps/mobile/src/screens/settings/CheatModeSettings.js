@@ -115,18 +115,8 @@ const CheatModeSettings = ({ route }) => {
 
   // Generate test data for flows
   const generateTestData = () => {
-    if (!cheatData.enableTestData) return;
-
-    const testFlows = flows.map(flow => ({
-      ...flow,
-      streak: Math.floor(Math.random() * 30) + 1,
-      totalDays: Math.floor(Math.random() * 100) + 1,
-      completionRate: Math.floor(Math.random() * 40) + 60,
-      averageScore: Math.floor(Math.random() * 5) + 5,
-      lastCompleted: new Date().toISOString()
-    }));
-
-    Alert.alert('Test Data Generated', `Generated test data for ${testFlows.length} flows`);
+    // This feature is disabled in production
+    Alert.alert('Test Data Disabled', 'Test data generation is disabled in production mode.');
   };
 
   // Reset all cheat mode settings

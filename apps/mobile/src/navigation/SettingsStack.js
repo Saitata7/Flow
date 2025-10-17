@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Settings from '../screens/settings/Settings';
 import SettingsMenu from '../screens/settings/SettingsMenu';
 import AccountSettings from '../screens/settings/AccountSettings';
+import EnhancedProfileSettings from '../screens/settings/EnhancedProfileSettings';
 import NotificationSettings from '../screens/settings/NotificationSettings';
 import NotificationLogScreen from '../screens/notifications/NotificationLogScreen';
 import PrivacySettings from '../screens/settings/PrivacySettings';
@@ -40,6 +41,13 @@ const SettingsStack = () => {
         component={AccountSettings}
         options={{
           title: 'Account Settings',
+        }}
+      />
+      <Stack.Screen 
+        name="EnhancedProfileSettings" 
+        component={EnhancedProfileSettings}
+        options={{
+          title: 'Complete Profile',
         }}
       />
       <Stack.Screen 

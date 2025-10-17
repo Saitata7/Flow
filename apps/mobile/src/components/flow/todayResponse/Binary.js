@@ -96,7 +96,7 @@ const Binary = ({ flow }) => {
   const { updateFlowStatus } = useContext(FlowsContext);
   const navigation = useNavigation();
   const todayKey = moment().format('YYYY-MM-DD');
-  const status = flow.status?.[todayKey]?.symbol || '/';
+  const status = flow.status?.[todayKey]?.symbol || null; // Don't default to skipped
   const emotion = flow.status?.[todayKey]?.emotion || '';
   const note = flow.status?.[todayKey]?.note || '';
   const flowTime = flow.time ? moment(flow.time).format('h:mm A') : null;
@@ -108,7 +108,7 @@ const Binary = ({ flow }) => {
   const [tempNote, setTempNote] = useState(note);
   const [tempStatus, setTempStatus] = useState(status);
 
-  const isPending = status === '/';
+  const isPending = status === null; // No status yet - pending
   const isCompleted = status === '+';
   const isMissed = status === '-';
 

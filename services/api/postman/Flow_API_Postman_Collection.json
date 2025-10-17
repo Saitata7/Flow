@@ -1,0 +1,1426 @@
+{
+  "info": {
+    "name": "Flow API - Production Ready Collection",
+    "description": "Complete API collection for Flow mobile app backend with proper GCP, Firebase, and authentication integration",
+    "version": "2.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "{{auth_token}}",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "{{user_id}}",
+      "type": "string"
+    },
+    {
+      "key": "flow_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "plan_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "flow_entry_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "firebase_project_id",
+      "value": "quick-doodad-472200-k0",
+      "type": "string"
+    },
+    {
+      "key": "gcp_region",
+      "value": "us-central1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "🔍 Health & System Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Check API server health status and service connectivity"
+          },
+          "response": []
+        },
+        {
+          "name": "Debug Environment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/debug/env",
+              "host": ["{{base_url}}"],
+              "path": ["debug", "env"]
+            },
+            "description": "Get environment configuration for debugging (shows GCP/Firebase status)"
+          },
+          "response": []
+        },
+        {
+          "name": "Debug Flows",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/debug/flows",
+              "host": ["{{base_url}}"],
+              "path": ["debug", "flows"]
+            },
+            "description": "Get flow statistics and database connectivity status"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔐 Authentication & Firebase",
+      "item": [
+        {
+          "name": "Firebase Token Validation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{firebase_token}}",
+                "type": "text",
+                "description": "Firebase ID token from mobile app"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flows",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows"]
+            },
+            "description": "Test Firebase authentication with real Firebase ID token"
+          },
+          "response": []
+        },
+        {
+          "name": "Dev Token Authentication",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer dev-token-test",
+                "type": "text",
+                "description": "Development token for testing"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flows",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows"]
+            },
+            "description": "Test with development token (bypasses Firebase for testing)"
+          },
+          "response": []
+        },
+        {
+          "name": "JWT Token Authentication",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text",
+                "description": "JWT token for fallback authentication"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flows",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows"]
+            },
+            "description": "Test JWT fallback authentication"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Token Test",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid-token",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flows",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows"]
+            },
+            "description": "Test with invalid token - should return 401"
+          },
+          "response": []
+        },
+        {
+          "name": "No Token Test",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/flows",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows"]
+            },
+            "description": "Test without token - should return 401"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 Flows Management",
+      "item": [
+        {
+          "name": "Get All Flows",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flows?page=1&limit=10&sortBy=createdAt&sortOrder=desc",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number for pagination"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Number of items per page"
+                },
+                {
+                  "key": "sortBy",
+                  "value": "createdAt",
+                  "description": "Sort field"
+                },
+                {
+                  "key": "sortOrder",
+                  "value": "desc",
+                  "description": "Sort order (asc/desc)"
+                }
+              ]
+            },
+            "description": "Get all flows for authenticated user with pagination and sorting"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Flow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Morning Exercise Routine\",\n  \"description\": \"Daily morning workout routine for health and fitness\",\n  \"trackingType\": \"Binary\",\n  \"frequency\": \"Daily\",\n  \"everyDay\": true,\n  \"daysOfWeek\": [\"Mon\", \"Tue\", \"Wed\", \"Thu\", \"Fri\"],\n  \"reminderTime\": \"07:00\",\n  \"reminderLevel\": \"1\",\n  \"cheatMode\": false,\n  \"goal\": {\n    \"type\": \"count\",\n    \"value\": 1,\n    \"unit\": \"times\"\n  },\n  \"progressMode\": \"sum\",\n  \"tags\": [\"health\", \"exercise\", \"morning\"],\n  \"visibility\": \"private\",\n  \"category\": \"fitness\",\n  \"difficulty\": \"beginner\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/flows",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows"]
+            },
+            "description": "Create a new flow with comprehensive configuration"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.id) {",
+                  "        pm.collectionVariables.set('flow_id', response.data.id);",
+                  "        console.log('✅ Flow created with ID:', response.data.id);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Flow creation failed:', pm.response.text());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Flow by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flows/{{flow_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows", "{{flow_id}}"]
+            },
+            "description": "Get specific flow by ID with full details"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Flow",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Morning Exercise Routine\",\n  \"description\": \"Updated daily morning workout routine with new exercises\",\n  \"reminderTime\": \"08:00\",\n  \"reminderLevel\": \"2\",\n  \"tags\": [\"health\", \"exercise\", \"morning\", \"updated\"],\n  \"difficulty\": \"intermediate\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/flows/{{flow_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows", "{{flow_id}}"]
+            },
+            "description": "Update existing flow with new configuration"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Flow",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flows/{{flow_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flows", "{{flow_id}}"]
+            },
+            "description": "Delete flow by ID (permanent deletion)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📝 Flow Entries",
+      "item": [
+        {
+          "name": "Get Flow Entries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flow-entries?flowId={{flow_id}}&page=1&limit=20&startDate=2025-01-01&endDate=2025-12-31",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flow-entries"],
+              "query": [
+                {
+                  "key": "flowId",
+                  "value": "{{flow_id}}",
+                  "description": "Flow ID to get entries for"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                },
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01",
+                  "description": "Start date filter (YYYY-MM-DD)"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2025-12-31",
+                  "description": "End date filter (YYYY-MM-DD)"
+                }
+              ]
+            },
+            "description": "Get flow entries for a specific flow with date filtering"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Flow Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flowId\": \"{{flow_id}}\",\n  \"date\": \"2025-10-07\",\n  \"value\": 1,\n  \"symbol\": \"+\",\n  \"moodScore\": 4,\n  \"note\": \"Completed morning workout successfully. Feeling energized!\",\n  \"location\": {\n    \"latitude\": 37.7749,\n    \"longitude\": -122.4194,\n    \"address\": \"San Francisco, CA\"\n  },\n  \"weather\": {\n    \"temperature\": 22,\n    \"condition\": \"sunny\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/flow-entries",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flow-entries"]
+            },
+            "description": "Create a new flow entry with mood, location, and weather data"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.id) {",
+                  "        pm.collectionVariables.set('flow_entry_id', response.data.id);",
+                  "        console.log('✅ Flow entry created with ID:', response.data.id);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Flow entry creation failed:', pm.response.text());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Flow Entry",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 2,\n  \"symbol\": \"+\",\n  \"moodScore\": 5,\n  \"note\": \"Updated: Did extra exercises today! Feeling amazing!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/flow-entries/{{flow_entry_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flow-entries", "{{flow_entry_id}}"]
+            },
+            "description": "Update existing flow entry"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Flow Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/flow-entries/{{flow_entry_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "flow-entries", "{{flow_entry_id}}"]
+            },
+            "description": "Delete flow entry by ID"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📈 Activities & Analytics",
+      "item": [
+        {
+          "name": "Get Activity Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/activities/stats?timeframe=all&includeHeatMap=true",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "activities", "stats"],
+              "query": [
+                {
+                  "key": "timeframe",
+                  "value": "all",
+                  "description": "Timeframe: all, weekly, monthly, yearly"
+                },
+                {
+                  "key": "includeHeatMap",
+                  "value": "true",
+                  "description": "Include heatmap data"
+                }
+              ]
+            },
+            "description": "Get comprehensive activity statistics with heatmap data"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Flow Activity Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/activities/flow/{{flow_id}}?timeframe=monthly",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "activities", "flow", "{{flow_id}}"],
+              "query": [
+                {
+                  "key": "timeframe",
+                  "value": "monthly",
+                  "description": "Timeframe for flow-specific stats"
+                }
+              ]
+            },
+            "description": "Get activity statistics for specific flow"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Activity Cache Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/activities/cache/status",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "activities", "cache", "status"]
+            },
+            "description": "Get Redis cache status for activity data"
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Activity Cache",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/activities/cache/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "activities", "cache", "refresh"]
+            },
+            "description": "Refresh Redis cache for activity data"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📋 Plans Management",
+      "item": [
+        {
+          "name": "Get All Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/plans?status=active&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "plans"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "Filter by plan status"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Get all plans for authenticated user"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"30-Day Fitness Challenge\",\n  \"description\": \"Complete 30 days of consistent exercise to build healthy habits\",\n  \"duration\": 30,\n  \"durationType\": \"days\",\n  \"status\": \"active\",\n  \"ownerId\": \"{{user_id}}\",\n  \"goals\": [\n    {\n      \"type\": \"streak\",\n      \"value\": 30,\n      \"description\": \"30-day streak\"\n    },\n    {\n      \"type\": \"completion\",\n      \"value\": 80,\n      \"description\": \"80% completion rate\"\n    }\n  ],\n  \"tags\": [\"fitness\", \"challenge\", \"30-day\"],\n  \"difficulty\": \"intermediate\",\n  \"category\": \"health\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/plans",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "plans"]
+            },
+            "description": "Create a new plan with goals and configuration"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.id) {",
+                  "        pm.collectionVariables.set('plan_id', response.data.id);",
+                  "    console.log('✅ Plan created with ID:', response.data.id);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Plan creation failed:', pm.response.text());",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get Plan by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "plans", "{{plan_id}}"]
+            },
+            "description": "Get specific plan by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated 30-Day Fitness Challenge\",\n  \"description\": \"Updated plan with new goals and milestones\",\n  \"status\": \"completed\",\n  \"completedAt\": \"2025-10-07T10:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "plans", "{{plan_id}}"]
+            },
+            "description": "Update existing plan"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/plans/{{plan_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "plans", "{{plan_id}}"]
+            },
+            "description": "Delete plan by ID"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "⚙️ Settings & Preferences",
+      "item": [
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/settings",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "settings"]
+            },
+            "description": "Get user settings and preferences"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Settings",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"theme\": \"dark\",\n  \"language\": \"en\",\n  \"timezone\": \"America/Los_Angeles\",\n  \"notifications\": {\n    \"reminders\": true,\n    \"achievements\": true,\n    \"streaks\": false,\n    \"weeklyReports\": true,\n    \"pushNotifications\": true,\n    \"emailNotifications\": false\n  },\n  \"defaultReminderTime\": \"08:00\",\n  \"defaultReminderLevel\": \"2\",\n  \"showCompletedFlows\": true,\n  \"showArchivedFlows\": false,\n  \"backupEnabled\": true,\n  \"backupFrequency\": \"daily\",\n  \"dataSharing\": {\n    \"analytics\": true,\n    \"crashReports\": true,\n    \"usageStats\": true,\n    \"personalizedAds\": false\n  },\n  \"privacy\": {\n    \"profileVisibility\": \"private\",\n    \"shareProgress\": false,\n    \"allowFriendRequests\": true\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/settings",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "settings"]
+            },
+            "description": "Update user settings with comprehensive configuration"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 Statistics & Leaderboard",
+      "item": [
+        {
+          "name": "Get User Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/stats/users/{{user_id}}?timeframe=all&includeAchievements=true",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "stats", "users", "{{user_id}}"],
+              "query": [
+                {
+                  "key": "timeframe",
+                  "value": "all",
+                  "description": "Timeframe: all, weekly, monthly, yearly"
+                },
+                {
+                  "key": "includeAchievements",
+                  "value": "true",
+                  "description": "Include achievement data"
+                }
+              ]
+            },
+            "description": "Get comprehensive user statistics"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/stats/leaderboard?timeframe=weekly&limit=20&category=all",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "stats", "leaderboard"],
+              "query": [
+                {
+                  "key": "timeframe",
+                  "value": "weekly",
+                  "description": "Timeframe: daily, weekly, monthly, all"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Number of users to return"
+                },
+                {
+                  "key": "category",
+                  "value": "all",
+                  "description": "Category: all, fitness, productivity, health"
+                }
+              ]
+            },
+            "description": "Get leaderboard data with filtering options"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Weekly Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/stats/weekly?week=2025-W41",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "stats", "weekly"],
+              "query": [
+                {
+                  "key": "week",
+                  "value": "2025-W41",
+                  "description": "Week in ISO format (YYYY-Www)"
+                }
+              ]
+            },
+            "description": "Get weekly statistics for specific week"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Monthly Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/stats/monthly?month=2025-10",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "stats", "monthly"],
+              "query": [
+                {
+                  "key": "month",
+                  "value": "2025-10",
+                  "description": "Month in YYYY-MM format"
+                }
+              ]
+            },
+            "description": "Get monthly statistics for specific month"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🔔 Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/notifications?unreadOnly=false&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "notifications"],
+              "query": [
+                {
+                  "key": "unreadOnly",
+                  "value": "false",
+                  "description": "Filter for unread notifications only"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page"
+                }
+              ]
+            },
+            "description": "Get user notifications with pagination"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Notification as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"read\": true,\n  \"readAt\": \"2025-10-07T10:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/notifications/{{notification_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "notifications", "{{notification_id}}"]
+            },
+            "description": "Mark notification as read"
+          },
+          "response": []
+        },
+        {
+          "name": "Mark All Notifications as Read",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/v1/notifications/mark-all-read",
+              "host": ["{{base_url}}"],
+              "path": ["v1", "notifications", "mark-all-read"]
+            },
+            "description": "Mark all notifications as read"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🧪 Complete Test Scenarios",
+      "item": [
+        {
+          "name": "End-to-End Flow Test",
+          "item": [
+            {
+              "name": "1. Create Flow",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"Test Flow {{$timestamp}}\",\n  \"description\": \"Flow created for comprehensive testing\",\n  \"trackingType\": \"Binary\",\n  \"frequency\": \"Daily\",\n  \"everyDay\": true,\n  \"daysOfWeek\": [\"Mon\", \"Tue\", \"Wed\", \"Thu\", \"Fri\"],\n  \"reminderTime\": \"09:00\",\n  \"reminderLevel\": \"1\",\n  \"cheatMode\": false,\n  \"goal\": {\n    \"type\": \"count\",\n    \"value\": 1,\n    \"unit\": \"times\"\n  },\n  \"progressMode\": \"sum\",\n  \"tags\": [\"test\", \"automation\"],\n  \"visibility\": \"private\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/v1/flows",
+                  "host": ["{{base_url}}"],
+                  "path": ["v1", "flows"]
+                },
+                "description": "Step 1: Create a test flow"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.data && response.data.id) {",
+                      "        pm.collectionVariables.set('flow_id', response.data.id);",
+                      "        console.log('✅ Step 1: Flow created with ID:', response.data.id);",
+                      "    }",
+                      "} else {",
+                      "    console.log('❌ Step 1: Flow creation failed:', pm.response.text());",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "2. Create Flow Entry",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"flowId\": \"{{flow_id}}\",\n  \"date\": \"2025-10-07\",\n  \"value\": 1,\n  \"symbol\": \"+\",\n  \"moodScore\": 4,\n  \"note\": \"Test entry for comprehensive testing\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/v1/flow-entries",
+                  "host": ["{{base_url}}"],
+                  "path": ["v1", "flow-entries"]
+                },
+                "description": "Step 2: Create a flow entry"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 201) {",
+                      "    const response = pm.response.json();",
+                      "    if (response.data && response.data.id) {",
+                      "        pm.collectionVariables.set('flow_entry_id', response.data.id);",
+                      "        console.log('✅ Step 2: Flow entry created with ID:', response.data.id);",
+                      "    }",
+                      "} else {",
+                      "    console.log('❌ Step 2: Flow entry creation failed:', pm.response.text());",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "3. Get Flow Entries",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/v1/flow-entries?flowId={{flow_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["v1", "flow-entries"],
+                  "query": [
+                    {
+                      "key": "flowId",
+                      "value": "{{flow_id}}"
+                    }
+                  ]
+                },
+                "description": "Step 3: Get flow entries"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const response = pm.response.json();",
+                      "    console.log('✅ Step 3: Retrieved', response.data.length, 'flow entries');",
+                      "} else {",
+                      "    console.log('❌ Step 3: Failed to get flow entries:', pm.response.text());",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "4. Get Activity Stats",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/v1/activities/stats",
+                  "host": ["{{base_url}}"],
+                  "path": ["v1", "activities", "stats"]
+                },
+                "description": "Step 4: Get activity stats"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    const response = pm.response.json();",
+                      "    console.log('✅ Step 4: Activity stats retrieved successfully');",
+                      "    console.log('   Total flows:', response.data.totalFlows);",
+                      "    console.log('   Total completed:', response.data.totalCompleted);",
+                      "} else {",
+                      "    console.log('❌ Step 4: Failed to get activity stats:', pm.response.text());",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "5. Cleanup - Delete Flow Entry",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/v1/flow-entries/{{flow_entry_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["v1", "flow-entries", "{{flow_entry_id}}"]
+                },
+                "description": "Step 5: Cleanup - Delete flow entry"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    console.log('✅ Step 5: Flow entry deleted successfully');",
+                      "} else {",
+                      "    console.log('❌ Step 5: Failed to delete flow entry:', pm.response.text());",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            },
+            {
+              "name": "6. Cleanup - Delete Flow",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/v1/flows/{{flow_id}}",
+                  "host": ["{{base_url}}"],
+                  "path": ["v1", "flows", "{{flow_id}}"]
+                },
+                "description": "Step 6: Cleanup - Delete flow"
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "if (pm.response.code === 200) {",
+                      "    console.log('✅ Step 6: Flow deleted successfully');",
+                      "    console.log('🎉 End-to-end test completed successfully!');",
+                      "} else {",
+                      "    console.log('❌ Step 6: Failed to delete flow:', pm.response.text());",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Set default values if not set",
+          "if (!pm.collectionVariables.get('auth_token')) {",
+          "    pm.collectionVariables.set('auth_token', 'dev-token-test');",
+          "}",
+          "",
+          "if (!pm.collectionVariables.get('user_id')) {",
+          "    pm.collectionVariables.set('user_id', '550e8400-e29b-41d4-a716-446655440000');",
+          "}",
+          "",
+          "// Log current environment",
+          "console.log('🔧 Environment:', pm.environment.name || 'No Environment');",
+          "console.log('🔧 Base URL:', pm.collectionVariables.get('base_url'));",
+          "console.log('🔧 Auth Token:', pm.collectionVariables.get('auth_token'));",
+          "console.log('🔧 User ID:', pm.collectionVariables.get('user_id'));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script for all requests",
+          "pm.test('Response time is acceptable', function () {",
+          "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+          "});",
+          "",
+          "pm.test('Response has success field', function () {",
+          "    const jsonData = pm.response.json();",
+          "    pm.expect(jsonData).to.have.property('success');",
+          "});",
+          "",
+          "pm.test('Response is valid JSON', function () {",
+          "    pm.response.to.be.json;",
+          "});",
+          "",
+          "// Log response details for debugging",
+          "console.log('📊 Response Status:', pm.response.status);",
+          "console.log('⏱️ Response Time:', pm.response.responseTime + 'ms');",
+          "console.log('📦 Response Size:', pm.response.responseSize + ' bytes');",
+          "",
+          "// Log authentication status",
+          "if (pm.response.status === 401) {",
+          "    console.log('🔐 Authentication required - check your token');",
+          "} else if (pm.response.status === 200 || pm.response.status === 201) {",
+          "    console.log('✅ Request successful');",
+          "} else if (pm.response.status >= 400) {",
+          "    console.log('❌ Request failed:', pm.response.status);",
+          "}"
+        ]
+      }
+    }
+  ]
+}

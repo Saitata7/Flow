@@ -9,7 +9,7 @@ const {
   getFlowStats,
 } = require('../controllers/flows.controller');
 
-const { requireAuth, requireOwnership } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { validateFlowData } = require('../middleware/errorHandler');
 
 const flowsRoutes = async fastify => {

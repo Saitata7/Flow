@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
-import { apiClient } from '../../config/api';
+import apiService from '../../services/apiService';
 
 const NotificationLogScreen = () => {
   const navigation = useNavigation();
@@ -43,15 +43,23 @@ const NotificationLogScreen = () => {
       }
 
       const currentOffset = isRefresh ? 0 : offset;
-      const response = await apiClient.get('/notifications/logs', {
-        params: {
-          limit,
-          offset: currentOffset,
-        },
+      
+      // Check authentication before making API call
+      const isAuthenticated = await apiService.isUserAuthenticated();
+      if (!isAuthenticated) {
+        console.log('User not authenticated, skipping notification logs load');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      
+      const response = await apiService.getNotificationLogs({
+        limit,
+        offset: currentOffset,
       });
 
-      if (response.data && response.data.success) {
-        const newNotifications = response.data.data;
+      if (response.success) {
+        const newNotifications = response.data;
         
         if (isRefresh) {
           setNotifications(newNotifications);
