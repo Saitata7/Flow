@@ -1464,6 +1464,951 @@ For API support, please contact our development team or refer to the documentati
           }
         }
       }
+    },
+
+    // Flows endpoints
+    '/v1/flows': {
+      get: {
+        tags: ['flows'],
+        summary: 'Get user flows',
+        description: 'Retrieve all flows for the authenticated user',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Flows retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/Flow' }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      },
+      post: {
+        tags: ['flows'],
+        summary: 'Create new flow',
+        description: 'Create a new flow for the authenticated user',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['title', 'description'],
+                properties: {
+                  title: { type: 'string', minLength: 3, maxLength: 50 },
+                  description: { type: 'string', maxLength: 200 },
+                  category: { type: 'string' },
+                  isPublic: { type: 'boolean', default: false },
+                  tags: {
+                    type: 'array',
+                    items: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': {
+            description: 'Flow created successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/Flow' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
+    },
+    '/v1/flows/{id}': {
+      get: {
+        tags: ['flows'],
+        summary: 'Get flow by ID',
+        description: 'Retrieve a specific flow by ID',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/Flow' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      },
+      put: {
+        tags: ['flows'],
+        summary: 'Update flow',
+        description: 'Update an existing flow',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow ID'
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  title: { type: 'string', minLength: 3, maxLength: 50 },
+                  description: { type: 'string', maxLength: 200 },
+                  category: { type: 'string' },
+                  isPublic: { type: 'boolean' },
+                  tags: {
+                    type: 'array',
+                    items: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Flow updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/Flow' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      },
+      delete: {
+        tags: ['flows'],
+        summary: 'Delete flow',
+        description: 'Delete a flow permanently',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow deleted successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      }
+    },
+    '/v1/flows/{id}/stats': {
+      get: {
+        tags: ['flows'],
+        summary: 'Get flow statistics',
+        description: 'Get statistics for a specific flow',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow ID'
+          },
+          {
+            name: 'timeframe',
+            in: 'query',
+            schema: { 
+              type: 'string',
+              enum: ['week', 'month', 'year', 'all'],
+              default: 'all'
+            },
+            description: 'Timeframe for statistics'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow statistics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        currentStreak: { type: 'integer' },
+                        longestStreak: { type: 'integer' },
+                        completedEntries: { type: 'integer' },
+                        totalEntries: { type: 'integer' },
+                        completionRate: { type: 'number' }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      }
+    },
+
+    // Flow Entries endpoints
+    '/v1/flow-entries': {
+      get: {
+        tags: ['entries'],
+        summary: 'Get flow entries',
+        description: 'Retrieve flow entries for the authenticated user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'flowId',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Filter by flow ID'
+          },
+          {
+            name: 'limit',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+            description: 'Number of entries to return'
+          },
+          {
+            name: 'offset',
+            in: 'query',
+            schema: { type: 'integer', minimum: 0, default: 0 },
+            description: 'Number of entries to skip'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow entries retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/FlowEntry' }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      },
+      post: {
+        tags: ['entries'],
+        summary: 'Create flow entry',
+        description: 'Create a new flow entry',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['flowId', 'date', 'symbol'],
+                properties: {
+                  flowId: { type: 'string' },
+                  date: { type: 'string', format: 'date' },
+                  symbol: { type: 'string', enum: ['+', '-', '*', '/'] },
+                  emotion: { type: 'string' },
+                  moodScore: { type: 'integer', minimum: 1, maximum: 5 },
+                  note: { type: 'string', maxLength: 1000 },
+                  quantitative: {
+                    type: 'object',
+                    properties: {
+                      unitText: { type: 'string' },
+                      count: { type: 'number' }
+                    }
+                  },
+                  timebased: {
+                    type: 'object',
+                    properties: {
+                      totalDuration: { type: 'number' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '201': {
+            description: 'Flow entry created successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/FlowEntry' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
+    },
+    '/v1/flow-entries/{id}': {
+      get: {
+        tags: ['entries'],
+        summary: 'Get flow entry by ID',
+        description: 'Retrieve a specific flow entry by ID',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow entry ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow entry retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/FlowEntry' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      },
+      put: {
+        tags: ['entries'],
+        summary: 'Update flow entry',
+        description: 'Update an existing flow entry',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow entry ID'
+          }
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  symbol: { type: 'string', enum: ['+', '-', '*', '/'] },
+                  emotion: { type: 'string' },
+                  moodScore: { type: 'integer', minimum: 1, maximum: 5 },
+                  note: { type: 'string', maxLength: 1000 },
+                  quantitative: {
+                    type: 'object',
+                    properties: {
+                      unitText: { type: 'string' },
+                      count: { type: 'number' }
+                    }
+                  },
+                  timebased: {
+                    type: 'object',
+                    properties: {
+                      totalDuration: { type: 'number' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Flow entry updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/FlowEntry' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      },
+      delete: {
+        tags: ['entries'],
+        summary: 'Delete flow entry',
+        description: 'Delete a flow entry permanently',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow entry ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow entry deleted successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      }
+    },
+
+    // Plans endpoints
+    '/v1/plans': {
+      get: {
+        tags: ['plans'],
+        summary: 'Get plans',
+        description: 'Retrieve available plans (placeholder endpoint)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Plans retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' },
+                    data: { type: 'array', items: { type: 'object' } }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
+    },
+
+    // Stats endpoints
+    '/v1/stats/users/{userId}': {
+      get: {
+        tags: ['stats'],
+        summary: 'Get user statistics',
+        description: 'Get comprehensive statistics for a specific user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'userId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'User ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'User statistics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        totalFlows: { type: 'integer' },
+                        totalEntries: { type: 'integer' },
+                        completedEntries: { type: 'integer' },
+                        currentStreak: { type: 'integer' },
+                        longestStreak: { type: 'integer' },
+                        completionRate: { type: 'number' },
+                        joinDate: { type: 'string' },
+                        username: { type: 'string' },
+                        displayName: { type: 'string' }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      }
+    },
+    '/v1/stats/leaderboard': {
+      get: {
+        tags: ['stats'],
+        summary: 'Get leaderboard',
+        description: 'Get global leaderboard data',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'limit',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
+            description: 'Number of entries to return'
+          },
+          {
+            name: 'timeframe',
+            in: 'query',
+            schema: { 
+              type: 'string',
+              enum: ['week', 'month', 'year', 'all'],
+              default: 'all'
+            },
+            description: 'Timeframe for leaderboard'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Leaderboard retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          userId: { type: 'string' },
+                          username: { type: 'string' },
+                          displayName: { type: 'string' },
+                          score: { type: 'number' },
+                          rank: { type: 'integer' }
+                        }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
+    },
+    '/v1/stats/flows/{flowId}': {
+      get: {
+        tags: ['stats'],
+        summary: 'Get flow statistics',
+        description: 'Get statistics for a specific flow',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'flowId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow statistics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        currentStreak: { type: 'integer' },
+                        longestStreak: { type: 'integer' },
+                        completedEntries: { type: 'integer' },
+                        totalEntries: { type: 'integer' },
+                        skippedEntries: { type: 'integer' },
+                        bonusEntries: { type: 'integer' },
+                        averageMoodScore: { type: 'number' },
+                        completionRate: { type: 'number' }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      }
+    },
+
+    // Activities endpoints
+    '/v1/activities/stats': {
+      get: {
+        tags: ['activities'],
+        summary: 'Get comprehensive activity statistics',
+        description: 'Get comprehensive activity statistics for the authenticated user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'timeframe',
+            in: 'query',
+            schema: { 
+              type: 'string',
+              enum: ['weekly', 'monthly', 'yearly', 'all'],
+              default: 'all'
+            },
+            description: 'Timeframe for statistics'
+          },
+          {
+            name: 'includeArchived',
+            in: 'query',
+            schema: { type: 'boolean', default: false },
+            description: 'Include archived flows'
+          },
+          {
+            name: 'includeDeleted',
+            in: 'query',
+            schema: { type: 'boolean', default: false },
+            description: 'Include deleted flows'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Activity statistics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { type: 'object' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
+    },
+    '/v1/activities/scoreboard/{flowId}': {
+      get: {
+        tags: ['activities'],
+        summary: 'Get scoreboard for specific flow',
+        description: 'Get scoreboard data for a specific flow',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'flowId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Scoreboard data retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { type: 'object' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      }
+    },
+    '/v1/activities/flow/{flowId}': {
+      get: {
+        tags: ['activities'],
+        summary: 'Get activity statistics for specific flow',
+        description: 'Get activity statistics for a specific flow',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'flowId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Flow ID'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Flow activity statistics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { type: 'object' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '404': { $ref: '#/components/responses/NotFoundError' }
+        }
+      }
+    },
+
+    // Sync Queue endpoints
+    '/v1/sync/queue': {
+      post: {
+        tags: ['sync'],
+        summary: 'Queue sync operation',
+        description: 'Queue an offline sync operation',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['entityType', 'entityId', 'operation', 'payload'],
+                properties: {
+                  entityType: {
+                    type: 'string',
+                    enum: ['flow', 'flow_entry', 'user_profile', 'user_settings']
+                  },
+                  entityId: { type: 'string' },
+                  operation: {
+                    type: 'string',
+                    enum: ['CREATE', 'UPDATE', 'DELETE']
+                  },
+                  payload: { type: 'object' },
+                  metadata: { type: 'object', default: {} }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Sync operation queued successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        operationId: { type: 'string' },
+                        status: { type: 'string' },
+                        queuedAt: { type: 'string', format: 'date-time' }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/ValidationError' },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
+    },
+    '/v1/sync/status': {
+      get: {
+        tags: ['sync'],
+        summary: 'Get sync status',
+        description: 'Get current sync status for the authenticated user',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Sync status retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        isOnline: { type: 'boolean' },
+                        lastSyncAt: { type: 'string', format: 'date-time' },
+                        pendingOperations: { type: 'integer' },
+                        syncInProgress: { type: 'boolean' }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
+    },
+    '/v1/sync/pending': {
+      get: {
+        tags: ['sync'],
+        summary: 'Get pending sync operations',
+        description: 'Get pending sync operations for the authenticated user',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'limit',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 1000, default: 100 },
+            description: 'Maximum number of operations to return'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Pending operations retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          operationId: { type: 'string' },
+                          entityType: { type: 'string' },
+                          entityId: { type: 'string' },
+                          operation: { type: 'string' },
+                          queuedAt: { type: 'string', format: 'date-time' },
+                          status: { type: 'string' }
+                        }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '401': { $ref: '#/components/responses/UnauthorizedError' }
+        }
+      }
     }
   },
   tags: [
@@ -1521,6 +2466,54 @@ For API support, please contact our development team or refer to the documentati
       externalDocs: {
         description: 'Settings Guide',
         url: 'https://flow.app/docs/settings'
+      }
+    },
+    { 
+      name: 'flows', 
+      description: 'Flow management endpoints for creating, updating, and managing habit flows',
+      externalDocs: {
+        description: 'Flow Management',
+        url: 'https://flow.app/docs/flows'
+      }
+    },
+    { 
+      name: 'entries', 
+      description: 'Flow entry endpoints for tracking daily progress and activities',
+      externalDocs: {
+        description: 'Flow Entries',
+        url: 'https://flow.app/docs/entries'
+      }
+    },
+    { 
+      name: 'plans', 
+      description: 'Plan management endpoints for subscription and premium features',
+      externalDocs: {
+        description: 'Plans & Pricing',
+        url: 'https://flow.app/docs/plans'
+      }
+    },
+    { 
+      name: 'stats', 
+      description: 'Statistics and analytics endpoints for user and flow metrics',
+      externalDocs: {
+        description: 'Statistics',
+        url: 'https://flow.app/docs/stats'
+      }
+    },
+    { 
+      name: 'activities', 
+      description: 'Activity stats and analytics endpoints for comprehensive reporting',
+      externalDocs: {
+        description: 'Activity Analytics',
+        url: 'https://flow.app/docs/activities'
+      }
+    },
+    { 
+      name: 'sync', 
+      description: 'Sync queue endpoints for offline-to-online data synchronization',
+      externalDocs: {
+        description: 'Sync Management',
+        url: 'https://flow.app/docs/sync'
       }
     }
   ]

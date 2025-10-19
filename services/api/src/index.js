@@ -464,6 +464,60 @@ const registerRoutes = async () => {
     console.error('❌ Failed to register settings routes:', error.message);
   }
 
+  try {
+    const flowsRoutes = require('./routes/flows');
+    console.log('🌊 Registering flows routes at /v1/flows ...');
+    await fastify.register(flowsRoutes, { prefix: '/v1/flows' });
+    console.log('✅ Flows routes registered at /v1/flows');
+  } catch (error) {
+    console.error('❌ Failed to register flows routes:', error.message);
+  }
+
+  try {
+    const flowEntriesRoutes = require('./routes/flowEntries');
+    console.log('📝 Registering flow entries routes at /v1/flow-entries ...');
+    await fastify.register(flowEntriesRoutes, { prefix: '/v1/flow-entries' });
+    console.log('✅ Flow entries routes registered at /v1/flow-entries');
+  } catch (error) {
+    console.error('❌ Failed to register flow entries routes:', error.message);
+  }
+
+  try {
+    const plansRoutes = require('./routes/plans');
+    console.log('📋 Registering plans routes at /v1/plans ...');
+    await fastify.register(plansRoutes, { prefix: '/v1/plans' });
+    console.log('✅ Plans routes registered at /v1/plans');
+  } catch (error) {
+    console.error('❌ Failed to register plans routes:', error.message);
+  }
+
+  try {
+    const statsRoutes = require('./routes/stats');
+    console.log('📊 Registering stats routes at /v1/stats ...');
+    await fastify.register(statsRoutes, { prefix: '/v1/stats' });
+    console.log('✅ Stats routes registered at /v1/stats');
+  } catch (error) {
+    console.error('❌ Failed to register stats routes:', error.message);
+  }
+
+  try {
+    const activitiesRoutes = require('./routes/activities');
+    console.log('🏃 Registering activities routes at /v1/activities ...');
+    await fastify.register(activitiesRoutes, { prefix: '/v1/activities' });
+    console.log('✅ Activities routes registered at /v1/activities');
+  } catch (error) {
+    console.error('❌ Failed to register activities routes:', error.message);
+  }
+
+  try {
+    const syncQueueRoutes = require('./routes/syncQueue');
+    console.log('🔄 Registering sync queue routes at /v1/sync ...');
+    await fastify.register(syncQueueRoutes, { prefix: '/v1/sync' });
+    console.log('✅ Sync queue routes registered at /v1/sync');
+  } catch (error) {
+    console.error('❌ Failed to register sync queue routes:', error.message);
+  }
+
   // Root endpoint
   fastify.get('/', {
     schema: {
