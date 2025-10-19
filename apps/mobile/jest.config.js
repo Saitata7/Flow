@@ -1,40 +1,30 @@
 /**
  * Jest Configuration for Mobile App
- * Extends base configuration with React Native specific settings
+ * Simplified configuration for React Native testing
  */
 
-const baseConfig = require('../../jest.config.base.js');
-
 module.exports = {
-  ...baseConfig,
-  
-  // React Native specific preset
-  preset: 'react-native',
-  
-  // Mobile-specific test environment
+  // Test environment
   testEnvironment: 'jsdom',
-  
-  // Mobile-specific setup
+
+  // Setup files
   setupFilesAfterEnv: [
     '<rootDir>/tests/setup.js',
     '<rootDir>/tests/mobile-setup.js',
   ],
-  
-  // Mobile-specific coverage
+
+  // Coverage configuration
   collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.test.{js,jsx,ts,tsx}',
-    '!src/**/*.spec.{js,jsx,ts,tsx}',
-    '!src/**/*.stories.{js,jsx,ts,tsx}',
+    'src/**/*.{js,jsx}',
+    '!src/**/*.test.{js,jsx}',
+    '!src/**/*.spec.{js,jsx}',
     '!src/index.js',
     '!src/App.js',
-    '!src/navigation/**',
   ],
-  
-  // Mobile-specific module mapping
-  moduleNameMapping: {
-    ...baseConfig.moduleNameMapping,
-    '^@mobile/(.*)$': '<rootDir>/src/$1',
+
+  // Module name mapping
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
     '^@components/(.*)$': '<rootDir>/src/components/$1',
     '^@screens/(.*)$': '<rootDir>/src/screens/$1',
     '^@navigation/(.*)$': '<rootDir>/src/navigation/$1',
@@ -45,20 +35,20 @@ module.exports = {
     '^@config/(.*)$': '<rootDir>/src/config/$1',
     '^@styles/(.*)$': '<rootDir>/styles/$1',
   },
-  
-  // Mobile-specific transform ignore patterns
+
+  // Transform ignore patterns
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@expo|expo|@react-navigation|@react-native-firebase|@react-native-google-signin|@react-native-async-storage|@react-native-clipboard|@react-native-community|@react-native-picker|@react-native-permissions|@react-native-push-notification|@react-native-vector-icons|@react-native-svg|@react-native-uuid|@react-native-iphone-x-helper|@react-native-modal|@react-native-pager-view|@react-native-pie-chart|@react-native-super-ellipse-mask|@react-native-worklets|@react-native-fingerprint-scanner|@react-native-figma-squircle|@squircle-js|react-native-calendars|react-native-chart-kit|react-native-gifted-charts|react-native-gesture-handler|react-native-reanimated|react-native-safe-area-context|react-native-screens|react-native-uuid|victory-native|lucide-react-native|validator|moment|date-fns|react-day-picker)/)',
   ],
-  
-  // Mobile-specific test patterns
+
+  // Test patterns
   testMatch: [
-    '<rootDir>/tests/**/*.test.{js,jsx,ts,tsx}',
-    '<rootDir>/src/**/*.test.{js,jsx,ts,tsx}',
-    '<rootDir>/src/**/*.spec.{js,jsx,ts,tsx}',
+    '<rootDir>/tests/**/*.test.{js,jsx}',
+    '<rootDir>/src/**/*.test.{js,jsx}',
+    '<rootDir>/src/**/*.spec.{js,jsx}',
   ],
-  
-  // Mobile-specific coverage thresholds
+
+  // Coverage thresholds
   coverageThreshold: {
     global: {
       branches: 70,
@@ -67,15 +57,33 @@ module.exports = {
       statements: 75,
     },
   },
-  
-  // Mobile-specific timeout
+
+  // Test timeout
   testTimeout: 10000,
-  
-  // Mobile-specific test path ignore patterns
+
+  // Test path ignore patterns
   testPathIgnorePatterns: [
-    ...baseConfig.testPathIgnorePatterns,
+    '<rootDir>/node_modules/',
     '<rootDir>/android/',
     '<rootDir>/ios/',
     '<rootDir>/.expo/',
+    '<rootDir>/dist/',
+    '<rootDir>/build/',
+    '<rootDir>/coverage/',
   ],
+
+  // Module file extensions
+  moduleFileExtensions: ['js', 'jsx', 'json'],
+  
+  // Verbose output
+  verbose: true,
+  
+  // Clear mocks between tests
+  clearMocks: true,
+  restoreMocks: true,
+  
+  // Global variables
+  globals: {
+    __DEV__: true,
+  },
 };

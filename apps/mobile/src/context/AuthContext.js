@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import apiService from '../services/apiService';
 import sessionManager from '../utils/sessionManager';
-import { clearJWTToken } from '../utils/jwtAuth';
+import { clearJWTToken, storeJWTToken } from '../utils/jwtAuth';
 
 const AuthContext = createContext({});
 
@@ -100,10 +100,15 @@ export const AuthProvider = ({ children }) => {
           
           setUser(userData);
           
-          // Get Firebase token and store session
+          // Get Firebase token for API calls (API will verify it directly)
           try {
-            const token = await firebaseUser.getIdToken();
-            await sessionManager.storeSession(userData, token);
+            const firebaseToken = await firebaseUser.getIdToken();
+            console.log('🔥 Got Firebase token:', firebaseToken.substring(0, 20) + '...');
+            console.log('✅ Firebase token will be used directly for API authentication');
+            
+            // Store the Firebase token for API calls
+            await storeJWTToken(firebaseToken);
+            await sessionManager.storeSession(userData, firebaseToken);
           } catch (tokenError) {
             console.error('Error getting Firebase token:', tokenError);
             // Still store session without token

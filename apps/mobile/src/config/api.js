@@ -18,11 +18,11 @@ const API_CONFIG = {
     device: 'http://10.0.10.94:4003', // Computer's IP address
   },
   
-  // Production URL
+  // Production URL - GCP Cloud Run
   production: {
-    android: 'https://api.flow.app',
-    ios: 'https://api.flow.app',
-    device: 'https://api.flow.app',
+    android: 'https://flow-api-891963913698.us-central1.run.app',
+    ios: 'https://flow-api-891963913698.us-central1.run.app',
+    device: 'https://flow-api-891963913698.us-central1.run.app',
   }
 };
 
@@ -61,7 +61,7 @@ const getApiBaseUrl = () => {
   }
   
   // Fallback
-  return 'https://api.flow.app';
+  return 'https://flow-api-891963913698.us-central1.run.app';
 };
 
 // API Configuration object

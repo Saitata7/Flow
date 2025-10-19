@@ -334,6 +334,12 @@ class PlanModel {
   static async getParticipants(planId) {
     return db('plan_participants').where('plan_id', planId).select('user_id', 'joined_at');
   }
+
+  static async softDelete(id) {
+    return db(this.tableName)
+      .where({ id })
+      .update({ deleted_at: new Date(), updated_at: new Date() });
+  }
 }
 
 class UserProfileModel {
@@ -373,6 +379,12 @@ class UserProfileModel {
 
     return query.orderBy('created_at', 'desc');
   }
+
+  static async softDelete(userId) {
+    return db(this.tableName)
+      .where({ user_id: userId })
+      .update({ deleted_at: new Date(), updated_at: new Date() });
+  }
 }
 
 class UserSettingsModel {
@@ -393,6 +405,12 @@ class UserSettingsModel {
       .update({ ...data, updated_at: new Date() })
       .returning('*');
     return settings;
+  }
+
+  static async softDelete(userId) {
+    return db(this.tableName)
+      .where({ user_id: userId })
+      .update({ deleted_at: new Date(), updated_at: new Date() });
   }
 }
 
@@ -468,7 +486,7 @@ class UserModel {
   }
 
   static async findById(id) {
-    return db(this.tableName).where({ id }).first();
+    return db(this.tableName).where({ id, deleted_at: null }).first();
   }
 
   static async findByEmail(email) {
@@ -485,6 +503,12 @@ class UserModel {
 
   static async delete(id) {
     return db(this.tableName).where({ id }).del();
+  }
+
+  static async softDelete(id) {
+    return db(this.tableName)
+      .where({ id })
+      .update({ deleted_at: new Date(), updated_at: new Date() });
   }
 
   static async findAll() {

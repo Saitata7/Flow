@@ -232,6 +232,12 @@ export const validateSessionToken = (token) => {
     return { valid: false, errors };
   }
   
+  // Basic JWT structure check (header.payload.signature)
+  const parts = token.split('.');
+  if (parts.length !== 3) {
+    errors.push('Session token format is invalid');
+  }
+  
   return {
     valid: errors.length === 0,
     errors

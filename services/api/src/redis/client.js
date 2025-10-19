@@ -8,18 +8,27 @@ class RedisClient {
 
   async connect() {
     try {
-      this.client = new Redis({
-        host: process.env.REDIS_HOST || '10.58.145.227', // GCP MemoryStore IP
-        port: process.env.REDIS_PORT || 6379,
+      // Redis configuration for both local and GCP environments
+      const redisConfig = {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT || '6379'),
         password: process.env.REDIS_PASSWORD || undefined,
-        db: process.env.REDIS_DB || 0,
+        db: parseInt(process.env.REDIS_DB || '0'),
         retryDelayOnFailover: 100,
         maxRetriesPerRequest: 3,
         lazyConnect: true,
         keepAlive: 30000,
         connectTimeout: 10000,
         commandTimeout: 5000,
+      };
+
+      console.log('🔴 Redis Config:', {
+        host: redisConfig.host,
+        port: redisConfig.port,
+        isGCP: process.env.NODE_ENV === 'production' && process.env.REDIS_HOST && process.env.REDIS_HOST.includes('10.')
       });
+
+      this.client = new Redis(redisConfig);
 
       // Handle connection events
       this.client.on('connect', () => {

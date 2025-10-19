@@ -3,11 +3,11 @@
 // Handles comprehensive user profile data including demographics and privacy settings
 
 const profileController = require('../controllers/profile.controller');
-const { authenticateUser } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 const profileRoutes = async (fastify, options) => {
   // Apply authentication middleware to all profile routes
-  fastify.addHook('preHandler', authenticateUser);
+  fastify.addHook('preHandler', requireAuth);
 
   /**
    * @swagger
@@ -95,7 +95,7 @@ const profileRoutes = async (fastify, options) => {
    *       500:
    *         description: Internal server error
    */
-  fastify.get('/v1/profile', profileController.getUserProfile);
+  fastify.get('/', profileController.getUserProfile);
 
   /**
    * @swagger
@@ -197,7 +197,7 @@ const profileRoutes = async (fastify, options) => {
    *       500:
    *         description: Internal server error
    */
-  fastify.put('/v1/profile', profileController.updateUserProfile);
+  fastify.put('/', profileController.updateUserProfile);
 
   /**
    * @swagger
@@ -225,7 +225,7 @@ const profileRoutes = async (fastify, options) => {
    *       500:
    *         description: Internal server error
    */
-  fastify.delete('/v1/profile', profileController.deleteUserProfile);
+  fastify.delete('/', profileController.deleteUserProfile);
 
   /**
    * @swagger
@@ -274,7 +274,7 @@ const profileRoutes = async (fastify, options) => {
    *       500:
    *         description: Internal server error
    */
-  fastify.get('/v1/profile/stats', profileController.getProfileStats);
+  fastify.get('/stats', profileController.getProfileStats);
 };
 
 module.exports = profileRoutes;

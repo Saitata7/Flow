@@ -44,6 +44,11 @@ class FirebaseAuthService {
     return unsubscribe;
   }
 
+  // Alias for test compatibility
+  onAuthStateChanged(callback) {
+    return this.addAuthStateListener(callback);
+  }
+
   // Notify all listeners of auth state changes
   notifyListeners(user) {
     this.listeners.forEach(listener => listener(user));
@@ -65,6 +70,60 @@ class FirebaseAuthService {
       throw new Error('No authenticated user');
     }
     return await this.currentUser.getIdToken();
+  }
+
+  // Get stored JWT token
+  async getStoredJWTToken() {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const jwtToken = await AsyncStorage.getItem('jwt_token');
+      return jwtToken;
+    } catch (error) {
+      console.error('Error getting stored JWT token:', error);
+      return null;
+    }
+  }
+
+  // Store JWT token
+  async storeJWTToken(jwtToken) {
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      await AsyncStorage.setItem('jwt_token', jwtToken);
+      console.log('✅ JWT token stored successfully');
+    } catch (error) {
+      console.error('Error storing JWT token:', error);
+    }
+  }
+
+  // Convert Firebase token to JWT via API
+  async getJWTTokenForAPI(firebaseToken, firebaseUser) {
+    try {
+      console.log('🔄 Converting Firebase token to JWT...');
+      
+      const apiClient = require('./apiClient').default;
+      const response = await apiClient.post('/v1/auth/firebase-to-jwt', {
+        firebaseToken: firebaseToken,
+        user: {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+        }
+      });
+      
+      if (response.data.success && response.data.jwtToken) {
+        console.log('✅ Firebase token converted to JWT successfully');
+        // Store the JWT token for future API calls
+        await this.storeJWTToken(response.data.jwtToken);
+        return response.data.jwtToken;
+      } else {
+        console.error('❌ JWT conversion failed:', response.data);
+        throw new Error('JWT conversion failed');
+      }
+    } catch (error) {
+      console.error('❌ Firebase to JWT conversion error:', error.message);
+      throw error;
+    }
   }
 
   // Sign in with email and password
@@ -91,14 +150,19 @@ class FirebaseAuthService {
       console.log('🔥 FirebaseAuthService: User UID:', userCredential.user.uid);
       console.log('🔥 FirebaseAuthService: User email:', userCredential.user.email);
       
-      // Get ID token
-      const token = await userCredential.user.getIdToken();
-      console.log('🔥 FirebaseAuthService: Token obtained:', !!token);
+      // Get Firebase ID token for API calls
+      const firebaseToken = await userCredential.user.getIdToken();
+      console.log('🔥 FirebaseAuthService: Firebase token obtained:', !!firebaseToken);
+      console.log('✅ FirebaseAuthService: Using Firebase token directly for API calls');
+      
+      // Store Firebase token for API calls
+      await this.storeJWTToken(firebaseToken);
       
       return {
         success: true,
         user: userCredential.user,
-        token: token,
+        token: firebaseToken, // Use Firebase token directly
+        firebaseToken: firebaseToken,
       };
     } catch (error) {
       console.error('🔥 FirebaseAuthService: Sign in failed:', error);
@@ -117,12 +181,19 @@ class FirebaseAuthService {
   async signUpWithEmail(email, password) {
     try {
       const userCredential = await this.auth.createUserWithEmailAndPassword(email, password);
-      const token = await userCredential.user.getIdToken();
+      
+      // Get Firebase ID token for API calls
+      const firebaseToken = await userCredential.user.getIdToken();
+      console.log('✅ FirebaseAuthService: Using Firebase token directly for API calls');
+      
+      // Store Firebase token for API calls
+      await this.storeJWTToken(firebaseToken);
       
       return {
         success: true,
         user: userCredential.user,
-        token: token,
+        token: firebaseToken, // Use Firebase token directly
+        firebaseToken: firebaseToken,
       };
     } catch (error) {
       return {
@@ -131,6 +202,11 @@ class FirebaseAuthService {
         code: error.code,
       };
     }
+  }
+
+  // Alias for test compatibility
+  async createUserWithEmail(email, password) {
+    return await this.signUpWithEmail(email, password);
   }
 
   // Sign in with Google
@@ -203,6 +279,11 @@ class FirebaseAuthService {
     }
   }
 
+  // Alias for test compatibility
+  async updateProfile(updates) {
+    return await this.updateUserProfile(updates);
+  }
+
   // Get user metadata
   getUserMetadata() {
     if (!this.currentUser) {
@@ -220,4 +301,6 @@ console.log('🔥 Creating FirebaseAuthService singleton...');
 const firebaseAuthService = new FirebaseAuthService();
 console.log('🔥 FirebaseAuthService singleton created:', !!firebaseAuthService);
 
+// Export both default and named export for compatibility
+export { firebaseAuthService as firebaseAuth };
 export default firebaseAuthService;

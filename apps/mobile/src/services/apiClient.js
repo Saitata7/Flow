@@ -31,29 +31,35 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to attach JWT token
+// Request interceptor to attach Firebase token
 api.interceptors.request.use(async (config) => {
   try {
-    // Try to get stored JWT token first
-    let token = await getStoredJWTToken();
-    
-    // Verify token is still valid
-    if (token && !verifyJWTToken(token)) {
-      console.log('🔄 Stored JWT token is expired, clearing...');
-      await clearJWTToken();
-      token = null;
-    }
-    
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      console.log('✅ JWT token attached to request:', config.url);
-      console.log('✅ Token preview:', token.substring(0, 20) + '...');
-    } else {
-      console.log('⚠️ No valid JWT token available for request:', config.url);
+    // Try to get Firebase token for API request
+    console.log('🔄 Getting Firebase token for API request...');
+    try {
+      // Import Firebase auth service dynamically
+      const { default: firebaseAuth } = await import('../services/firebaseAuth');
+      if (firebaseAuth.isAuthenticated()) {
+        // Get the Firebase token (API will verify it directly)
+        const firebaseToken = await firebaseAuth.getIdToken();
+        if (firebaseToken) {
+          config.headers.Authorization = `Bearer ${firebaseToken}`;
+          console.log('✅ Firebase token attached to request:', config.url);
+          console.log('✅ Token preview:', firebaseToken.substring(0, 20) + '...');
+        } else {
+          console.log('⚠️ No Firebase token available for request:', config.url);
+          config.headers.Authorization = '';
+        }
+      } else {
+        console.log('⚠️ User not authenticated for request:', config.url);
+        config.headers.Authorization = '';
+      }
+    } catch (firebaseError) {
+      console.warn('⚠️ Firebase token retrieval failed:', firebaseError.message);
       config.headers.Authorization = '';
     }
   } catch (error) {
-    console.warn('⚠️ JWT token retrieval failed:', error.message);
+    console.warn('⚠️ Token retrieval failed:', error.message);
     config.headers.Authorization = '';
   }
 

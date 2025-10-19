@@ -54,6 +54,16 @@ const createFlow = async (request, reply) => {
     });
   } catch (error) {
     request.log.error({ error: error.message, userId: user.id }, 'Failed to create flow');
+    
+    // Handle specific database errors
+    if (error.message.includes('database') || error.message.includes('connection')) {
+      return reply.status(503).send({
+        success: false,
+        error: 'Database temporarily unavailable',
+        message: 'Please try again later',
+      });
+    }
+    
     throw new ConflictError('Failed to create flow');
   }
 };
@@ -401,36 +411,39 @@ const deleteFlow = async (request, reply) => {
   const { id } = request.params;
   const { user } = request;
 
-  const flow = flows.get(id);
-  if (!flow) {
-    throw new NotFoundError('Flow');
+  try {
+    // Check if flow exists and user has permission
+    const existingFlow = await FlowModel.findById(id);
+    if (!existingFlow) {
+      throw new NotFoundError('Flow');
+    }
+
+    // Check ownership
+    if (existingFlow.owner_id !== user.id && user.role !== 'admin') {
+      throw new ForbiddenError('You can only delete your own flows');
+    }
+
+    // Soft delete flow using database model
+    await FlowModel.softDelete(id);
+
+    // Remove from Redis cache
+    if (request.server.redis) {
+      await request.server.redis.del(`flow:${id}`);
+    }
+
+    request.log.info({ flowId: id, userId: user.id }, 'Flow deleted');
+
+    return reply.send({
+      success: true,
+      message: 'Flow deleted successfully',
+    });
+  } catch (error) {
+    if (error instanceof NotFoundError || error instanceof ForbiddenError) {
+      throw error;
+    }
+    request.log.error({ error: error.message, flowId: id }, 'Failed to delete flow');
+    throw new ConflictError('Failed to delete flow');
   }
-
-  // Check ownership
-  if (flow.ownerId !== user.id && user.role !== 'admin') {
-    throw new ForbiddenError('You can only delete your own flows');
-  }
-
-  // Soft delete flow
-  const deletedFlow = {
-    ...flow,
-    deletedAt: getCurrentTimestamp(),
-    updatedAt: getCurrentTimestamp(),
-  };
-
-  flows.set(id, deletedFlow);
-
-  // Remove from Redis cache
-  if (request.server.redis) {
-    await request.server.redis.del(`flow:${id}`);
-  }
-
-  request.log.info({ flowId: id, userId: user.id }, 'Flow deleted');
-
-  return reply.send({
-    success: true,
-    message: 'Flow deleted successfully',
-  });
 };
 
 // Search flows

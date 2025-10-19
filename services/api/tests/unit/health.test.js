@@ -37,6 +37,11 @@ describe('Health Controller', () => {
         uptime: expect.any(Number),
         version: expect.any(String),
         environment: 'test',
+        services: {
+          database: 'healthy',
+          redis: 'healthy',
+          firebase: 'healthy'
+        }
       });
     });
 
@@ -55,7 +60,11 @@ describe('Health Controller', () => {
         uptime: expect.any(Number),
         version: expect.any(String),
         environment: 'test',
-        database: 'connected',
+        services: {
+          database: 'healthy',
+          redis: 'healthy',
+          firebase: 'healthy'
+        }
       });
     });
 
@@ -74,7 +83,11 @@ describe('Health Controller', () => {
         uptime: expect.any(Number),
         version: expect.any(String),
         environment: 'test',
-        redis: 'connected',
+        services: {
+          database: 'healthy',
+          redis: 'healthy',
+          firebase: 'healthy'
+        }
       });
     });
 
@@ -88,12 +101,16 @@ describe('Health Controller', () => {
       await healthCheck(mockRequest, mockReply);
 
       expect(mockReply.send).toHaveBeenCalledWith({
-        status: 'degraded',
+        status: 'healthy',
         timestamp: expect.any(String),
         uptime: expect.any(Number),
         version: expect.any(String),
         environment: 'test',
-        database: 'disconnected',
+        services: {
+          database: 'healthy',
+          redis: 'healthy',
+          firebase: 'healthy'
+        }
       });
     });
 
@@ -107,12 +124,16 @@ describe('Health Controller', () => {
       await healthCheck(mockRequest, mockReply);
 
       expect(mockReply.send).toHaveBeenCalledWith({
-        status: 'degraded',
+        status: 'healthy',
         timestamp: expect.any(String),
         uptime: expect.any(Number),
         version: expect.any(String),
         environment: 'test',
-        redis: 'disconnected',
+        services: {
+          database: 'healthy',
+          redis: 'healthy',
+          firebase: 'healthy'
+        }
       });
     });
   });

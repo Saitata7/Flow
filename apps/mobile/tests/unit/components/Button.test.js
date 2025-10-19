@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Button } from '../../../src/components/common/Button';
+import Button from '../../../src/components/common/Button';
 
 describe('Button Component', () => {
   const defaultProps = {

@@ -38,16 +38,21 @@ spec:
           value: "false"
         - name: PGSSLMODE
           value: "disable"
+        - name: DB_POOL_MIN
+          value: "2"
+        - name: DB_POOL_MAX
+          value: "10"
+        - name: DB_POOL_IDLE_TIMEOUT
+          value: "10000"
+        - name: DB_POOL_CONNECTION_TIMEOUT
+          value: "5000"
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
               name: db-password
               key: latest
         - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              name: redis-host
-              key: latest
+          value: "10.128.0.3"
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -59,10 +64,7 @@ spec:
               name: jwt-secret
               key: latest
         - name: FIREBASE_PROJECT_ID
-          valueFrom:
-            secretKeyRef:
-              name: firebase-project-id
-              key: latest
+          value: "quick-doodad-472200-k0"
         - name: FIREBASE_PRIVATE_KEY
           valueFrom:
             secretKeyRef:

@@ -1,4 +1,4 @@
-import { apiClient } from '../../../src/services/apiClient';
+import apiClient from '../../../src/services/apiClient';
 
 // Mock fetch
 global.fetch = jest.fn();

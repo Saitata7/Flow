@@ -3,7 +3,7 @@
  * Additional setup for React Native tests
  */
 
-import '@testing-library/jest-native/extend-expect';
+require('@testing-library/jest-native/extend-expect');
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -56,12 +56,25 @@ jest.mock('expo-image-picker', () => ({
   },
 }));
 
-// Mock React Native modules
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
-
-jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
-
-jest.mock('react-native/Libraries/Components/StatusBar/StatusBar');
+// Mock React Native modules (simplified)
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn(),
+  },
+  Dimensions: {
+    get: jest.fn(() => ({ width: 375, height: 812 })),
+  },
+  StatusBar: {
+    setBarStyle: jest.fn(),
+    setBackgroundColor: jest.fn(),
+  },
+  NativeModules: {
+    StatusBarManager: {
+      getHeight: jest.fn(() => Promise.resolve(44)),
+    },
+  },
+}));
 
 // Mock Firebase
 jest.mock('@react-native-firebase/app', () => ({
@@ -111,12 +124,18 @@ jest.mock('react-native-svg', () => ({
   Text: 'Text',
 }));
 
-// Mock React Native Reanimated
-jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
-});
+// Mock React Native Reanimated (simplified)
+jest.mock('react-native-reanimated', () => ({
+  default: {
+    call: () => {},
+    runOnJS: (fn) => fn,
+    runOnUI: (fn) => fn,
+  },
+  useSharedValue: (value) => ({ value }),
+  useAnimatedStyle: (style) => style,
+  withSpring: (value) => value,
+  withTiming: (value) => value,
+}));
 
 // Mock React Native Gesture Handler
 jest.mock('react-native-gesture-handler', () => {
@@ -165,14 +184,11 @@ jest.mock('react-native-screens', () => ({
   Screen: 'Screen',
 }));
 
-// Mock moment
+// Mock moment.js (fix ES6 import issue)
 jest.mock('moment', () => {
   const actualMoment = jest.requireActual('moment');
-  return {
-    ...actualMoment,
-    default: actualMoment,
-  };
-});
+  return actualMoment;
+}, { virtual: true });
 
 // Mock date-fns
 jest.mock('date-fns', () => ({
@@ -195,6 +211,71 @@ global.mockNavigation = {
 global.mockRoute = {
   params: {},
 };
+
+// Mock expo-secure-store (fix ES6 import issue)
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
+  isAvailableAsync: jest.fn(() => Promise.resolve(true)),
+}), { virtual: true });
+
+// Mock expo-font (fix ES6 import issue)
+jest.mock('expo-font', () => ({
+  loadAsync: jest.fn(),
+  isLoaded: jest.fn(() => true),
+}), { virtual: true });
+
+// Mock expo-notifications (fix ES6 import issue)
+jest.mock('expo-notifications', () => ({
+  scheduleNotificationAsync: jest.fn(),
+  cancelScheduledNotificationAsync: jest.fn(),
+  getAllScheduledNotificationsAsync: jest.fn(),
+  requestPermissionsAsync: jest.fn(),
+  getPermissionsAsync: jest.fn(),
+  setNotificationHandler: jest.fn(),
+}), { virtual: true });
+
+// Mock NetInfo (fix native module issue)
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn(),
+  fetch: jest.fn(() => Promise.resolve({ isConnected: true })),
+  getCurrentConnectivity: jest.fn(() => Promise.resolve({ isConnected: true })),
+}), { virtual: true });
+
+// Mock React Native StyleSheet (simplified)
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn(),
+  },
+  Dimensions: {
+    get: jest.fn(() => ({ width: 375, height: 812 })),
+  },
+  StatusBar: {
+    setBarStyle: jest.fn(),
+    setBackgroundColor: jest.fn(),
+  },
+  NativeModules: {
+    StatusBarManager: {
+      getHeight: jest.fn(() => Promise.resolve(44)),
+    },
+  },
+  StyleSheet: {
+    create: jest.fn((styles) => styles),
+  },
+}));
+
+// Mock lz-string (fix missing module issue)
+jest.mock('lz-string', () => ({
+  compress: jest.fn((str) => `compressed_${str}`),
+  decompress: jest.fn((str) => str.replace('compressed_', '')),
+}), { virtual: true });
+
+// Set test environment variables for GCP production
+process.env.NODE_ENV = 'test';
+process.env.EXPO_PUBLIC_API_URL = 'https://flow-api-891963913698.us-central1.run.app';
+process.env.EXPO_PUBLIC_ENVIRONMENT = 'production';
 
 // Silence console warnings in tests
 global.console = {

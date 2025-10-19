@@ -49,6 +49,7 @@ RUN npm install --only=production --no-audit --no-fund && \
 # Copy built application from builder stage
 COPY --from=builder --chown=flow:nodejs /app/src ./src
 COPY --from=builder --chown=flow:nodejs /app/migrations ./migrations
+COPY --from=builder --chown=flow:nodejs /app/env.gcp ./env.gcp
 
 # Copy necessary config files
 COPY --chown=flow:nodejs package.json ./

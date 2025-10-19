@@ -16,13 +16,14 @@ const authRoutes = require('./routes/auth');
 const flowsRoutes = require('./routes/flows');
 const flowEntriesRoutes = require('./routes/flowEntries');
 const plansRoutes = require('./routes/plans');
-const profilesRoutes = require('./routes/profiles');
+const profilesRoutes = require('./routes/profile');
 const settingsRoutes = require('./routes/settings');
 const statsRoutes = require('./routes/stats');
 const notificationRoutes = require('./routes/notifications');
-const activitiesRoutes = require('./routes/activities');
+const userRoutes = require('./routes/user');
 const schedulerService = require('./services/schedulerService');
 
+// Get server configuration from environment variables
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 4000;
 const HOST = process.env.HOST || '0.0.0.0';
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -379,16 +380,80 @@ const registerRoutes = async () => {
     // Add Redis to request context
     fastify.decorate('redis', redis);
 
-    // Register domain routes
-    await fastify.register(authRoutes, { prefix: '/auth' });
-    await fastify.register(flowsRoutes, { prefix: '/flows' });
-    await fastify.register(flowEntriesRoutes, { prefix: '/flow-entries' });
-    await fastify.register(plansRoutes, { prefix: '/plans' });
-    await fastify.register(profilesRoutes, { prefix: '/profiles' });
-    await fastify.register(settingsRoutes, { prefix: '/settings' });
-    await fastify.register(statsRoutes, { prefix: '/stats' });
-    await fastify.register(notificationRoutes, { prefix: '/notifications' });
-    await fastify.register(activitiesRoutes, { prefix: '/activities' });
+    // Register domain routes with error handling
+    try {
+      console.log('🔐 Registering auth routes...');
+      await fastify.register(authRoutes, { prefix: '/auth' });
+      console.log('✅ Auth routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register auth routes:', error.message);
+      console.error('❌ Auth routes error stack:', error.stack);
+    }
+
+    try {
+      console.log('🌊 Registering flows routes...');
+      await fastify.register(flowsRoutes, { prefix: '/flows' });
+      console.log('✅ Flows routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register flows routes:', error.message);
+    }
+
+    try {
+      console.log('📝 Registering flow entries routes...');
+      await fastify.register(flowEntriesRoutes, { prefix: '/flow-entries' });
+      console.log('✅ Flow entries routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register flow entries routes:', error.message);
+    }
+
+    try {
+      console.log('📋 Registering plans routes...');
+      await fastify.register(plansRoutes, { prefix: '/plans' });
+      console.log('✅ Plans routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register plans routes:', error.message);
+    }
+
+    try {
+      console.log('👤 Registering profiles routes...');
+      await fastify.register(profilesRoutes, { prefix: '/profile' });
+      console.log('✅ Profiles routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register profiles routes:', error.message);
+    }
+
+    try {
+      console.log('⚙️ Registering settings routes...');
+      await fastify.register(settingsRoutes, { prefix: '/user/settings' });
+      console.log('✅ Settings routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register settings routes:', error.message);
+    }
+
+    try {
+      console.log('📊 Registering stats routes...');
+      await fastify.register(statsRoutes, { prefix: '/stats' });
+      console.log('✅ Stats routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register stats routes:', error.message);
+    }
+
+    try {
+      console.log('🔔 Registering notification routes...');
+      await fastify.register(notificationRoutes, { prefix: '/notifications' });
+      console.log('✅ Notification routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register notification routes:', error.message);
+    }
+
+    try {
+      console.log('👤 Registering user routes...');
+      await fastify.register(userRoutes, { prefix: '/user' });
+      console.log('✅ User routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register user routes:', error.message);
+    }
+
   }, { prefix: '/v1' });
 
   // Root endpoint
@@ -414,6 +479,7 @@ const registerRoutes = async () => {
       docs: '/docs',
     };
   });
+
 };
 
 // Graceful shutdown

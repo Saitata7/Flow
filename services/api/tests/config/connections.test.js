@@ -30,7 +30,7 @@ describe('Connection Tests', () => {
 
   afterAll(() => {
     // Clean up Firebase app
-    if (firebaseApp) {
+    if (firebaseApp && firebaseApp.delete) {
       firebaseApp.delete();
     }
   });
@@ -71,24 +71,18 @@ describe('Connection Tests', () => {
   describe('Database Connection (Mock Test)', () => {
     test('should have valid database configuration', () => {
       // Test database configuration without actual connection
-      expect(testEnv.DB_HOST).toMatch(/^\/cloudsql\/.+/);
+      expect(testEnv.DB_HOST).toMatch(/^\d+\.\d+\.\d+\.\d+$/); // Direct IP connection
       expect(testEnv.DB_PORT).toBe('5432');
       expect(testEnv.DB_NAME).toBeDefined();
       expect(testEnv.DB_USER).toBeDefined();
       expect(testEnv.DB_PASSWORD).toBeDefined();
-      expect(testEnv.DB_SSL).toBe('true');
+      expect(testEnv.DB_SSL).toBe('false'); // SSL disabled for Cloud Run
     });
 
-    test('should have Cloud SQL connection string format', () => {
+    test('should have direct IP connection format', () => {
       const dbHost = testEnv.DB_HOST;
-      expect(dbHost).toMatch(/^\/cloudsql\/[^:]+:[^:]+:[^:]+$/);
-      
-      // Parse the connection string
-      const parts = dbHost.replace('/cloudsql/', '').split(':');
-      expect(parts).toHaveLength(3);
-      expect(parts[0]).toBe('quick-doodad-472200-k0'); // project
-      expect(parts[1]).toBe('us-central1'); // region
-      expect(parts[2]).toBe('db-f1-micro'); // instance
+      expect(dbHost).toMatch(/^\d+\.\d+\.\d+\.\d+$/); // Direct IP format
+      expect(dbHost).toBe('34.63.78.153'); // Our actual Cloud SQL IP
     });
   });
 
@@ -153,8 +147,8 @@ describe('Connection Tests', () => {
       });
     });
 
-    test('should have SSL enabled for database', () => {
-      expect(testEnv.DB_SSL).toBe('true');
+    test('should have SSL disabled for database', () => {
+      expect(testEnv.DB_SSL).toBe('false');
     });
   });
 

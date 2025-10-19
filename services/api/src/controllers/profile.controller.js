@@ -193,8 +193,8 @@ const deleteUserProfile = async (request, reply) => {
     
     console.log('📋 ProfileController: Deleting profile for user:', userId);
     
-    // Soft delete user profile
-    await UserProfileModel.update(userId, { deleted_at: new Date() });
+    // Soft delete user profile using the proper soft delete method
+    await UserProfileModel.softDelete(userId);
     
     console.log('✅ ProfileController: Profile deleted successfully');
     

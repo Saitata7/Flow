@@ -1,25 +1,25 @@
 const { Pool } = require('pg');
 
 // 🔍 DIAGNOSTIC: Safe startup logging (no passwords)
+console.info('🔍 DB DIAG - Environment:', process.env.NODE_ENV);
 console.info('🔍 DB DIAG - DB_HOST:', process.env.DB_HOST);
 console.info('🔍 DB DIAG - DB_USER:', process.env.DB_USER);
 console.info('🔍 DB DIAG - DB_NAME:', process.env.DB_NAME);
 console.info('🔍 DB DIAG - DB_PORT:', process.env.DB_PORT || '5432');
-console.info('🔍 DB DIAG - PGSSLMODE:', process.env.PGSSLMODE || 'not set');
-console.info('🔍 DB DIAG - NODE_ENV:', process.env.NODE_ENV || 'not set');
+console.info('🔍 DB DIAG - DB_SSL:', process.env.DB_SSL || 'false');
+console.info('🔍 DB DIAG - Is GCP:', process.env.NODE_ENV === 'production' && process.env.DB_HOST && process.env.DB_HOST.includes('cloudsql'));
 
-// Database configuration optimized for Cloud Run
-// Use Cloud SQL socket connection - SSL must be disabled for socket connections
+// Database configuration optimized for both local and Cloud Run
+// Use Cloud SQL socket connection for production, TCP for local development
 const dbConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  host: process.env.DB_HOST, // e.g. /cloudsql/project:region:instance
+  host: process.env.DB_HOST,
   port: process.env.DB_PORT || 5432,
-  ssl: process.env.DB_SSL === 'true' ? true : false, // 🔥 CRITICAL: disable SSL for Cloud SQL socket connections
-  sslmode: process.env.PGSSLMODE || 'disable', // PostgreSQL SSL mode
+  ssl: process.env.DB_SSL === 'true' ? true : false,
   
-  // Cloud Run optimized connection pooling
+  // Connection pooling optimized for environment
   max: process.env.NODE_ENV === 'production' ? 10 : 20,
   min: 2,
   idleTimeoutMillis: 10000,
@@ -35,6 +35,7 @@ const dbConfig = {
   statement_timeout: 30000,
   query_timeout: 30000,
 };
+
 
 console.info('🔍 DB DIAG - Final config:', {
   host: dbConfig.host,

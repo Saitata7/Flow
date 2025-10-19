@@ -9,7 +9,7 @@ const {
   getGlobalStats,
 } = require('../controllers/stats.controller');
 
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 
 const statsRoutes = async fastify => {
   // Get user statistics

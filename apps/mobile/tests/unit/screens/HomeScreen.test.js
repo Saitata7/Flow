@@ -6,14 +6,14 @@ import { FlowsContext } from '../../../src/context/FlowContext';
 import { ThemeContext } from '../../../src/context/ThemeContext';
 
 // Mock the components and hooks
-jest.mock('../../../src/hooks/useProfile', () => ({
-  useProfile: () => ({
-    profile: {
-      displayName: 'Test User',
-      name: 'Test User',
-    },
-  }),
-}));
+// jest.mock('../../../src/hooks/useProfile', () => ({
+//   useProfile: () => ({
+//     profile: {
+//       displayName: 'Test User',
+//       name: 'Test User',
+//     },
+//   }),
+// }));
 
 jest.mock('../../../src/components/flow/todayResponse/TodaysFlows', () => {
   return function MockTodaysFlows({ navigation, visibleFlows }) {

@@ -46,6 +46,13 @@ class FlowError extends Error {
   }
 }
 
+class BadRequestError extends FlowError {
+  constructor(message, errors = []) {
+    super(message, 400, 'BAD_REQUEST');
+    this.errors = errors;
+  }
+}
+
 class ValidationError extends FlowError {
   constructor(message, errors = []) {
     super(message, 400, 'VALIDATION_ERROR');
@@ -270,6 +277,7 @@ const validateSettingsData = createValidationMiddleware(validateSettings, 'setti
 module.exports = {
   errorHandler,
   FlowError,
+  BadRequestError,
   ValidationError,
   NotFoundError,
   UnauthorizedError,

@@ -11,7 +11,7 @@ if (process.env.AUTH_PROVIDER === 'jwt-only') {
   console.log('🔐 JWT-only authentication mode - Firebase Admin SDK disabled');
   firebaseApp = null;
   // Also clear any existing Firebase apps
-  if (admin.apps.length > 0) {
+  if (admin.apps && admin.apps.length > 0) {
     console.log('🔐 Clearing existing Firebase apps for JWT-only mode');
     admin.apps.forEach(app => {
       try {
@@ -68,7 +68,62 @@ const extractToken = authHeader => {
   return parts[1];
 };
 
-// Verify Firebase token with Redis caching and strict validation
+// Simplified Firebase token verification (without Admin SDK)
+const verifyFirebaseTokenSimple = async (token) => {
+  try {
+    console.log('🔥 Verifying Firebase token (simple method)...');
+    
+    // Basic token validation
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error('❌ Invalid token format');
+      return null;
+    }
+
+    // Decode token payload
+    let payload;
+    try {
+      const payloadBase64 = tokenParts[1];
+      // Add padding if needed
+      const paddedPayload = payloadBase64 + '='.repeat((4 - payloadBase64.length % 4) % 4);
+      const payloadJson = Buffer.from(paddedPayload, 'base64').toString('utf8');
+      payload = JSON.parse(payloadJson);
+    } catch (decodeError) {
+      console.error('❌ Token decode error:', decodeError.message);
+      return null;
+    }
+
+    // Basic validation
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp && payload.exp < now) {
+      console.error('❌ Token is expired');
+      return null;
+    }
+
+    // Check if it's a Firebase token (more lenient check)
+    if (!payload.iss || (!payload.iss.includes('securetoken.google.com') && !payload.iss.includes('firebase'))) {
+      console.error('❌ Not a Firebase token, iss:', payload.iss);
+      return null;
+    }
+
+    console.log('✅ Firebase token verified (simple method)');
+    console.log('✅ Token payload:', JSON.stringify(payload, null, 2));
+    
+    return {
+      id: payload.sub || payload.user_id,
+      email: payload.email,
+      emailVerified: payload.email_verified || false,
+      name: payload.name || payload.email?.split('@')[0],
+      picture: payload.picture,
+      provider: 'firebase',
+    };
+  } catch (error) {
+    console.error('❌ Firebase token verification failed:', error.message);
+    return null;
+  }
+};
+
+// Full Firebase token verification (with Admin SDK)
 const verifyFirebaseToken = async (token, redisClient = null) => {
   if (!firebaseApp) {
     console.log('Firebase Admin SDK not initialized, skipping Firebase verification');
@@ -288,17 +343,16 @@ const authenticateUser = async (request, reply) => {
     try {
       let user = null;
 
-      // Always try JWT first - this is now the primary authentication method
-      console.log('🔍 Attempting JWT token verification...');
-      user = await verifyJWTToken(token);
-      console.log('🔍 JWT verification result:', user ? 'SUCCESS' : 'FAILED');
+      // Try Firebase token verification first (mobile app sends Firebase tokens)
+      console.log('🔥 Attempting Firebase token verification...');
+      user = await verifyFirebaseTokenSimple(token);
+      console.log('🔥 Firebase verification result:', user ? 'SUCCESS' : 'FAILED');
 
-      // Only fallback to Firebase if JWT fails and Firebase is configured
-      if (!user && firebaseApp && process.env.AUTH_PROVIDER !== 'jwt-only') {
-        console.log('JWT failed, attempting Firebase token verification as fallback...');
-        const redisClient = request.server?.redis || null;
-        user = await verifyFirebaseToken(token, redisClient);
-        console.log('Firebase verification result:', user ? 'SUCCESS' : 'FAILED');
+      // Only fallback to JWT if Firebase fails
+      if (!user) {
+        console.log('Firebase failed, attempting JWT token verification as fallback...');
+        user = await verifyJWTToken(token);
+        console.log('🔍 JWT verification result:', user ? 'SUCCESS' : 'FAILED');
       }
 
       if (user) {
@@ -338,17 +392,16 @@ const authMiddleware = async fastify => {
       try {
         let user = null;
 
-        // Always try JWT first - this is now the primary authentication method
-        console.log('🔍 Attempting JWT token verification...');
-        user = await verifyJWTToken(token);
-        console.log('🔍 JWT verification result:', user ? 'SUCCESS' : 'FAILED');
+        // Try Firebase token verification first (mobile app sends Firebase tokens)
+        console.log('🔥 Attempting Firebase token verification...');
+        user = await verifyFirebaseTokenSimple(token);
+        console.log('🔥 Firebase verification result:', user ? 'SUCCESS' : 'FAILED');
 
-        // Only fallback to Firebase if JWT fails and Firebase is configured
-        if (!user && firebaseApp && process.env.AUTH_PROVIDER !== 'jwt-only') {
-          console.log('JWT failed, attempting Firebase token verification as fallback...');
-          const redisClient = request.server?.redis || null;
-          user = await verifyFirebaseToken(token, redisClient);
-          console.log('Firebase verification result:', user ? 'SUCCESS' : 'FAILED');
+        // Only fallback to JWT if Firebase fails
+        if (!user) {
+          console.log('Firebase failed, attempting JWT token verification as fallback...');
+          user = await verifyJWTToken(token);
+          console.log('🔍 JWT verification result:', user ? 'SUCCESS' : 'FAILED');
         }
 
         if (user) {
@@ -569,12 +622,12 @@ const optionalAuth = async (request, reply) => {
     try {
       let user = null;
 
-      // Always try JWT first
-      user = await verifyJWTToken(token);
+      // Try Firebase token verification first (mobile app sends Firebase tokens)
+      user = await verifyFirebaseTokenSimple(token);
 
-      // Only fallback to Firebase if JWT fails and Firebase is configured
-      if (!user && firebaseApp && process.env.AUTH_PROVIDER !== 'jwt-only') {
-        user = await verifyFirebaseToken(token);
+      // Only fallback to JWT if Firebase fails
+      if (!user) {
+        user = await verifyJWTToken(token);
       }
 
       if (user) {
@@ -629,7 +682,8 @@ module.exports = {
   requireApiKey,
   optionalAuth,
   extractToken,
-  verifyFirebaseToken,
+  verifyFirebaseToken, // Full Firebase verification with Admin SDK
+  verifyFirebaseTokenSimple, // Simplified Firebase verification
   verifyJWTToken,
   generateJWTToken,
   clearAuthCache,

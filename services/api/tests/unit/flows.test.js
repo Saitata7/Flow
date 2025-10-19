@@ -1,4 +1,5 @@
 const { createFlow, getFlow, getUserFlows } = require('../../src/controllers/flows.controller');
+const { FlowModel } = require('../../src/db/models');
 
 // Mock request and reply objects
 const createMockRequest = (overrides = {}) => ({
@@ -36,7 +37,22 @@ describe('Flows Controller', () => {
 
   describe('createFlow', () => {
     it('should create a new flow successfully', async () => {
+      const mockFlow = {
+        id: 'flow-123',
+        title: 'Test Flow',
+        tracking_type: 'Binary',
+        frequency: 'Daily',
+        owner_id: 'user-123',
+        schema_version: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Mock FlowModel.create
+      FlowModel.create = jest.fn().mockResolvedValue(mockFlow);
+
       const request = createMockRequest({
+        user: { id: 'user-123' },
         body: {
           title: 'Test Flow',
           trackingType: 'Binary',
@@ -51,26 +67,34 @@ describe('Flows Controller', () => {
       expect(reply.status).toHaveBeenCalledWith(201);
       expect(reply.send).toHaveBeenCalledWith({
         success: true,
-        data: expect.objectContaining({
-          id: expect.any(String),
-          title: 'Test Flow',
-          trackingType: 'Binary',
-          frequency: 'Daily',
-          ownerId: 'user-123',
-          schemaVersion: 1,
-          createdAt: expect.any(String),
-          updatedAt: expect.any(String),
-        }),
+        data: mockFlow,
         message: 'Flow created successfully',
       });
     });
 
     it('should cache flow in Redis', async () => {
+      const mockFlow = {
+        id: 'flow-123',
+        title: 'Test Flow',
+        tracking_type: 'Binary',
+        frequency: 'Daily',
+        owner_id: 'user-123',
+      };
+
+      // Mock FlowModel.create
+      FlowModel.create = jest.fn().mockResolvedValue(mockFlow);
+
       const request = createMockRequest({
+        user: { id: 'user-123' },
         body: {
           title: 'Test Flow',
           trackingType: 'Binary',
           frequency: 'Daily',
+        },
+        server: {
+          redis: {
+            set: jest.fn().mockResolvedValue(),
+          },
         },
       });
       const reply = createMockReply();
@@ -91,12 +115,13 @@ describe('Flows Controller', () => {
       const mockFlow = {
         id: flowId,
         title: 'Test Flow',
-        ownerId: 'user-123',
+        owner_id: 'user-123',
         visibility: 'private',
       };
 
       const request = createMockRequest({
         params: { id: flowId },
+        user: { id: 'user-123', role: 'user' },
         server: {
           redis: {
             get: jest.fn().mockResolvedValue(mockFlow),
@@ -114,8 +139,12 @@ describe('Flows Controller', () => {
     });
 
     it('should throw NotFoundError if flow not found', async () => {
+      // Mock FlowModel.findById to return null
+      FlowModel.findById = jest.fn().mockResolvedValue(null);
+
       const request = createMockRequest({
         params: { id: 'non-existent' },
+        user: { id: 'user-123', role: 'user' },
         server: {
           redis: {
             get: jest.fn().mockResolvedValue(null),
@@ -130,8 +159,27 @@ describe('Flows Controller', () => {
 
   describe('getUserFlows', () => {
     it('should return paginated user flows', async () => {
+      const mockFlows = [
+        {
+          id: 'flow-1',
+          title: 'Test Flow 1',
+          owner_id: 'user-123',
+          status: {},
+        },
+        {
+          id: 'flow-2',
+          title: 'Test Flow 2',
+          owner_id: 'user-123',
+          status: {},
+        },
+      ];
+
+      // Mock FlowModel.findByUserIdWithStatus
+      FlowModel.findByUserIdWithStatus = jest.fn().mockResolvedValue(mockFlows);
+
       const request = createMockRequest({
         query: { page: 1, limit: 10 },
+        user: { id: 'user-123' },
       });
       const reply = createMockReply();
 

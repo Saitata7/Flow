@@ -1,4 +1,4 @@
-import { formatDate, getToday, getYesterday, getTomorrow, isToday, isYesterday, isTomorrow, formatTime, getDateRange } from '../../../src/utils/dateUtils';
+import { formatDisplayDate, getCurrentWeek, isToday, isSameDay, addDays, subtractDays, calculateStreak, getStreakColor, getDateRange } from '../../../src/utils/dateUtils';
 
 describe('Date Utils', () => {
   beforeEach(() => {
@@ -11,36 +11,23 @@ describe('Date Utils', () => {
     jest.useRealTimers();
   });
 
-  describe('formatDate', () => {
+  describe('formatDisplayDate', () => {
     it('should format date correctly', () => {
       const date = new Date('2024-01-15T10:30:00Z');
-      expect(formatDate(date)).toBe('2024-01-15');
+      expect(formatDisplayDate(date)).toBe('Mon 15');
     });
 
     it('should format date with custom format', () => {
       const date = new Date('2024-01-15T10:30:00Z');
-      expect(formatDate(date, 'MM/DD/YYYY')).toBe('01/15/2024');
+      expect(formatDisplayDate(date, 'MM/DD/YYYY')).toBe('01/15/2024');
     });
   });
 
-  describe('getToday', () => {
-    it('should return today\'s date', () => {
-      const today = getToday();
-      expect(today).toBe('2024-01-15');
-    });
-  });
-
-  describe('getYesterday', () => {
-    it('should return yesterday\'s date', () => {
-      const yesterday = getYesterday();
-      expect(yesterday).toBe('2024-01-14');
-    });
-  });
-
-  describe('getTomorrow', () => {
-    it('should return tomorrow\'s date', () => {
-      const tomorrow = getTomorrow();
-      expect(tomorrow).toBe('2024-01-16');
+  describe('getCurrentWeek', () => {
+    it('should return current week', () => {
+      const week = getCurrentWeek();
+      expect(week).toHaveLength(7);
+      expect(week[0]).toBe('Mon 15');
     });
   });
 
@@ -61,76 +48,79 @@ describe('Date Utils', () => {
     });
   });
 
-  describe('isYesterday', () => {
-    it('should return true for yesterday\'s date', () => {
-      const yesterday = new Date('2024-01-14T10:30:00Z');
-      expect(isYesterday(yesterday)).toBe(true);
+  describe('isSameDay', () => {
+    it('should return true for same day', () => {
+      const date1 = new Date('2024-01-15T10:30:00Z');
+      const date2 = new Date('2024-01-15T14:30:00Z');
+      expect(isSameDay(date1, date2)).toBe(true);
     });
 
-    it('should return false for today\'s date', () => {
-      const today = new Date('2024-01-15T10:30:00Z');
-      expect(isYesterday(today)).toBe(false);
-    });
-  });
-
-  describe('isTomorrow', () => {
-    it('should return true for tomorrow\'s date', () => {
-      const tomorrow = new Date('2024-01-16T10:30:00Z');
-      expect(isTomorrow(tomorrow)).toBe(true);
-    });
-
-    it('should return false for today\'s date', () => {
-      const today = new Date('2024-01-15T10:30:00Z');
-      expect(isTomorrow(today)).toBe(false);
+    it('should return false for different days', () => {
+      const date1 = new Date('2024-01-15T10:30:00Z');
+      const date2 = new Date('2024-01-16T10:30:00Z');
+      expect(isSameDay(date1, date2)).toBe(false);
     });
   });
 
-  describe('formatTime', () => {
-    it('should format time correctly', () => {
-      const date = new Date('2024-01-15T14:30:00Z');
-      expect(formatTime(date)).toBe('2:30 PM');
+  describe('addDays', () => {
+    it('should add days correctly', () => {
+      const date = new Date('2024-01-15T10:30:00Z');
+      const result = addDays(date, 1);
+      expect(result.getDate()).toBe(16);
     });
+  });
 
-    it('should format time with 24-hour format', () => {
-      const date = new Date('2024-01-15T14:30:00Z');
-      expect(formatTime(date, '24')).toBe('14:30');
+  describe('subtractDays', () => {
+    it('should subtract days correctly', () => {
+      const date = new Date('2024-01-15T10:30:00Z');
+      const result = subtractDays(date, 1);
+      expect(result.getDate()).toBe(14);
+    });
+  });
+
+  describe('calculateStreak', () => {
+    it('should calculate streak correctly', () => {
+      const completionDates = [
+        new Date('2024-01-15'),
+        new Date('2024-01-14'),
+        new Date('2024-01-13')
+      ];
+      const streak = calculateStreak(completionDates);
+      expect(streak).toBe(3);
+    });
+  });
+
+  describe('getStreakColor', () => {
+    it('should return correct color for streak', () => {
+      expect(getStreakColor(0)).toBe('#FF6B6B');
+      expect(getStreakColor(7)).toBe('#4ECDC4');
+      expect(getStreakColor(30)).toBe('#45B7D1');
     });
   });
 
   describe('getDateRange', () => {
-    it('should return date range for last 7 days', () => {
-      const range = getDateRange(7);
-      expect(range).toHaveLength(7);
-      expect(range[0]).toBe('2024-01-09');
-      expect(range[6]).toBe('2024-01-15');
-    });
-
-    it('should return date range for last 30 days', () => {
-      const range = getDateRange(30);
-      expect(range).toHaveLength(30);
-      expect(range[0]).toBe('2023-12-17');
-      expect(range[29]).toBe('2024-01-15');
-    });
-
-    it('should return date range for last 365 days', () => {
-      const range = getDateRange(365);
-      expect(range).toHaveLength(365);
-      expect(range[0]).toBe('2023-01-16');
-      expect(range[364]).toBe('2024-01-15');
+    it('should return date range between two dates', () => {
+      const startDate = new Date('2024-01-15');
+      const endDate = new Date('2024-01-17');
+      const range = getDateRange(startDate, endDate);
+      expect(range).toHaveLength(3);
+      expect(range[0]).toEqual(startDate);
+      expect(range[2]).toEqual(endDate);
     });
   });
 
   describe('Edge Cases', () => {
     it('should handle invalid dates', () => {
-      expect(() => formatDate('invalid')).not.toThrow();
+      expect(() => formatDisplayDate('invalid')).not.toThrow();
     });
 
     it('should handle null dates', () => {
-      expect(() => formatDate(null)).not.toThrow();
+      expect(() => formatDisplayDate(null)).not.toThrow();
     });
 
     it('should handle undefined dates', () => {
-      expect(() => formatDate(undefined)).not.toThrow();
+      expect(() => formatDisplayDate(undefined)).not.toThrow();
     });
   });
 });
+
