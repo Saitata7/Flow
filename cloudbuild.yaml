@@ -2,7 +2,7 @@
 steps:
   # Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-registry/flow-api:latest', '.']
+    args: ['build', '--no-cache', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-registry/flow-api:latest', '.']
     dir: 'services/api'
 
   # Push the image to Artifact Registry
