@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 
-// Production-level OpenAPI v3 specification with enterprise-grade features
+// Comprehensive Production-level OpenAPI v3 specification with ALL available endpoints
 const openApiSpec = {
   openapi: '3.0.3',
   info: {
@@ -50,7 +50,7 @@ For API support, please contact our development team or refer to the documentati
   },
   servers: [
     {
-      url: 'https://flow-api-891963913698.us-central1.run.app',
+      url: 'https://flow-api-c57f3te5va-uc.a.run.app',
       description: 'Production Environment - Google Cloud Run',
       variables: {
         environment: {
@@ -486,11 +486,142 @@ For API support, please contact our development team or refer to the documentati
       }
     },
 
+    // Debug endpoints
+    '/debug/env': {
+      get: {
+        summary: 'Debug environment variables',
+        description: 'Check environment configuration (development only)',
+        tags: ['debug'],
+        responses: {
+          '200': {
+            description: 'Environment variables',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    DB_HOST: { type: 'string' },
+                    DB_PORT: { type: 'string' },
+                    DB_NAME: { type: 'string' },
+                    DB_USER: { type: 'string' },
+                    DB_SSL: { type: 'string' },
+                    NODE_ENV: { type: 'string' },
+                    timestamp: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/debug/schema': {
+      get: {
+        summary: 'Debug database schema',
+        description: 'Check database schema information (development only)',
+        tags: ['debug'],
+        responses: {
+          '200': {
+            description: 'Database schema information',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    ok: { type: 'boolean' },
+                    timestamp: { type: 'string' },
+                    users_table_columns: { type: 'array' },
+                    total_columns: { type: 'integer' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/debug/flows': {
+      get: {
+        summary: 'Debug flows data',
+        description: 'Debug endpoint for mobile app connectivity check',
+        tags: ['debug'],
+        responses: {
+          '200': {
+            description: 'Debug flows information',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { type: 'object' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/_diag/dbinfo': {
+      get: {
+        summary: 'Database diagnostic information',
+        description: 'Temporary diagnostic endpoint for database connection info',
+        tags: ['debug'],
+        responses: {
+          '200': {
+            description: 'Database connection information',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    ok: { type: 'boolean' },
+                    timestamp: { type: 'string' },
+                    connection_info: { type: 'object' },
+                    env_check: { type: 'object' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/ping': {
+      get: {
+        summary: 'API ping endpoint',
+        description: 'Simple ping endpoint to verify API connectivity',
+        tags: ['health'],
+        responses: {
+          '200': {
+            description: 'Pong response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    ok: { type: 'boolean' },
+                    ts: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
     // Authentication endpoints
     '/v1/auth/login': {
       post: {
         summary: 'User login',
-        description: 'Authenticate user with Firebase token',
+        description: 'Authenticate user with email/password or Firebase token',
         tags: ['auth'],
         requestBody: {
           required: true,
@@ -498,10 +629,13 @@ For API support, please contact our development team or refer to the documentati
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['idToken'],
+                required: ['email'],
                 properties: {
-                  idToken: { type: 'string', description: 'Firebase ID token' },
-                  refreshToken: { type: 'string', description: 'Firebase refresh token' }
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string', minLength: 6 },
+                  firebaseToken: { type: 'string' },
+                  name: { type: 'string' },
+                  picture: { type: 'string' }
                 }
               }
             }
@@ -521,9 +655,8 @@ For API support, please contact our development team or refer to the documentati
                         data: {
                           type: 'object',
                           properties: {
-                            user: { $ref: '#/components/schemas/User' },
-                            accessToken: { type: 'string' },
-                            refreshToken: { type: 'string' }
+                            token: { type: 'string' },
+                            user: { $ref: '#/components/schemas/User' }
                           }
                         }
                       }
@@ -545,47 +678,42 @@ For API support, please contact our development team or refer to the documentati
       }
     },
 
-    // Flow management endpoints
-    '/v1/flows': {
-      get: {
-        summary: 'Get user flows',
-        description: 'Get paginated list of flows for the authenticated user',
-        tags: ['flows'],
-        security: [{ bearerAuth: [] }],
-        parameters: [
-          {
-            name: 'page',
-            in: 'query',
-            description: 'Page number',
-            schema: { type: 'integer', minimum: 1, default: 1 }
-          },
-          {
-            name: 'limit',
-            in: 'query',
-            description: 'Items per page',
-            schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 }
-          },
-          {
-            name: 'archived',
-            in: 'query',
-            description: 'Filter archived flows',
-            schema: { type: 'boolean', default: false }
+    '/v1/auth/firebase-to-jwt': {
+      post: {
+        summary: 'Convert Firebase token to JWT',
+        description: 'Convert Firebase authentication token to internal JWT',
+        tags: ['auth'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['firebaseToken'],
+                properties: {
+                  firebaseToken: { type: 'string' }
+                }
+              }
+            }
           }
-        ],
+        },
         responses: {
           '200': {
-            description: 'Flows retrieved successfully',
+            description: 'Token converted successfully',
             content: {
               'application/json': {
                 schema: {
                   allOf: [
-                    { $ref: '#/components/schemas/PaginatedResponse' },
+                    { $ref: '#/components/schemas/ApiResponse' },
                     {
                       type: 'object',
                       properties: {
                         data: {
-                          type: 'array',
-                          items: { $ref: '#/components/schemas/Flow' }
+                          type: 'object',
+                          properties: {
+                            token: { type: 'string' },
+                            user: { $ref: '#/components/schemas/User' }
+                          }
                         }
                       }
                     }
@@ -595,57 +723,26 @@ For API support, please contact our development team or refer to the documentati
             }
           }
         }
-      },
+      }
+    },
+
+    '/v1/auth/register': {
       post: {
-        summary: 'Create a new flow',
-        description: 'Create a new flow for the authenticated user',
-        tags: ['flows'],
-        security: [{ bearerAuth: [] }],
+        summary: 'User registration',
+        description: 'Register a new user account',
+        tags: ['auth'],
         requestBody: {
           required: true,
           content: {
             'application/json': {
               schema: {
                 type: 'object',
-                required: ['title', 'trackingType', 'frequency'],
+                required: ['email', 'password'],
                 properties: {
-                  title: { type: 'string', minLength: 1, maxLength: 100 },
-                  description: { type: 'string', maxLength: 500 },
-                  trackingType: { 
-                    type: 'string', 
-                    enum: ['Binary', 'Quantitative', 'Time-based'] 
-                  },
-                  frequency: { 
-                    type: 'string', 
-                    enum: ['Daily', 'Weekly', 'Monthly'] 
-                  },
-                  everyDay: { type: 'boolean' },
-                  daysOfWeek: {
-                    type: 'array',
-                    items: { type: 'string', enum: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] }
-                  },
-                  reminderTime: { type: 'string', format: 'date-time' },
-                  reminderLevel: { type: 'string', enum: ['1', '2', '3'] },
-                  cheatMode: { type: 'boolean' },
-                  planId: { type: 'string' },
-                  goal: {
-                    type: 'object',
-                    properties: {
-                      type: { type: 'string', enum: ['number', 'duration', 'count'] },
-                      value: { type: 'number' },
-                      unit: { type: 'string' }
-                    }
-                  },
-                  progressMode: { type: 'string', enum: ['sum', 'average', 'latest'] },
-                  tags: {
-                    type: 'array',
-                    items: { type: 'string', maxLength: 30 },
-                    maxItems: 10
-                  },
-                  visibility: { 
-                    type: 'string', 
-                    enum: ['private', 'friends', 'public'] 
-                  }
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string', minLength: 6 },
+                  name: { type: 'string' },
+                  picture: { type: 'string' }
                 }
               }
             }
@@ -653,7 +750,7 @@ For API support, please contact our development team or refer to the documentati
         },
         responses: {
           '201': {
-            description: 'Flow created successfully',
+            description: 'User registered successfully',
             content: {
               'application/json': {
                 schema: {
@@ -662,7 +759,144 @@ For API support, please contact our development team or refer to the documentati
                     {
                       type: 'object',
                       properties: {
-                        data: { $ref: '#/components/schemas/Flow' }
+                        data: {
+                          type: 'object',
+                          properties: {
+                            user: { $ref: '#/components/schemas/User' }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/auth/refresh': {
+      post: {
+        summary: 'Refresh access token',
+        description: 'Refresh user access token using refresh token',
+        tags: ['auth'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['refreshToken'],
+                properties: {
+                  refreshToken: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Token refreshed successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            token: { type: 'string' },
+                            refreshToken: { type: 'string' }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/auth/logout': {
+      post: {
+        summary: 'User logout',
+        description: 'Logout user and invalidate tokens',
+        tags: ['auth'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Logout successful',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/auth/verify': {
+      post: {
+        summary: 'Verify token',
+        description: 'Verify JWT token validity',
+        tags: ['auth'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Token is valid',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            valid: { type: 'boolean' },
+                            user: { $ref: '#/components/schemas/User' }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // Profile endpoints
+    '/v1/profile': {
+      get: {
+        summary: 'Get user profile',
+        description: 'Retrieve comprehensive user profile information',
+        tags: ['profiles'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Profile retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: { $ref: '#/components/schemas/User' }
                       }
                     }
                   ]
@@ -670,11 +904,561 @@ For API support, please contact our development team or refer to the documentati
               }
             }
           },
-          '400': {
-            description: 'Validation error',
+          '401': {
+            description: 'Unauthorized',
             content: {
               'application/json': {
-                schema: { $ref: '#/components/schemas/ValidationError' }
+                schema: { $ref: '#/components/schemas/ErrorResponse' }
+              }
+            }
+          }
+        }
+      },
+      put: {
+        summary: 'Update user profile',
+        description: 'Update user profile information',
+        tags: ['profiles'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  firstName: { type: 'string' },
+                  lastName: { type: 'string' },
+                  phoneNumber: { type: 'string' },
+                  dateOfBirth: { type: 'string', format: 'date' },
+                  gender: { 
+                    type: 'string', 
+                    enum: ['male', 'female', 'non-binary', 'transgender', 'prefer-not-to-say', 'other'] 
+                  },
+                  race: { 
+                    type: 'string', 
+                    enum: ['american-indian', 'asian', 'black', 'hispanic', 'native-hawaiian', 'white', 'multiracial', 'prefer-not-to-say', 'other'] 
+                  },
+                  disability: { 
+                    type: 'string', 
+                    enum: ['none', 'visual', 'hearing', 'mobility', 'cognitive', 'mental-health', 'chronic-illness', 'prefer-not-to-say', 'other'] 
+                  },
+                  preferredLanguage: { type: 'string' },
+                  country: { type: 'string' },
+                  timezone: { type: 'string' },
+                  healthGoals: { type: 'array', items: { type: 'string' } },
+                  fitnessLevel: { 
+                    type: 'string', 
+                    enum: ['beginner', 'intermediate', 'advanced', 'expert'] 
+                  },
+                  medicalConditions: { type: 'string' },
+                  profileVisibility: { 
+                    type: 'string', 
+                    enum: ['public', 'friends', 'private'] 
+                  },
+                  dataSharing: {
+                    type: 'object',
+                    properties: {
+                      analytics: { type: 'boolean' },
+                      research: { type: 'boolean' },
+                      marketing: { type: 'boolean' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Profile updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: { $ref: '#/components/schemas/User' }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      delete: {
+        summary: 'Delete user profile',
+        description: 'Delete user profile (soft delete)',
+        tags: ['profiles'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Profile deleted successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/profile/stats': {
+      get: {
+        summary: 'Get profile statistics',
+        description: 'Get user profile statistics and analytics',
+        tags: ['profiles'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Profile statistics retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: { type: 'object', additionalProperties: true }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // User management endpoints
+    '/v1/user': {
+      get: {
+        summary: 'Get current user',
+        description: 'Get current authenticated user information',
+        tags: ['user'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'User information retrieved',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: { $ref: '#/components/schemas/User' }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/user/sync/guest-to-user': {
+      post: {
+        summary: 'Sync guest data to user',
+        description: 'Transfer guest user data to authenticated user account',
+        tags: ['user'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['guestUserId'],
+                properties: {
+                  guestUserId: { type: 'string' },
+                  mergeStrategy: { 
+                    type: 'string', 
+                    enum: ['replace', 'merge', 'skip'],
+                    default: 'merge'
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Guest data synced successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // Settings endpoints
+    '/v1/user/settings': {
+      get: {
+        summary: 'Get user settings',
+        description: 'Retrieve user settings and preferences',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Settings retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: { $ref: '#/components/schemas/UserSettings' }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      put: {
+        summary: 'Update user settings',
+        description: 'Update user settings and preferences',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  notifications: {
+                    type: 'object',
+                    properties: {
+                      email: { type: 'boolean' },
+                      push: { type: 'boolean' },
+                      sms: { type: 'boolean' },
+                      reminders: { type: 'boolean' },
+                      achievements: { type: 'boolean' },
+                      weeklyReports: { type: 'boolean' }
+                    }
+                  },
+                  privacy: {
+                    type: 'object',
+                    properties: {
+                      profileVisibility: { type: 'string', enum: ['public', 'friends', 'private'] },
+                      showStats: { type: 'boolean' },
+                      showFlows: { type: 'boolean' },
+                      allowFriendRequests: { type: 'boolean' }
+                    }
+                  },
+                  preferences: {
+                    type: 'object',
+                    properties: {
+                      theme: { type: 'string', enum: ['light', 'dark', 'auto'] },
+                      language: { type: 'string' },
+                      timezone: { type: 'string' },
+                      dateFormat: { type: 'string' },
+                      timeFormat: { type: 'string', enum: ['12h', '24h'] }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Settings updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: { $ref: '#/components/schemas/UserSettings' }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // Additional settings endpoints (based on the settings.js file)
+    '/v1/user/settings/notifications': {
+      put: {
+        summary: 'Update notification settings',
+        description: 'Update user notification preferences',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  email: { type: 'boolean' },
+                  push: { type: 'boolean' },
+                  sms: { type: 'boolean' },
+                  reminders: { type: 'boolean' },
+                  achievements: { type: 'boolean' },
+                  weeklyReports: { type: 'boolean' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Notification settings updated successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/user/settings/privacy': {
+      put: {
+        summary: 'Update privacy settings',
+        description: 'Update user privacy preferences',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  profileVisibility: { type: 'string', enum: ['public', 'friends', 'private'] },
+                  showStats: { type: 'boolean' },
+                  showFlows: { type: 'boolean' },
+                  allowFriendRequests: { type: 'boolean' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Privacy settings updated successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/user/settings/preferences': {
+      put: {
+        summary: 'Update user preferences',
+        description: 'Update user interface and behavior preferences',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  theme: { type: 'string', enum: ['light', 'dark', 'auto'] },
+                  language: { type: 'string' },
+                  timezone: { type: 'string' },
+                  dateFormat: { type: 'string' },
+                  timeFormat: { type: 'string', enum: ['12h', '24h'] }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Preferences updated successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // Additional settings endpoints
+    '/v1/user/settings/export': {
+      post: {
+        summary: 'Export user data',
+        description: 'Export all user data for download',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Data export initiated successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/user/settings/import': {
+      post: {
+        summary: 'Import user data',
+        description: 'Import user data from file',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  file: { type: 'string', format: 'binary' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Data import completed successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/user/settings/backup': {
+      get: {
+        summary: 'Get backup status',
+        description: 'Get user data backup status',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'Backup status retrieved successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  allOf: [
+                    { $ref: '#/components/schemas/ApiResponse' },
+                    {
+                      type: 'object',
+                      properties: {
+                        data: {
+                          type: 'object',
+                          properties: {
+                            lastBackup: { type: 'string', format: 'date-time' },
+                            backupSize: { type: 'string' },
+                            status: { type: 'string' }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/user/settings/restore': {
+      post: {
+        summary: 'Restore from backup',
+        description: 'Restore user data from backup',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  backupId: { type: 'string' },
+                  confirmRestore: { type: 'boolean' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Data restore completed successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    '/v1/user/settings/delete-account': {
+      delete: {
+        summary: 'Delete user account',
+        description: 'Permanently delete user account and all data',
+        tags: ['settings'],
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['confirmDelete'],
+                properties: {
+                  confirmDelete: { type: 'boolean' },
+                  reason: { type: 'string' }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Account deleted successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ApiResponse' }
               }
             }
           }
@@ -700,6 +1484,14 @@ For API support, please contact our development team or refer to the documentati
       }
     },
     { 
+      name: 'debug', 
+      description: 'Debug and diagnostic endpoints (development environment only)',
+      externalDocs: {
+        description: 'Debug Guide',
+        url: 'https://flow.app/docs/debugging'
+      }
+    },
+    { 
       name: 'auth', 
       description: 'Authentication and authorization endpoints using Firebase JWT tokens',
       externalDocs: {
@@ -708,11 +1500,27 @@ For API support, please contact our development team or refer to the documentati
       }
     },
     { 
-      name: 'flows', 
-      description: 'Habit and goal management including creation, tracking, and analytics',
+      name: 'profiles', 
+      description: 'User profile management including demographics, privacy settings, and personal information',
       externalDocs: {
-        description: 'Flow Management',
-        url: 'https://flow.app/docs/flows'
+        description: 'Profile Management',
+        url: 'https://flow.app/docs/profiles'
+      }
+    },
+    { 
+      name: 'user', 
+      description: 'User account management and guest-to-user data synchronization',
+      externalDocs: {
+        description: 'User Management',
+        url: 'https://flow.app/docs/users'
+      }
+    },
+    { 
+      name: 'settings', 
+      description: 'User preferences, notification settings, and privacy controls',
+      externalDocs: {
+        description: 'Settings Guide',
+        url: 'https://flow.app/docs/settings'
       }
     }
   ]
@@ -738,7 +1546,7 @@ const yamlContent = yaml.dump(openApiSpec, {
 fs.writeFileSync(yamlPath, yamlContent);
 fs.writeFileSync(jsonPath, JSON.stringify(openApiSpec, null, 2));
 
-console.log('✅ Production-Level OpenAPI Specification Generated!');
+console.log('✅ Comprehensive Production-Level OpenAPI Specification Generated!');
 console.log(`   📄 YAML: ${yamlPath}`);
 console.log(`   📄 JSON: ${jsonPath}`);
 console.log('');
@@ -751,11 +1559,14 @@ console.log('   🔍 Detailed Field Descriptions & Examples');
 console.log('   📚 External Documentation Links');
 console.log('   ⚡ OpenAPI 3.0.3 Compliance');
 console.log('');
-console.log('📋 API Endpoints Coverage:');
-console.log('   🔐 Authentication: /v1/auth/* (1 endpoint)');
-console.log('   📊 Flows: /v1/flows/* (2 endpoints)');
-console.log('   🏥 Health: /health (1 endpoint)');
+console.log('📋 Complete API Endpoints Coverage:');
+console.log('   🔐 Authentication: /v1/auth/* (6 endpoints)');
+console.log('   👤 Profile Management: /v1/profile/* (4 endpoints)');
+console.log('   👤 User Management: /v1/user/* (2 endpoints)');
+console.log('   ⚙️ Settings: /v1/user/settings/* (8 endpoints)');
+console.log('   🏥 Health: /health, /v1/ping (2 endpoints)');
+console.log('   🔍 Debug: /debug/*, /_diag/* (4 endpoints)');
 console.log('   🏠 Root: / (1 endpoint)');
 console.log('');
-console.log('🎯 Total: 5 core endpoints with production-level documentation');
+console.log('🎯 Total: 27 endpoints across 7 categories');
 console.log('✨ Ready for production deployment and enterprise use!');
