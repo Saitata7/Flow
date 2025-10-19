@@ -388,6 +388,9 @@ const registerRoutes = async () => {
     console.log('🔐 Registering auth routes at /v1/auth ...');
     await fastify.register(authRoutes, { prefix: '/v1/auth' });
     console.log('✅ Auth routes registered at /v1/auth');
+    // Also register root-level aliases for compatibility
+    await fastify.register(authRoutes, { prefix: '/auth' });
+    console.log('✅ Auth routes also registered at /auth');
   } catch (error) {
     console.error('❌ Failed to register auth routes:', error.message);
     console.error('❌ Auth routes error stack:', error.stack);
@@ -399,6 +402,8 @@ const registerRoutes = async () => {
     console.log('👤 Registering profile routes at /v1/profile ...');
     await fastify.register(profilesRoutes, { prefix: '/v1/profile' });
     console.log('✅ Profile routes registered at /v1/profile');
+    await fastify.register(profilesRoutes, { prefix: '/profile' });
+    console.log('✅ Profile routes also registered at /profile');
   } catch (error) {
     console.error('❌ Failed to register profile routes:', error.message);
   }
@@ -408,6 +413,8 @@ const registerRoutes = async () => {
     console.log('👤 Registering user routes at /v1/user ...');
     await fastify.register(userRoutes, { prefix: '/v1/user' });
     console.log('✅ User routes registered at /v1/user');
+    await fastify.register(userRoutes, { prefix: '/user' });
+    console.log('✅ User routes also registered at /user');
   } catch (error) {
     console.error('❌ Failed to register user routes:', error.message);
   }
