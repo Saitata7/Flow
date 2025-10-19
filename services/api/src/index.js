@@ -74,17 +74,6 @@ const registerPlugins = async () => {
 
   // Swagger documentation
   await fastify.register(swagger, {
-    transform: ({ schema, url }) => {
-      // Transform URLs to include /v1 prefix for API routes
-      let transformedUrl = url;
-      
-      // Only add /v1 prefix to API routes, not to debug/health/ping routes
-      if (url.startsWith('/auth/') || url.startsWith('/profile') || url.startsWith('/user') || url.startsWith('/settings')) {
-        transformedUrl = `/v1${url}`;
-      }
-      
-      return { schema, url: transformedUrl };
-    },
     openapi: {
       openapi: '3.0.0',
       info: {
@@ -102,11 +91,11 @@ const registerPlugins = async () => {
       },
       servers: [
         {
-          url: 'https://flow-api-891963913698.us-central1.run.app/v1',
+          url: 'https://flow-api-891963913698.us-central1.run.app',
           description: 'Production GCP API',
         },
         {
-          url: 'http://localhost:4000/v1',
+          url: 'http://localhost:4000',
           description: 'Local Development',
         },
       ],
