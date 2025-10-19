@@ -20,7 +20,7 @@ const profilesRoutes = require('./routes/profile');
 const settingsRoutes = require('./routes/settings');
 const statsRoutes = require('./routes/stats');
 const notificationRoutes = require('./routes/notifications');
-const userRoutes = require('./routes/user');
+// const userRoutes = require('./routes/user'); // Temporarily disabled for debugging
 const schedulerService = require('./services/schedulerService');
 
 // Get server configuration from environment variables
@@ -446,13 +446,13 @@ const registerRoutes = async () => {
       console.error('❌ Failed to register notification routes:', error.message);
     }
 
-    try {
-      console.log('👤 Registering user routes...');
-      await fastify.register(userRoutes, { prefix: '/user' });
-      console.log('✅ User routes registered successfully');
-    } catch (error) {
-      console.error('❌ Failed to register user routes:', error.message);
-    }
+    // try {
+    //   console.log('👤 Registering user routes...');
+    //   await fastify.register(userRoutes, { prefix: '/user' });
+    //   console.log('✅ User routes registered successfully');
+    // } catch (error) {
+    //   console.error('❌ Failed to register user routes:', error.message);
+    // }
 
   }, { prefix: '/v1' });
 
