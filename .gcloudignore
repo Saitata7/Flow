@@ -1,15 +1,24 @@
-# Explicitly include src files
-!services/api/src/**
-
-# Exclude unnecessary files
+# Exclude large directories that are not needed for API deployment
 node_modules/
+apps/
+packages/
+infra/
+docs/
+tests/
 .git/
 .github/
-tests/
+
+# Exclude unnecessary files
 *.test.js
 *.spec.js
 .env
 .env.*
 *.log
 .DS_Store
+yarn.lock
+package-lock.json
 
+# Only include what's needed for the API
+!services/api/**
+!cloudbuild.yaml
+!README.md
