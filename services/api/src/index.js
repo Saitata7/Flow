@@ -146,9 +146,11 @@ const registerPlugins = async () => {
   }
 
   await fastify.register(swagger, {
-    openapi: openApiSpec,
+    mode: 'static',
+    specification: {
+      document: openApiSpec,
+    },
     exposeRoute: true,
-    allowUnionTypes: true,
   });
 
   await fastify.register(swaggerUi, {
