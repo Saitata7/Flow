@@ -79,14 +79,23 @@ const registerPlugins = async () => {
     const path = require('path');
     const specPath = path.join(__dirname, '../openapi/v1.json');
     
+    console.log('🔍 Looking for OpenAPI spec at:', specPath);
+    console.log('🔍 Current working directory:', process.cwd());
+    console.log('🔍 __dirname:', __dirname);
+    
     if (fs.existsSync(specPath)) {
+      console.log('✅ Found OpenAPI spec file');
       openApiSpec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
       console.log('✅ Loaded comprehensive OpenAPI specification from generated file');
+      console.log('📊 Spec has', Object.keys(openApiSpec.paths).length, 'paths');
+      console.log('📊 Spec server URL:', openApiSpec.servers[0].url);
     } else {
+      console.log('❌ OpenAPI spec file not found at:', specPath);
       throw new Error('Generated OpenAPI specification not found');
     }
   } catch (error) {
     console.warn('⚠️ Could not load generated OpenAPI spec, using fallback configuration:', error.message);
+    console.warn('⚠️ Error stack:', error.stack);
     // Fallback to basic configuration
     openApiSpec = {
       openapi: '3.0.0',
