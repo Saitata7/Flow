@@ -72,9 +72,23 @@ const registerPlugins = async () => {
     }),
   });
 
-  // Swagger documentation
-  await fastify.register(swagger, {
-    openapi: {
+  // Swagger documentation - Load comprehensive generated specification
+  let openApiSpec;
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const specPath = path.join(__dirname, '../openapi/v1.json');
+    
+    if (fs.existsSync(specPath)) {
+      openApiSpec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
+      console.log('✅ Loaded comprehensive OpenAPI specification from generated file');
+    } else {
+      throw new Error('Generated OpenAPI specification not found');
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not load generated OpenAPI spec, using fallback configuration:', error.message);
+    // Fallback to basic configuration
+    openApiSpec = {
       openapi: '3.0.0',
       info: {
         title: 'Flow API',
@@ -91,7 +105,7 @@ const registerPlugins = async () => {
       },
       servers: [
         {
-          url: 'https://flow-api-891963913698.us-central1.run.app',
+          url: 'https://flow-api-c57f3te5va-uc.a.run.app',
           description: 'Production GCP API',
         },
         {
@@ -119,7 +133,11 @@ const registerPlugins = async () => {
         { name: 'stats', description: 'Statistics and analytics endpoints' },
         { name: 'activities', description: 'Activity stats and analytics endpoints' },
       ],
-    },
+    };
+  }
+
+  await fastify.register(swagger, {
+    openapi: openApiSpec,
     exposeRoute: true,
     allowUnionTypes: true,
   });
