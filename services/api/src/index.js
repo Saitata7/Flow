@@ -522,11 +522,16 @@ const start = async () => {
     fastify.log.info('Scheduler service initialized');
 
     // Register everything
+    console.log('🔧 Starting route registration...');
     await registerPlugins();
+    console.log('✅ Plugins registered');
     await registerMiddleware();
+    console.log('✅ Middleware registered');
     await registerRoutes();
+    console.log('✅ Routes registered');
 
     // Start server
+    console.log(`🚀 Starting server on ${HOST}:${PORT}...`);
     await fastify.listen({ port: PORT, host: HOST });
     
     fastify.log.info(`🚀 Flow API server running on http://${HOST}:${PORT}`);
