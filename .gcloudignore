@@ -1,0 +1,15 @@
+# Explicitly include src files
+!services/api/src/**
+
+# Exclude unnecessary files
+node_modules/
+.git/
+.github/
+tests/
+*.test.js
+*.spec.js
+.env
+.env.*
+*.log
+.DS_Store
+
