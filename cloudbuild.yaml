@@ -19,7 +19,7 @@ steps:
       - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/flow-registry/flow-api:latest'
       - '--platform=managed'
       - '--region=us-central1'
-      - '--traffic=LATEST=100'
+      - '--no-traffic'
       - '--allow-unauthenticated'
       - '--port=8080'
       - '--memory=512Mi'
