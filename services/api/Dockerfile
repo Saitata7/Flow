@@ -24,6 +24,9 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy source code
 COPY . .
 
+# Generate OpenAPI specification
+RUN node scripts/generate-openapi.js
+
 # Build the application (if needed)
 RUN npm run build || echo "No build step required"
 
