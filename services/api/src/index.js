@@ -375,25 +375,37 @@ const registerRoutes = async () => {
     }
   });
 
-  // API routes with versioning
-  await fastify.register(async (fastify) => {
-    // Add Redis to request context
-    fastify.decorate('redis', redis);
+  // API routes with explicit versioned prefixes (avoid nested group issues)
+  // Add Redis to request context for all routes
+  fastify.decorate('redis', redis);
 
-    // Register domain routes with error handling
-    try {
-      console.log('🔐 Registering auth routes...');
-      await fastify.register(authRoutes, { prefix: '/auth' });
-      console.log('✅ Auth routes registered successfully');
-    } catch (error) {
-      console.error('❌ Failed to register auth routes:', error.message);
-      console.error('❌ Auth routes error stack:', error.stack);
-    }
+  try {
+    console.log('🔐 Registering auth routes at /v1/auth ...');
+    await fastify.register(authRoutes, { prefix: '/v1/auth' });
+    console.log('✅ Auth routes registered at /v1/auth');
+  } catch (error) {
+    console.error('❌ Failed to register auth routes:', error.message);
+    console.error('❌ Auth routes error stack:', error.stack);
+  }
 
-    // Temporarily disabled other routes for debugging
-    console.log('🔧 Other routes temporarily disabled for debugging');
+  try {
+    // Lazy import to avoid failures if file missing in image, keep auth working
+    const profilesRoutes = require('./routes/profile');
+    console.log('👤 Registering profile routes at /v1/profile ...');
+    await fastify.register(profilesRoutes, { prefix: '/v1/profile' });
+    console.log('✅ Profile routes registered at /v1/profile');
+  } catch (error) {
+    console.error('❌ Failed to register profile routes:', error.message);
+  }
 
-  }, { prefix: '/v1' });
+  try {
+    const userRoutes = require('./routes/user');
+    console.log('👤 Registering user routes at /v1/user ...');
+    await fastify.register(userRoutes, { prefix: '/v1/user' });
+    console.log('✅ User routes registered at /v1/user');
+  } catch (error) {
+    console.error('❌ Failed to register user routes:', error.message);
+  }
 
   // Root endpoint
   fastify.get('/', {
@@ -466,6 +478,7 @@ const start = async () => {
     console.log('✅ Plugins registered');
     await registerMiddleware();
     console.log('✅ Middleware registered');
+    console.log('🔧 About to register routes...');
     await registerRoutes();
     console.log('✅ Routes registered');
 
