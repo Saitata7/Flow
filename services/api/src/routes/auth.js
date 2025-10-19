@@ -2,7 +2,7 @@
 // Authentication routes for JWT token-based authentication
 // Handles login, logout, token refresh, and user registration
 
-const { generateJWTToken, verifyJWTToken } = require('../middleware/auth');
+const { generateJWTToken, verifyJWTToken, verifyFirebaseToken } = require('../middleware/auth');
 const { UnauthorizedError, BadRequestError } = require('../middleware/errorHandler');
 const { UserModel } = require('../db/models');
 
@@ -161,6 +161,110 @@ const authRoutes = async fastify => {
         error: 'Internal server error',
         message: 'Login failed',
       });
+    }
+  });
+
+  // Firebase to JWT conversion endpoint
+  fastify.post('/firebase-to-jwt', {
+    schema: {
+      description: 'Convert Firebase ID token to JWT token',
+      tags: ['auth'],
+      body: {
+        type: 'object',
+        required: ['firebaseToken'],
+        properties: {
+          firebaseToken: { type: 'string' },
+          user: {
+            type: 'object',
+            properties: {
+              uid: { type: 'string' },
+              email: { type: 'string' },
+              displayName: { type: 'string' },
+              photoURL: { type: 'string' },
+            },
+          },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            jwtToken: { type: 'string' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                emailVerified: { type: 'boolean' },
+                name: { type: 'string' },
+                picture: { type: 'string' },
+              },
+            },
+            expiresIn: { type: 'string' },
+          },
+        },
+        401: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            error: { type: 'string' },
+            message: { type: 'string' },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+    try {
+      console.log('🔄 Converting Firebase token to JWT...');
+      
+      const { firebaseToken, user } = request.body;
+      
+      if (!firebaseToken) {
+        throw new BadRequestError('Firebase token is required');
+      }
+      
+      // Verify Firebase token
+      const firebaseUser = await verifyFirebaseToken(firebaseToken);
+      
+      if (!firebaseUser) {
+        throw new UnauthorizedError('Invalid Firebase token');
+      }
+      
+      console.log('✅ Firebase token verified for user:', firebaseUser.id);
+      
+      // Generate JWT token
+      const jwtToken = generateJWTToken({
+        id: firebaseUser.id,
+        email: firebaseUser.email,
+        emailVerified: firebaseUser.emailVerified,
+        name: firebaseUser.name || user?.displayName,
+        picture: firebaseUser.picture || user?.photoURL,
+      });
+      
+      console.log('✅ JWT token generated successfully');
+      
+      return reply.send({
+        success: true,
+        jwtToken: jwtToken,
+        user: {
+          id: firebaseUser.id,
+          email: firebaseUser.email,
+          emailVerified: firebaseUser.emailVerified,
+          name: firebaseUser.name || user?.displayName,
+          picture: firebaseUser.picture || user?.photoURL,
+        },
+        expiresIn: '7d',
+      });
+      
+    } catch (error) {
+      console.error('❌ Firebase to JWT conversion failed:', error.message);
+      
+      if (error instanceof UnauthorizedError || error instanceof BadRequestError) {
+        throw error;
+      }
+      
+      throw new UnauthorizedError('Token conversion failed');
     }
   });
 
