@@ -291,6 +291,11 @@ const registerRoutes = async () => {
     };
   });
 
+  // Minimal sanity endpoint to verify /v1 prefix routing in production
+  fastify.get('/v1/ping', async (request, reply) => {
+    return { ok: true, ts: new Date().toISOString() };
+  });
+
   // Debug endpoint to check mobile app connectivity (no auth required)
   fastify.get('/debug/flows', async (request, reply) => {
     const { FlowModel } = require('./db/models');
