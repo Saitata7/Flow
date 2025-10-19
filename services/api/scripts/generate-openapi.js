@@ -771,10 +771,10 @@ For API support, please contact our development team or refer to the documentati
                 }
               }
             }
-          }
-        }
-      }
-    },
+                }
+              }
+            }
+          },
 
     '/v1/auth/refresh': {
       post: {
@@ -1001,11 +1001,11 @@ For API support, please contact our development team or refer to the documentati
               'application/json': {
                 schema: { $ref: '#/components/schemas/ApiResponse' }
               }
+              }
             }
           }
         }
-      }
-    },
+      },
 
     '/v1/profile/stats': {
       get: {
@@ -1755,11 +1755,11 @@ For API support, please contact our development team or refer to the documentati
             content: {
               'application/json': {
                 schema: {
-                  type: 'object',
-                  properties: {
+                      type: 'object',
+                      properties: {
                     success: { type: 'boolean' },
-                    data: {
-                      type: 'array',
+                        data: {
+                          type: 'array',
                       items: { $ref: '#/components/schemas/FlowEntry' }
                     },
                     message: { type: 'string' }
@@ -1803,11 +1803,11 @@ For API support, please contact our development team or refer to the documentati
                       totalDuration: { type: 'number' }
                     }
                   }
-                }
-              }
             }
           }
-        },
+        }
+      }
+    },
         responses: {
           '201': {
             description: 'Flow entry created successfully',
@@ -1883,8 +1883,8 @@ For API support, please contact our development team or refer to the documentati
           content: {
             'application/json': {
               schema: {
-                type: 'object',
-                properties: {
+                      type: 'object',
+                      properties: {
                   symbol: { type: 'string', enum: ['+', '-', '*', '/'] },
                   emotion: { type: 'string' },
                   moodScore: { type: 'integer', minimum: 1, maximum: 5 },
@@ -1903,10 +1903,10 @@ For API support, please contact our development team or refer to the documentati
                     }
                   }
                 }
+                }
               }
             }
-          }
-        },
+          },
         responses: {
           '200': {
             description: 'Flow entry updated successfully',
@@ -2314,7 +2314,7 @@ For API support, please contact our development team or refer to the documentati
                       type: 'object',
                       properties: {
                         operationId: { type: 'string' },
-                        status: { type: 'string' },
+                    status: { type: 'string' },
                         queuedAt: { type: 'string', format: 'date-time' }
                       }
                     },
@@ -2554,12 +2554,18 @@ console.log('   ⚡ OpenAPI 3.0.3 Compliance');
 console.log('');
 console.log('📋 Complete API Endpoints Coverage:');
 console.log('   🔐 Authentication: /v1/auth/* (6 endpoints)');
-console.log('   👤 Profile Management: /v1/profile/* (4 endpoints)');
-console.log('   👤 User Management: /v1/user/* (2 endpoints)');
+console.log('   👤 Profile Management: /v1/profile/* (2 endpoints)');
+console.log('   👤 User Management: /v1/user/* (11 endpoints)');
 console.log('   ⚙️ Settings: /v1/user/settings/* (8 endpoints)');
+console.log('   🌊 Flows: /v1/flows/* (3 endpoints)');
+console.log('   📝 Flow Entries: /v1/flow-entries/* (2 endpoints)');
+console.log('   📋 Plans: /v1/plans/* (1 endpoint)');
+console.log('   📊 Stats: /v1/stats/* (3 endpoints)');
+console.log('   🏃 Activities: /v1/activities/* (3 endpoints)');
+console.log('   🔄 Sync: /v1/sync/* (3 endpoints)');
 console.log('   🏥 Health: /health, /v1/ping (2 endpoints)');
 console.log('   🔍 Debug: /debug/*, /_diag/* (4 endpoints)');
 console.log('   🏠 Root: / (1 endpoint)');
 console.log('');
-console.log('🎯 Total: 27 endpoints across 7 categories');
+console.log('🎯 Total: 41 endpoints across 13 categories');
 console.log('✨ Ready for production deployment and enterprise use!');
