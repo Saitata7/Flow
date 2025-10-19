@@ -192,7 +192,7 @@ README.md
 docs/
 *.md
 
-# Tests
+# Tests (but keep src directory)
 tests/
 test/
 __tests__/
