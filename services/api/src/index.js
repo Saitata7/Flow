@@ -17,7 +17,7 @@ const authRoutes = require('./routes/auth');
 // const flowEntriesRoutes = require('./routes/flowEntries');
 // const plansRoutes = require('./routes/plans');
 // const profilesRoutes = require('./routes/profile');
-// const settingsRoutes = require('./routes/settings');
+const settingsRoutes = require('./routes/settings');
 // const statsRoutes = require('./routes/stats');
 // const notificationRoutes = require('./routes/notifications');
 // const userRoutes = require('./routes/user');
@@ -91,8 +91,12 @@ const registerPlugins = async () => {
       },
       servers: [
         {
-          url: 'https://api.flow.app/v1',
+          url: 'https://flow-api-891963913698.us-central1.run.app',
           description: 'Production GCP API',
+        },
+        {
+          url: 'http://localhost:4000',
+          description: 'Local Development',
         },
       ],
       components: {
@@ -105,15 +109,18 @@ const registerPlugins = async () => {
         },
       },
       tags: [
+        { name: 'auth', description: 'Authentication endpoints' },
         { name: 'flows', description: 'Flow management endpoints' },
         { name: 'entries', description: 'Flow entry endpoints' },
         { name: 'plans', description: 'Plan management endpoints' },
         { name: 'profiles', description: 'User profile endpoints' },
         { name: 'settings', description: 'User settings endpoints' },
+        { name: 'user', description: 'User management endpoints' },
         { name: 'stats', description: 'Statistics and analytics endpoints' },
         { name: 'activities', description: 'Activity stats and analytics endpoints' },
       ],
     },
+    exposeRoute: true,
     allowUnionTypes: true,
   });
 
@@ -291,6 +298,33 @@ const registerRoutes = async () => {
     };
   });
 
+  // Debug endpoint to check database schema
+  fastify.get('/debug/schema', async (request, reply) => {
+    try {
+      const { query } = require('./db/config');
+      const { rows } = await query(`
+        SELECT column_name, data_type, is_nullable 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        ORDER BY ordinal_position
+      `);
+      
+      return reply.json({ 
+        ok: true, 
+        timestamp: new Date().toISOString(),
+        users_table_columns: rows,
+        total_columns: rows.length
+      });
+    } catch (err) {
+      return reply.status(500).json({ 
+        ok: false, 
+        error: err.message, 
+        timestamp: new Date().toISOString(),
+        stack: err.stack ? err.stack.split('\n').slice(0, 5) : 'No stack trace'
+      });
+    }
+  });
+
   // Minimal sanity endpoint to verify /v1 prefix routing in production
   fastify.get('/v1/ping', async (request, reply) => {
     return { ok: true, ts: new Date().toISOString() };
@@ -388,9 +422,6 @@ const registerRoutes = async () => {
     console.log('🔐 Registering auth routes at /v1/auth ...');
     await fastify.register(authRoutes, { prefix: '/v1/auth' });
     console.log('✅ Auth routes registered at /v1/auth');
-    // Also register root-level aliases for compatibility
-    await fastify.register(authRoutes, { prefix: '/auth' });
-    console.log('✅ Auth routes also registered at /auth');
   } catch (error) {
     console.error('❌ Failed to register auth routes:', error.message);
     console.error('❌ Auth routes error stack:', error.stack);
@@ -402,8 +433,6 @@ const registerRoutes = async () => {
     console.log('👤 Registering profile routes at /v1/profile ...');
     await fastify.register(profilesRoutes, { prefix: '/v1/profile' });
     console.log('✅ Profile routes registered at /v1/profile');
-    await fastify.register(profilesRoutes, { prefix: '/profile' });
-    console.log('✅ Profile routes also registered at /profile');
   } catch (error) {
     console.error('❌ Failed to register profile routes:', error.message);
   }
@@ -413,10 +442,16 @@ const registerRoutes = async () => {
     console.log('👤 Registering user routes at /v1/user ...');
     await fastify.register(userRoutes, { prefix: '/v1/user' });
     console.log('✅ User routes registered at /v1/user');
-    await fastify.register(userRoutes, { prefix: '/user' });
-    console.log('✅ User routes also registered at /user');
   } catch (error) {
     console.error('❌ Failed to register user routes:', error.message);
+  }
+
+  try {
+    console.log('⚙️ Registering settings routes at /v1/user/settings ...');
+    await fastify.register(settingsRoutes, { prefix: '/v1/user/settings' });
+    console.log('✅ Settings routes registered at /v1/user/settings');
+  } catch (error) {
+    console.error('❌ Failed to register settings routes:', error.message);
   }
 
   // Root endpoint

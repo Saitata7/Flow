@@ -7,6 +7,70 @@ const { UnauthorizedError, BadRequestError } = require('../middleware/errorHandl
 const { UserModel } = require('../db/models');
 
 const authRoutes = async fastify => {
+  /**
+   * @swagger
+   * /v1/auth/login:
+   *   post:
+   *     summary: User login
+   *     description: Authenticate user with email/password or Firebase token and generate JWT
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [email]
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *               password:
+   *                 type: string
+   *                 minLength: 6
+   *               firebaseToken:
+   *                 type: string
+   *               name:
+   *                 type: string
+   *               picture:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Login successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     token:
+   *                       type: string
+   *                     user:
+   *                       type: object
+   *                       properties:
+   *                         id:
+   *                           type: string
+   *                         email:
+   *                           type: string
+   *                         name:
+   *                           type: string
+   *                         emailVerified:
+   *                           type: boolean
+   *                         provider:
+   *                           type: string
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Bad request
+   *       401:
+   *         description: Unauthorized
+   *       500:
+   *         description: Internal server error
+   */
   // Login endpoint - generates JWT token
   fastify.post('/login', {
     schema: {
@@ -93,13 +157,13 @@ const authRoutes = async fastify => {
             // Create new user in database
             user = await UserModel.create({
               id: firebaseUser.id,
+              firebase_uid: firebaseUser.id,
               email: firebaseUser.email,
-              name: firebaseUser.name || name || email.split('@')[0],
-              emailVerified: firebaseUser.emailVerified || false,
-              provider: 'firebase',
-              picture: firebaseUser.picture || picture,
-              createdAt: new Date(),
-              updatedAt: new Date(),
+              display_name: firebaseUser.name || name || email.split('@')[0],
+              email_verified: firebaseUser.emailVerified || false,
+              photo_url: firebaseUser.picture || picture,
+              created_at: new Date(),
+              updated_at: new Date(),
             });
             console.log('✅ New user created from Firebase token:', user.id);
           }
@@ -110,15 +174,16 @@ const authRoutes = async fastify => {
 
       // If still no user, create a basic user record
       if (!user) {
+        const userId = require('crypto').randomUUID();
         user = await UserModel.create({
-          id: require('crypto').randomUUID(),
+          id: userId,
+          firebase_uid: userId, // Use same UUID for firebase_uid when no Firebase token
           email: email,
-          name: name || email.split('@')[0],
-          emailVerified: false,
-          provider: 'jwt',
-          picture: picture,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          display_name: name || email.split('@')[0],
+          email_verified: false,
+          photo_url: picture,
+          created_at: new Date(),
+          updated_at: new Date(),
         });
         console.log('✅ New user created with JWT:', user.id);
       }
@@ -127,9 +192,9 @@ const authRoutes = async fastify => {
       const token = generateJWTToken({
         id: user.id,
         email: user.email,
-        emailVerified: user.emailVerified,
-        name: user.name,
-        picture: user.picture,
+        emailVerified: user.email_verified,
+        name: user.display_name,
+        picture: user.photo_url,
       });
 
       return reply.send({
@@ -139,10 +204,10 @@ const authRoutes = async fastify => {
           user: {
             id: user.id,
             email: user.email,
-            name: user.name,
-            emailVerified: user.emailVerified,
-            provider: user.provider,
-            picture: user.picture,
+            name: user.display_name,
+            emailVerified: user.email_verified,
+            provider: 'firebase',
+            picture: user.photo_url,
           },
         },
         message: 'Login successful',
@@ -268,6 +333,68 @@ const authRoutes = async fastify => {
     }
   });
 
+  /**
+   * @swagger
+   * /v1/auth/register:
+   *   post:
+   *     summary: User registration
+   *     description: Register a new user account
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [email, name]
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *               name:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *                 minLength: 6
+   *               picture:
+   *                 type: string
+   *     responses:
+   *       201:
+   *         description: Registration successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     token:
+   *                       type: string
+   *                     user:
+   *                       type: object
+   *                       properties:
+   *                         id:
+   *                           type: string
+   *                         email:
+   *                           type: string
+   *                         name:
+   *                           type: string
+   *                         emailVerified:
+   *                           type: boolean
+   *                         provider:
+   *                           type: string
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Bad request
+   *       409:
+   *         description: User already exists
+   *       500:
+   *         description: Internal server error
+   */
   // Register endpoint - creates new user and returns JWT token
   fastify.post('/register', {
     schema: {
@@ -336,24 +463,25 @@ const authRoutes = async fastify => {
       }
 
       // Create new user
+      const userId = require('crypto').randomUUID();
       const user = await UserModel.create({
-        id: require('crypto').randomUUID(),
+        id: userId,
+        firebase_uid: userId, // Use same UUID for firebase_uid when no Firebase token
         email: email,
-        name: name,
-        emailVerified: false,
-        provider: 'jwt',
-        picture: picture,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        display_name: name,
+        email_verified: false,
+        photo_url: picture,
+        created_at: new Date(),
+        updated_at: new Date(),
       });
 
       // Generate JWT token
       const token = generateJWTToken({
         id: user.id,
         email: user.email,
-        emailVerified: user.emailVerified,
-        name: user.name,
-        picture: user.picture,
+        emailVerified: user.email_verified,
+        name: user.display_name,
+        picture: user.photo_url,
       });
 
       return reply.status(201).send({
@@ -363,10 +491,10 @@ const authRoutes = async fastify => {
           user: {
             id: user.id,
             email: user.email,
-            name: user.name,
-            emailVerified: user.emailVerified,
-            provider: user.provider,
-            picture: user.picture,
+            name: user.display_name,
+            emailVerified: user.email_verified,
+            provider: 'jwt',
+            picture: user.photo_url,
           },
         },
         message: 'Registration successful',
@@ -520,6 +648,52 @@ const authRoutes = async fastify => {
     });
   });
 
+  /**
+   * @swagger
+   * /v1/auth/verify:
+   *   post:
+   *     summary: Verify JWT token
+   *     description: Verify the validity of a JWT token
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [token]
+   *             properties:
+   *               token:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Token is valid
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     valid:
+   *                       type: boolean
+   *                     user:
+   *                       type: object
+   *                       properties:
+   *                         id:
+   *                           type: string
+   *                         email:
+   *                           type: string
+   *                 message:
+   *                   type: string
+   *       401:
+   *         description: Invalid token
+   *       400:
+   *         description: Bad request
+   */
   // Verify token endpoint
   fastify.post('/verify', {
     schema: {

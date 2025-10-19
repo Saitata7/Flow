@@ -21,6 +21,33 @@ const {
 const { requireAuth } = require('../middleware/auth');
 
 const settingsRoutes = async fastify => {
+  /**
+   * @swagger
+   * /v1/user/settings:
+   *   get:
+   *     summary: Get user settings
+   *     description: Retrieve user settings and preferences
+   *     tags: [Settings]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Settings retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   additionalProperties: true
+   *       401:
+   *         description: Unauthorized
+   *       500:
+   *         description: Internal server error
+   */
   // Get user settings
   fastify.get(
     '/',
@@ -47,6 +74,44 @@ const settingsRoutes = async fastify => {
     getUserSettings
   );
 
+  /**
+   * @swagger
+   * /v1/user/settings:
+   *   put:
+   *     summary: Update user settings
+   *     description: Update user settings and preferences
+   *     tags: [Settings]
+   *     security:
+   *       - bearerAuth: []
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             additionalProperties: true
+   *     responses:
+   *       200:
+   *         description: Settings updated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   additionalProperties: true
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Bad request
+   *       401:
+   *         description: Unauthorized
+   *       500:
+   *         description: Internal server error
+   */
   // Update user settings
   fastify.put(
     '/',
