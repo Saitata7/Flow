@@ -10,7 +10,7 @@ const {
   getSyncStats,
 } = require('../controllers/syncQueue.controller');
 
-const { authenticateToken } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/admin');
 
 /**
@@ -21,22 +21,22 @@ const { requireAdmin } = require('../middleware/admin');
 const syncQueueRoutes = async (fastify, options) => {
   // Admin routes for sync queue management
   fastify.post('/admin/sync/start', {
-    preHandler: [authenticateToken, requireAdmin],
+    preHandler: [requireAuth, requireAdmin],
     handler: startSyncProcessing,
   });
 
   fastify.post('/admin/sync/stop', {
-    preHandler: [authenticateToken, requireAdmin],
+    preHandler: [requireAuth, requireAdmin],
     handler: stopSyncProcessing,
   });
 
   fastify.get('/admin/sync/stats', {
-    preHandler: [authenticateToken, requireAdmin],
+    preHandler: [requireAuth, requireAdmin],
     handler: getSyncStats,
   });
 
   fastify.post('/admin/sync/clear', {
-    preHandler: [authenticateToken, requireAdmin],
+    preHandler: [requireAuth, requireAdmin],
     schema: {
       body: {
         type: 'object',
@@ -54,7 +54,7 @@ const syncQueueRoutes = async (fastify, options) => {
   });
 
   fastify.post('/admin/sync/force/:userId', {
-    preHandler: [authenticateToken, requireAdmin],
+    preHandler: [requireAuth, requireAdmin],
     schema: {
       params: {
         type: 'object',
@@ -72,7 +72,7 @@ const syncQueueRoutes = async (fastify, options) => {
 
   // User routes for sync operations
   fastify.post('/sync/queue', {
-    preHandler: [authenticateToken],
+    preHandler: [requireAuth],
     schema: {
       body: {
         type: 'object',
@@ -103,12 +103,12 @@ const syncQueueRoutes = async (fastify, options) => {
   });
 
   fastify.get('/sync/status', {
-    preHandler: [authenticateToken],
+    preHandler: [requireAuth],
     handler: getSyncStatus,
   });
 
   fastify.get('/sync/pending', {
-    preHandler: [authenticateToken],
+    preHandler: [requireAuth],
     schema: {
       querystring: {
         type: 'object',
@@ -126,7 +126,7 @@ const syncQueueRoutes = async (fastify, options) => {
   });
 
   fastify.post('/sync/resolve-conflicts', {
-    preHandler: [authenticateToken],
+    preHandler: [requireAuth],
     schema: {
       body: {
         type: 'object',
