@@ -1,7 +1,7 @@
 // controllers/syncQueue.controller.js
 // Sync Queue Controller for offline sync operations and conflict resolution
 
-const { BadRequestError, NotFoundError, ConflictError } = require('../utils/errors');
+const { BadRequestError, NotFoundError, ConflictError } = require('../middleware/errorHandler');
 
 /**
  * Start sync processing
