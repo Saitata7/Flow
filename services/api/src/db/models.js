@@ -520,32 +520,78 @@ class UserModel {
     try {
       console.log('📋 UserModel: Updating profile for user:', userId);
       
-      // Prepare update data
+      // Check which columns exist in the database
+      const tableInfo = await db.raw(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND table_schema = 'public'
+      `);
+      
+      const existingColumns = tableInfo.rows.map(row => row.column_name);
+      console.log('📋 UserModel: Existing columns:', existingColumns);
+      
+      // Prepare update data only for existing columns
       const updateData = {
-        first_name: profileData.firstName,
-        last_name: profileData.lastName,
-        email: profileData.email,
-        phone_number: profileData.phoneNumber || null,
-        date_of_birth: profileData.dateOfBirth ? new Date(profileData.dateOfBirth) : null,
-        gender: profileData.gender,
-        race: profileData.race || null,
-        ethnicity: profileData.ethnicity || null,
-        disability: profileData.disability || null,
-        preferred_language: profileData.preferredLanguage || 'en',
-        country: profileData.country || null,
-        timezone: profileData.timezone || null,
-        health_goals: JSON.stringify(profileData.healthGoals || []),
-        fitness_level: profileData.fitnessLevel || null,
-        medical_conditions: profileData.medicalConditions || null,
-        profile_visibility: profileData.profileVisibility || 'private',
-        data_sharing: JSON.stringify(profileData.dataSharing || {
-          analytics: true,
-          research: false,
-          marketing: false
-        }),
-        profile_updated_at: new Date(),
         updated_at: new Date()
       };
+      
+      // Only add columns that exist in the database
+      if (existingColumns.includes('first_name') && profileData.firstName) {
+        updateData.first_name = profileData.firstName;
+      }
+      if (existingColumns.includes('last_name') && profileData.lastName) {
+        updateData.last_name = profileData.lastName;
+      }
+      if (existingColumns.includes('email') && profileData.email) {
+        updateData.email = profileData.email;
+      }
+      if (existingColumns.includes('phone_number') && profileData.phoneNumber) {
+        updateData.phone_number = profileData.phoneNumber;
+      }
+      if (existingColumns.includes('date_of_birth') && profileData.dateOfBirth) {
+        updateData.date_of_birth = new Date(profileData.dateOfBirth);
+      }
+      if (existingColumns.includes('gender') && profileData.gender) {
+        updateData.gender = profileData.gender;
+      }
+      if (existingColumns.includes('race') && profileData.race) {
+        updateData.race = profileData.race;
+      }
+      if (existingColumns.includes('ethnicity') && profileData.ethnicity) {
+        updateData.ethnicity = profileData.ethnicity;
+      }
+      if (existingColumns.includes('disability') && profileData.disability) {
+        updateData.disability = profileData.disability;
+      }
+      if (existingColumns.includes('preferred_language') && profileData.preferredLanguage) {
+        updateData.preferred_language = profileData.preferredLanguage;
+      }
+      if (existingColumns.includes('country') && profileData.country) {
+        updateData.country = profileData.country;
+      }
+      if (existingColumns.includes('timezone') && profileData.timezone) {
+        updateData.timezone = profileData.timezone;
+      }
+      if (existingColumns.includes('health_goals') && profileData.healthGoals) {
+        updateData.health_goals = JSON.stringify(profileData.healthGoals);
+      }
+      if (existingColumns.includes('fitness_level') && profileData.fitnessLevel) {
+        updateData.fitness_level = profileData.fitnessLevel;
+      }
+      if (existingColumns.includes('medical_conditions') && profileData.medicalConditions) {
+        updateData.medical_conditions = profileData.medicalConditions;
+      }
+      if (existingColumns.includes('profile_visibility') && profileData.profileVisibility) {
+        updateData.profile_visibility = profileData.profileVisibility;
+      }
+      if (existingColumns.includes('data_sharing') && profileData.dataSharing) {
+        updateData.data_sharing = JSON.stringify(profileData.dataSharing);
+      }
+      if (existingColumns.includes('profile_updated_at')) {
+        updateData.profile_updated_at = new Date();
+      }
+      
+      console.log('📋 UserModel: Update data:', updateData);
       
       const [updatedUser] = await db(this.tableName)
         .where({ id: userId })
