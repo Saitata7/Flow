@@ -8,14 +8,14 @@ import { Platform } from 'react-native';
 
 // API Configuration
 const API_CONFIG = {
-  // Development URLs
+  // Development URLs - Use production API for consistency
   development: {
     // For Android emulator
-    android: 'http://10.0.10.94:4003', // Computer's IP address
+    android: 'https://flow-api-891963913698.us-central1.run.app',
     // For iOS simulator
-    ios: 'http://10.0.10.94:4003',
+    ios: 'https://flow-api-891963913698.us-central1.run.app',
     // For physical device
-    device: 'http://10.0.10.94:4003', // Computer's IP address
+    device: 'https://flow-api-891963913698.us-central1.run.app',
   },
   
   // Production URL - GCP Cloud Run
