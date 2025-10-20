@@ -8,14 +8,14 @@ const moment = require('moment');
 
 // Extended profile schema validation
 const PROFILE_SCHEMA = {
-  // Required fields
-  required: ['firstName', 'lastName', 'email', 'dateOfBirth', 'gender'],
+  // Required fields (email removed - it's set during account creation)
+  required: ['firstName', 'lastName', 'dateOfBirth', 'gender'],
   
   // Field validation rules
   validation: {
     firstName: { min: 1, max: 50, pattern: /^[a-zA-Z\s'-]+$/ },
     lastName: { min: 1, max: 50, pattern: /^[a-zA-Z\s'-]+$/ },
-    email: { pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
+    email: { pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }, // Optional field
     phoneNumber: { pattern: /^[\+]?[1-9][\d]{0,15}$/ },
     dateOfBirth: { type: 'date', minAge: 13, maxAge: 120 },
     gender: { 

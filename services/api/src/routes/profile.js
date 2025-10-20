@@ -112,12 +112,11 @@ const profileRoutes = async (fastify, options) => {
    *         application/json:
    *           schema:
    *             type: object
-   *             required:
-   *               - firstName
-   *               - lastName
-   *               - email
-   *               - dateOfBirth
-   *               - gender
+     *             required:
+     *               - firstName
+     *               - lastName
+     *               - dateOfBirth
+     *               - gender
    *             properties:
    *               firstName:
    *                 type: string
