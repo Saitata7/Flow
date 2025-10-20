@@ -40,9 +40,6 @@
         "projectId": "flow-habit-tracker"
       }
     },
-    "plugins": [
-      "expo-router"
-    ],
     "scheme": "flow"
   }
 }
