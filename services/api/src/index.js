@@ -528,6 +528,16 @@ const registerRoutes = async () => {
     console.error('❌ Failed to register sync queue routes:', error.message);
   }
 
+  // Temporary admin routes for database maintenance
+  try {
+    const adminRoutes = require('./routes/admin');
+    console.log('🔧 Registering admin routes at /v1/admin ...');
+    await fastify.register(adminRoutes, { prefix: '/v1/admin' });
+    console.log('✅ Admin routes registered at /v1/admin');
+  } catch (error) {
+    console.error('❌ Failed to register admin routes:', error.message);
+  }
+
   // Root endpoint
   fastify.get('/', {
     schema: {
