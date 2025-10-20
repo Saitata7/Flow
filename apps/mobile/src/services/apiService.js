@@ -964,7 +964,7 @@ class ApiService {
 
       logger.log('✅ getStats: User authenticated, making API call');
       logger.log('✅ getStats: Calling GET /v1/stats...');
-      const response = await this.client.get('/v1/stats');
+      const response = await this.client.get('/v1/stats/users/{userId}');
       logger.log('✅ getStats: API response received:', response.data);
       return {
         success: true,
@@ -1132,7 +1132,19 @@ class ApiService {
    */
   async getOverallStats(params = {}) {
     try {
-      const response = await this.client.get('/v1/stats/users/{userId}', { params });
+      // Get current user ID from auth service
+      const authService = require('./authService').default;
+      const currentUser = authService.getCurrentUser();
+      
+      if (!currentUser || !currentUser.id) {
+        return {
+          success: false,
+          error: 'User not authenticated',
+          message: 'Please login to access statistics'
+        };
+      }
+      
+      const response = await this.client.get(`/v1/stats/users/${currentUser.id}`, { params });
       return {
         success: true,
         data: response.data.data,

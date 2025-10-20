@@ -1024,6 +1024,123 @@ const authRoutes = async fastify => {
       });
     }
   });
+
+  /**
+   * @swagger
+   * /v1/auth/check-username/{username}:
+   *   get:
+   *     summary: Check username availability
+   *     description: Check if a username is available for registration
+   *     tags: [Auth]
+   *     parameters:
+   *       - in: path
+   *         name: username
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Username to check
+   *     responses:
+   *       200:
+   *         description: Username availability checked
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     available:
+   *                       type: boolean
+   *                     username:
+   *                       type: string
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Bad request
+   *       500:
+   *         description: Internal server error
+   */
+  fastify.get('/check-username/:username', {
+    schema: {
+      description: 'Check username availability',
+      tags: ['auth'],
+      params: {
+        type: 'object',
+        properties: {
+          username: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 25,
+            pattern: '^[a-zA-Z0-9_-]+$'
+          }
+        },
+        required: ['username']
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                available: { type: 'boolean' },
+                username: { type: 'string' }
+              }
+            },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { username } = request.params;
+
+      if (!username || username.length < 3 || username.length > 25) {
+        throw new BadRequestError('Username must be between 3 and 25 characters');
+      }
+
+      // Check if username contains only allowed characters
+      if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+        throw new BadRequestError('Username can only contain letters, numbers, underscores, and hyphens');
+      }
+
+      // In a real implementation, you would check the database for existing usernames
+      // For now, we'll simulate the check
+      console.log(`Checking username availability: ${username}`);
+      
+      // Simulate some usernames being taken
+      const takenUsernames = ['admin', 'test', 'user', 'flow', 'demo'];
+      const available = !takenUsernames.includes(username.toLowerCase());
+
+      return reply.send({
+        success: true,
+        data: {
+          available,
+          username
+        },
+        message: available ? 'Username is available' : 'Username is already taken'
+      });
+    } catch (error) {
+      console.error('Username check error:', error);
+      if (error instanceof BadRequestError) {
+        return reply.status(400).send({
+          success: false,
+          error: error.message,
+          message: 'Invalid username format'
+        });
+      }
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal server error',
+        message: 'Failed to check username availability'
+      });
+    }
+  });
 };
 
 module.exports = authRoutes;

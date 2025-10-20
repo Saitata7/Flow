@@ -878,6 +878,48 @@ For API support, please contact our development team or refer to the documentati
       }
     },
 
+    '/v1/auth/check-username/{username}': {
+      get: {
+        summary: 'Check username availability',
+        description: 'Check if a username is available for registration',
+        tags: ['auth'],
+        parameters: [
+          {
+            name: 'username',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', minLength: 3, maxLength: 25 },
+            description: 'Username to check'
+          }
+        ],
+        responses: {
+          '200': {
+            description: 'Username availability checked',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        available: { type: 'boolean' },
+                        username: { type: 'string' }
+                      }
+                    },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/BadRequestError' },
+          '500': { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+
     // Password reset endpoints
     '/v1/auth/reset-password': {
       post: {
@@ -2646,7 +2688,7 @@ console.log('   📚 External Documentation Links');
 console.log('   ⚡ OpenAPI 3.0.3 Compliance');
 console.log('');
 console.log('📋 Complete API Endpoints Coverage:');
-console.log('   🔐 Authentication: /v1/auth/* (8 endpoints)');
+console.log('   🔐 Authentication: /v1/auth/* (9 endpoints)');
 console.log('   👤 Profile Management: /v1/profile/* (2 endpoints)');
 console.log('   👤 User Management: /v1/user/* (11 endpoints)');
 console.log('   ⚙️ Settings: /v1/user/settings/* (8 endpoints)');
@@ -2660,5 +2702,5 @@ console.log('   🏥 Health: /health, /v1/ping (2 endpoints)');
 console.log('   🔍 Debug: /debug/*, /_diag/* (4 endpoints)');
 console.log('   🏠 Root: / (1 endpoint)');
 console.log('');
-console.log('🎯 Total: 43 endpoints across 13 categories');
+console.log('🎯 Total: 44 endpoints across 13 categories');
 console.log('✨ Ready for production deployment and enterprise use!');
