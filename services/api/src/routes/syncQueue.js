@@ -71,7 +71,7 @@ const syncQueueRoutes = async (fastify, options) => {
   });
 
   // User routes for sync operations
-  fastify.post('/sync/queue', {
+  fastify.post('/queue', {
     preHandler: [requireAuth],
     schema: {
       body: {
@@ -102,12 +102,12 @@ const syncQueueRoutes = async (fastify, options) => {
     handler: queueSyncOperation,
   });
 
-  fastify.get('/sync/status', {
+  fastify.get('/status', {
     preHandler: [requireAuth],
     handler: getSyncStatus,
   });
 
-  fastify.get('/sync/pending', {
+  fastify.get('/pending', {
     preHandler: [requireAuth],
     schema: {
       querystring: {
@@ -125,7 +125,7 @@ const syncQueueRoutes = async (fastify, options) => {
     handler: getPendingOperations,
   });
 
-  fastify.post('/sync/resolve-conflicts', {
+  fastify.post('/resolve-conflicts', {
     preHandler: [requireAuth],
     schema: {
       body: {
