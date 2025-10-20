@@ -489,11 +489,11 @@ const requireAuth = async (request, reply) => {
       throw new ForbiddenError('Email verification required for this operation');
     }
 
-    // Check for suspicious activity patterns
+    // Check for suspicious activity patterns (relaxed for mobile apps)
     const userAgent = request.headers['user-agent'];
-    if (!userAgent || userAgent.length < 10) {
-      console.error('❌ Invalid user agent:', userAgent);
-      throw new ForbiddenError('Invalid user agent');
+    if (!userAgent || userAgent.length < 3) {
+      console.warn('⚠️ Missing or very short user agent:', userAgent);
+      // Don't block requests, just log for monitoring
     }
   }
   
