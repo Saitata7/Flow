@@ -25,7 +25,7 @@ class AuthService {
     try {
       console.log('🔐 Attempting login for:', email);
       
-      const response = await api.post('/v1/auth/login-simple', {
+      const response = await api.post('/v1/auth/login', {
         email,
         name: email.split('@')[0] // Use email prefix as default name, ignore password
       });
@@ -123,7 +123,7 @@ class AuthService {
       }
 
       // Verify token with server
-      const response = await api.post('/v1/auth/verify-simple', { token });
+      const response = await api.post('/v1/auth/verify', { token });
       
       if (response.data.success && response.data.data.valid) {
         this.isAuthenticated = true;
@@ -177,7 +177,7 @@ class AuthService {
       }
 
       // Verify token with server
-      const response = await api.post('/v1/auth/verify-simple', { token });
+      const response = await api.post('/v1/auth/verify', { token });
       
       if (response.data.success && response.data.data.valid) {
         this.isAuthenticated = true;

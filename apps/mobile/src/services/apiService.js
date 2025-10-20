@@ -1132,7 +1132,7 @@ class ApiService {
    */
   async getOverallStats(params = {}) {
     try {
-      const response = await this.client.get('/v1/stats/overall', { params });
+      const response = await this.client.get('/v1/stats/users/{userId}', { params });
       return {
         success: true,
         data: response.data.data,
@@ -1165,7 +1165,7 @@ class ApiService {
       }
 
       logger.log('✅ getUserSettings: User authenticated, making API call');
-      const response = await this.client.get('/v1/settings');
+      const response = await this.client.get('/v1/user/settings');
       return {
         success: true,
         data: response.data.data,
@@ -1181,7 +1181,7 @@ class ApiService {
    */
   async updateUserSettings(settings) {
     try {
-      const response = await this.client.put('/v1/settings', settings);
+      const response = await this.client.put('/v1/user/settings', settings);
       return {
         success: true,
         data: response.data.data,
@@ -1198,7 +1198,7 @@ class ApiService {
    */
   async getNotificationSettings() {
     try {
-      const response = await this.client.get('/v1/notifications/settings');
+      const response = await this.client.get('/v1/user/settings/notifications');
       return {
         success: true,
         data: response.data.data,
@@ -1232,11 +1232,12 @@ class ApiService {
    */
   async getNotificationLogs(params = {}) {
     try {
-      const response = await this.client.get('/v1/notifications/logs', { params });
+      // TODO: Implement when backend supports notification logs
+      console.warn('⚠️ Notification logs endpoint not available in backend');
       return {
         success: true,
-        data: response.data.data,
-        message: response.data.message,
+        data: [],
+        message: 'Notification logs not available',
       };
     } catch (error) {
       logger.error('Error getting notification logs:', error);
@@ -1248,12 +1249,12 @@ class ApiService {
   async registerDevice(deviceData) {
     try {
       logger.log('📱 Registering device with data:', deviceData);
-      const response = await this.client.post('/v1/notifications/registerDevice', deviceData);
-      logger.log('📱 Device registration response:', response.data);
+      // TODO: Implement when backend supports device registration
+      console.warn('⚠️ Device registration endpoint not available in backend');
       return {
         success: true,
-        data: response.data.data,
-        message: response.data.message,
+        data: { registered: false },
+        message: 'Device registration not available',
       };
     } catch (error) {
       logger.error('❌ Error registering device:', error);
