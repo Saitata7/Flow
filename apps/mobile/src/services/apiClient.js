@@ -31,31 +31,26 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to attach Firebase token
+// Request interceptor to attach JWT token
 api.interceptors.request.use(async (config) => {
   try {
-    // Try to get Firebase token for API request
-    console.log('🔄 Getting Firebase token for API request...');
+    // Try to get JWT token for API request
+    console.log('🔄 Getting JWT token for API request...');
     try {
-      // Import Firebase auth service dynamically
-      const { default: firebaseAuth } = await import('../services/firebaseAuth');
-      if (firebaseAuth.isAuthenticated()) {
-        // Get the Firebase token (API will verify it directly)
-        const firebaseToken = await firebaseAuth.getIdToken();
-        if (firebaseToken) {
-          config.headers.Authorization = `Bearer ${firebaseToken}`;
-          console.log('✅ Firebase token attached to request:', config.url);
-          console.log('✅ Token preview:', firebaseToken.substring(0, 20) + '...');
-        } else {
-          console.log('⚠️ No Firebase token available for request:', config.url);
-          config.headers.Authorization = '';
-        }
+      // Import JWT auth utilities
+      const { getStoredJWTToken } = await import('../utils/jwtAuth');
+      const jwtToken = await getStoredJWTToken();
+      
+      if (jwtToken) {
+        config.headers.Authorization = `Bearer ${jwtToken}`;
+        console.log('✅ JWT token attached to request:', config.url);
+        console.log('✅ Token preview:', jwtToken.substring(0, 20) + '...');
       } else {
-        console.log('⚠️ User not authenticated for request:', config.url);
+        console.log('⚠️ No JWT token available for request:', config.url);
         config.headers.Authorization = '';
       }
-    } catch (firebaseError) {
-      console.warn('⚠️ Firebase token retrieval failed:', firebaseError.message);
+    } catch (jwtError) {
+      console.warn('⚠️ JWT token retrieval failed:', jwtError.message);
       config.headers.Authorization = '';
     }
   } catch (error) {
