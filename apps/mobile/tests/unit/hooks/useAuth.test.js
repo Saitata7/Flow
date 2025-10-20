@@ -1,22 +1,25 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from '../../../src/hooks/useAuth';
-import { AuthProvider } from '../../../src/context/AuthContext';
 
-// Mock Firebase Auth
-const mockSignIn = jest.fn();
-const mockSignOut = jest.fn();
-const mockSignUp = jest.fn();
-const mockOnAuthStateChanged = jest.fn();
+// Mock sessionManager
+const mockSessionManager = {
+  getStoredSession: jest.fn(),
+  initialize: jest.fn(),
+  clearSession: jest.fn(),
+  storeSession: jest.fn(),
+};
 
-jest.mock('@react-native-firebase/auth', () => ({
-  __esModule: true,
-  default: () => ({
-    signInWithEmailAndPassword: mockSignIn,
-    signOut: mockSignOut,
-    createUserWithEmailAndPassword: mockSignUp,
-    onAuthStateChanged: mockOnAuthStateChanged,
-  }),
+jest.mock('../../../src/utils/sessionManager', () => mockSessionManager);
+
+// Mock clearDemoData
+jest.mock('../../../src/utils/clearDemoData', () => ({
+  clearDemoData: jest.fn(),
+}));
+
+// Mock generateIdempotencyKey
+jest.mock('../../../src/utils/idempotency', () => ({
+  generateIdempotencyKey: jest.fn(() => 'mock-idempotency-key'),
 }));
 
 // Create a test wrapper with QueryClient
@@ -31,9 +34,7 @@ const createTestWrapper = () => {
 
   return ({ children }) => (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        {children}
-      </AuthProvider>
+      {children}
     </QueryClientProvider>
   );
 };
@@ -43,93 +44,82 @@ describe('useAuth Hook', () => {
     jest.clearAllMocks();
   });
 
-  it('should initialize with default state', () => {
+  it('should initialize with no user when no session exists', async () => {
+    mockSessionManager.getStoredSession.mockResolvedValue(null);
+
     const { result } = renderHook(() => useAuth(), {
       wrapper: createTestWrapper(),
+    });
+
+    // Wait for the query to resolve
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
     });
 
     expect(result.current.user).toBeNull();
-    expect(result.current.loading).toBe(true);
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
 
-  it('should handle sign in', async () => {
-    const mockUser = { uid: '123', email: 'test@example.com' };
-    mockSignIn.mockResolvedValue({ user: mockUser });
+  it('should return user when session exists', async () => {
+    const mockUser = { id: '123', email: 'test@example.com' };
+    mockSessionManager.getStoredSession.mockResolvedValue({
+      type: 'user',
+      data: { userData: mockUser }
+    });
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createTestWrapper(),
     });
 
+    // Wait for the query to resolve
     await act(async () => {
-      await result.current.signIn('test@example.com', 'password');
+      await new Promise(resolve => setTimeout(resolve, 200));
     });
 
-    expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'password');
+    // The query should return the user data
+    expect(result.current.user).toEqual(mockUser);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeNull();
   });
 
-  it('should handle sign up', async () => {
-    const mockUser = { uid: '123', email: 'test@example.com' };
-    mockSignUp.mockResolvedValue({ user: mockUser });
+  it('should clear demo user data when demo user is detected', async () => {
+    const { clearDemoData } = require('../../../src/utils/clearDemoData');
+    const mockDemoUser = { id: 'user123', email: 'demo@flow.app', displayName: 'Demo User' };
+    
+    mockSessionManager.getStoredSession.mockResolvedValue({
+      type: 'user',
+      data: { userData: mockDemoUser }
+    });
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createTestWrapper(),
     });
 
+    // Wait for the query to resolve
     await act(async () => {
-      await result.current.signUp('test@example.com', 'password');
+      await new Promise(resolve => setTimeout(resolve, 200));
     });
 
-    expect(mockSignUp).toHaveBeenCalledWith('test@example.com', 'password');
+    // The demo user should be cleared and user should be null
+    expect(clearDemoData).toHaveBeenCalled();
+    expect(result.current.user).toBeNull();
   });
 
-  it('should handle sign out', async () => {
-    mockSignOut.mockResolvedValue();
+  it('should handle session manager errors gracefully', async () => {
+    mockSessionManager.getStoredSession.mockRejectedValue(new Error('Session error'));
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: createTestWrapper(),
     });
 
+    // Wait for the query to resolve
     await act(async () => {
-      await result.current.signOut();
+      await new Promise(resolve => setTimeout(resolve, 100));
     });
 
-    expect(mockSignOut).toHaveBeenCalled();
-  });
-
-  it('should handle authentication errors', async () => {
-    const errorMessage = 'Invalid credentials';
-    mockSignIn.mockRejectedValue(new Error(errorMessage));
-
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: createTestWrapper(),
-    });
-
-    await act(async () => {
-      await result.current.signIn('test@example.com', 'wrongpassword');
-    });
-
-    expect(result.current.error).toBe(errorMessage);
-  });
-
-  it('should clear error when successful', async () => {
-    const mockUser = { uid: '123', email: 'test@example.com' };
-    mockSignIn.mockResolvedValue({ user: mockUser });
-
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: createTestWrapper(),
-    });
-
-    // First set an error
-    await act(async () => {
-      await result.current.signIn('test@example.com', 'wrongpassword');
-    });
-
-    // Then sign in successfully
-    await act(async () => {
-      await result.current.signIn('test@example.com', 'password');
-    });
-
+    expect(result.current.user).toBeNull();
+    expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
   });
 });
