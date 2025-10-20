@@ -7,9 +7,40 @@
 jest.mock('../src/db/config', () => ({
   testConnection: jest.fn().mockResolvedValue(true),
   closePool: jest.fn().mockResolvedValue(),
-  getPool: jest.fn().mockReturnValue({
+  pool: {
     query: jest.fn().mockResolvedValue({ rows: [] }),
     end: jest.fn().mockResolvedValue(),
+    connect: jest.fn().mockResolvedValue({
+      query: jest.fn().mockResolvedValue({ rows: [] }),
+      release: jest.fn(),
+    }),
+    totalCount: 0,
+    idleCount: 0,
+    waitingCount: 0,
+  },
+  query: jest.fn().mockResolvedValue({ rows: [] }),
+  transaction: jest.fn().mockImplementation(async (callback) => {
+    const mockClient = {
+      query: jest.fn().mockResolvedValue({ rows: [] }),
+    };
+    return await callback(mockClient);
+  }),
+  healthCheck: jest.fn().mockResolvedValue({
+    status: 'healthy',
+    connected: true,
+    poolSize: 0,
+    idleConnections: 0,
+    waitingClients: 0,
+  }),
+  getPoolStats: jest.fn().mockReturnValue({
+    totalCount: 0,
+    idleCount: 0,
+    waitingCount: 0,
+    config: {
+      max: 20,
+      min: 2,
+      idleTimeoutMillis: 10000,
+    },
   }),
 }));
 

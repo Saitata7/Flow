@@ -1,4 +1,5 @@
 import { renderHook, act } from '@testing-library/react-native';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from '../../../src/hooks/useAuth';
 import { AuthProvider } from '../../../src/context/AuthContext';
 
@@ -18,6 +19,25 @@ jest.mock('@react-native-firebase/auth', () => ({
   }),
 }));
 
+// Create a test wrapper with QueryClient
+const createTestWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  return ({ children }) => (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        {children}
+      </AuthProvider>
+    </QueryClientProvider>
+  );
+};
+
 describe('useAuth Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -25,7 +45,7 @@ describe('useAuth Hook', () => {
 
   it('should initialize with default state', () => {
     const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      wrapper: createTestWrapper(),
     });
 
     expect(result.current.user).toBeNull();
@@ -38,7 +58,7 @@ describe('useAuth Hook', () => {
     mockSignIn.mockResolvedValue({ user: mockUser });
 
     const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      wrapper: createTestWrapper(),
     });
 
     await act(async () => {
@@ -53,7 +73,7 @@ describe('useAuth Hook', () => {
     mockSignUp.mockResolvedValue({ user: mockUser });
 
     const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      wrapper: createTestWrapper(),
     });
 
     await act(async () => {
@@ -67,7 +87,7 @@ describe('useAuth Hook', () => {
     mockSignOut.mockResolvedValue();
 
     const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      wrapper: createTestWrapper(),
     });
 
     await act(async () => {
@@ -82,7 +102,7 @@ describe('useAuth Hook', () => {
     mockSignIn.mockRejectedValue(new Error(errorMessage));
 
     const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      wrapper: createTestWrapper(),
     });
 
     await act(async () => {
@@ -97,7 +117,7 @@ describe('useAuth Hook', () => {
     mockSignIn.mockResolvedValue({ user: mockUser });
 
     const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
+      wrapper: createTestWrapper(),
     });
 
     // First set an error

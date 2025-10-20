@@ -1,27 +1,31 @@
-import { firebaseAuth } from '../../../src/services/firebaseAuth';
-
-// Mock Firebase Auth
+// Mock Firebase Auth BEFORE importing the service
 const mockSignInWithEmailAndPassword = jest.fn();
 const mockCreateUserWithEmailAndPassword = jest.fn();
 const mockSignOut = jest.fn();
 const mockOnAuthStateChanged = jest.fn();
 const mockSendPasswordResetEmail = jest.fn();
 const mockUpdateProfile = jest.fn();
+const mockGetIdToken = jest.fn();
+
+const mockAuth = {
+  signInWithEmailAndPassword: mockSignInWithEmailAndPassword,
+  createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
+  signOut: mockSignOut,
+  onAuthStateChanged: mockOnAuthStateChanged,
+  sendPasswordResetEmail: mockSendPasswordResetEmail,
+  currentUser: {
+    updateProfile: mockUpdateProfile,
+    getIdToken: mockGetIdToken,
+  },
+};
 
 jest.mock('@react-native-firebase/auth', () => ({
   __esModule: true,
-  default: () => ({
-    signInWithEmailAndPassword: mockSignInWithEmailAndPassword,
-    createUserWithEmailAndPassword: mockCreateUserWithEmailAndPassword,
-    signOut: mockSignOut,
-    onAuthStateChanged: mockOnAuthStateChanged,
-    sendPasswordResetEmail: mockSendPasswordResetEmail,
-    currentUser: {
-      updateProfile: mockUpdateProfile,
-      getIdToken: jest.fn().mockResolvedValue('mock-token'),
-    },
-  }),
+  default: () => mockAuth,
 }));
+
+// Import the service AFTER mocking
+import { firebaseAuth } from '../../../src/services/firebaseAuth';
 
 // Mock Google Sign-In
 const mockGoogleSignIn = jest.fn();
