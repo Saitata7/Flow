@@ -75,6 +75,7 @@ const EnhancedProfileSettings = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
   const [showRacePicker, setShowRacePicker] = useState(false);
+  const [showDisabilityPicker, setShowDisabilityPicker] = useState(false);
   
   // Username availability checking
   const [usernameAvailability, setUsernameAvailability] = useState({
@@ -846,7 +847,7 @@ const EnhancedProfileSettings = () => {
               <Text style={dynamicStyles.label}>Disability Status</Text>
               <TouchableOpacity
                 style={dynamicStyles.pickerButton}
-                onPress={() => setShowRacePicker(true)}
+                onPress={() => setShowDisabilityPicker(true)}
               >
                 <Text style={dynamicStyles.pickerText}>
                   {formData.disability ? disabilityOptions.find(opt => opt.value === formData.disability)?.label : 'Select disability status (optional)'}
@@ -960,6 +961,16 @@ const EnhancedProfileSettings = () => {
           (value) => handleInputChange('race', value),
           showRacePicker,
           () => setShowRacePicker(false)
+        )}
+
+        {/* Disability Picker Modal */}
+        {renderPickerModal(
+          'Select Disability Status',
+          disabilityOptions,
+          formData.disability,
+          (value) => handleInputChange('disability', value),
+          showDisabilityPicker,
+          () => setShowDisabilityPicker(false)
         )}
       </KeyboardAvoidingView>
     </SafeAreaWrapper>
