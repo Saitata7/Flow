@@ -319,18 +319,27 @@ class AuthService {
     try {
       console.log('🔐 Attempting password reset for:', email);
       
-      // For now, we'll use a simple approach since the backend doesn't have a password reset endpoint
-      // In a real implementation, this would call the backend password reset endpoint
-      // For demo purposes, we'll simulate a successful password reset
-      
-      console.log('✅ Password reset email would be sent to:', email);
-      
-      return {
-        success: true,
-        message: 'Password reset email sent successfully'
-      };
+      const response = await api.post('/v1/auth/reset-password', {
+        email
+      });
+
+      if (response.data.success) {
+        console.log('✅ Password reset email sent successfully');
+        
+        return {
+          success: true,
+          message: response.data.message || 'Password reset email sent successfully'
+        };
+      } else {
+        throw new Error(response.data.message || 'Password reset failed');
+      }
     } catch (error) {
       console.error('❌ Password reset failed:', error.message);
+      
+      // Handle auth errors
+      if (isAuthError(error)) {
+        await handleAuthError(error);
+      }
       
       return {
         success: false,

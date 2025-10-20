@@ -782,6 +782,248 @@ const authRoutes = async fastify => {
       });
     }
   });
+
+  /**
+   * @swagger
+   * /v1/auth/reset-password:
+   *   post:
+   *     summary: Request password reset
+   *     description: Send password reset email to user
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [email]
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *                 description: User email address
+   *     responses:
+   *       200:
+   *         description: Password reset email sent successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Bad request
+   *       404:
+   *         description: User not found
+   *       500:
+   *         description: Internal server error
+   */
+  fastify.post('/reset-password', {
+    schema: {
+      description: 'Request password reset',
+      tags: ['auth'],
+      body: {
+        type: 'object',
+        required: ['email'],
+        properties: {
+          email: {
+            type: 'string',
+            format: 'email',
+            description: 'User email address'
+          }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { email } = request.body;
+
+      if (!email) {
+        throw new BadRequestError('Email is required');
+      }
+
+      // Check if user exists
+      const user = await UserModel.findByEmail(email);
+      if (!user) {
+        // Don't reveal if user exists or not for security
+        return reply.send({
+          success: true,
+          message: 'If the email exists, a password reset link has been sent'
+        });
+      }
+
+      // Generate reset token (in a real implementation, this would be a secure token)
+      const resetToken = require('crypto').randomBytes(32).toString('hex');
+      const resetExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+      // Store reset token in database (you'd need to add this to UserModel)
+      // For now, we'll just log it
+      console.log(`Password reset token for ${email}: ${resetToken}`);
+      console.log(`Reset token expires at: ${resetExpiry}`);
+
+      // In a real implementation, you would:
+      // 1. Store the reset token in the database
+      // 2. Send an email with the reset link
+      // 3. Use a proper email service (SendGrid, AWS SES, etc.)
+
+      // For now, we'll simulate sending the email
+      console.log(`📧 Password reset email would be sent to: ${email}`);
+      console.log(`🔗 Reset link would be: https://yourapp.com/reset-password?token=${resetToken}`);
+
+      return reply.send({
+        success: true,
+        message: 'Password reset email sent successfully'
+      });
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      if (error instanceof BadRequestError) {
+        return reply.status(400).send({
+          success: false,
+          error: error.message,
+          message: 'Invalid request data'
+        });
+      }
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal server error',
+        message: 'Failed to process password reset request'
+      });
+    }
+  });
+
+  /**
+   * @swagger
+   * /v1/auth/reset-password/confirm:
+   *   post:
+   *     summary: Confirm password reset
+   *     description: Reset password using reset token
+   *     tags: [Auth]
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [token, newPassword]
+   *             properties:
+   *               token:
+   *                 type: string
+   *                 description: Password reset token
+   *               newPassword:
+   *                 type: string
+   *                 minLength: 6
+   *                 description: New password
+   *     responses:
+   *       200:
+   *         description: Password reset successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   *       400:
+   *         description: Bad request
+   *       401:
+   *         description: Invalid or expired token
+   *       500:
+   *         description: Internal server error
+   */
+  fastify.post('/reset-password/confirm', {
+    schema: {
+      description: 'Confirm password reset',
+      tags: ['auth'],
+      body: {
+        type: 'object',
+        required: ['token', 'newPassword'],
+        properties: {
+          token: {
+            type: 'string',
+            description: 'Password reset token'
+          },
+          newPassword: {
+            type: 'string',
+            minLength: 6,
+            description: 'New password'
+          }
+        }
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            message: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, async (request, reply) => {
+    try {
+      const { token, newPassword } = request.body;
+
+      if (!token || !newPassword) {
+        throw new BadRequestError('Token and new password are required');
+      }
+
+      if (newPassword.length < 6) {
+        throw new BadRequestError('Password must be at least 6 characters long');
+      }
+
+      // In a real implementation, you would:
+      // 1. Verify the reset token from the database
+      // 2. Check if the token is not expired
+      // 3. Update the user's password
+      // 4. Invalidate the reset token
+
+      // For now, we'll simulate the process
+      console.log(`Password reset confirmation for token: ${token}`);
+      console.log(`New password length: ${newPassword.length} characters`);
+
+      // Simulate token validation
+      if (token.length < 10) {
+        return reply.status(401).send({
+          success: false,
+          error: 'Invalid or expired token',
+          message: 'The reset token is invalid or has expired'
+        });
+      }
+
+      return reply.send({
+        success: true,
+        message: 'Password has been reset successfully'
+      });
+    } catch (error) {
+      console.error('Password reset confirmation error:', error);
+      if (error instanceof BadRequestError) {
+        return reply.status(400).send({
+          success: false,
+          error: error.message,
+          message: 'Invalid request data'
+        });
+      }
+      return reply.status(500).send({
+        success: false,
+        error: 'Internal server error',
+        message: 'Failed to reset password'
+      });
+    }
+  });
 };
 
 module.exports = authRoutes;

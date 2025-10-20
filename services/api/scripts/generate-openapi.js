@@ -878,6 +878,99 @@ For API support, please contact our development team or refer to the documentati
       }
     },
 
+    // Password reset endpoints
+    '/v1/auth/reset-password': {
+      post: {
+        summary: 'Request password reset',
+        description: 'Send password reset email to user',
+        tags: ['auth'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email'],
+                properties: {
+                  email: {
+                    type: 'string',
+                    format: 'email',
+                    description: 'User email address'
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Password reset email sent successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/BadRequestError' },
+          '500': { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+    '/v1/auth/reset-password/confirm': {
+      post: {
+        summary: 'Confirm password reset',
+        description: 'Reset password using reset token',
+        tags: ['auth'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['token', 'newPassword'],
+                properties: {
+                  token: {
+                    type: 'string',
+                    description: 'Password reset token'
+                  },
+                  newPassword: {
+                    type: 'string',
+                    minLength: 6,
+                    description: 'New password'
+                  }
+                }
+              }
+            }
+          }
+        },
+        responses: {
+          '200': {
+            description: 'Password reset successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    message: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          '400': { $ref: '#/components/responses/BadRequestError' },
+          '401': { $ref: '#/components/responses/UnauthorizedError' },
+          '500': { $ref: '#/components/responses/InternalServerError' }
+        }
+      }
+    },
+
     // Profile endpoints
     '/v1/profile': {
       get: {
@@ -2553,7 +2646,7 @@ console.log('   📚 External Documentation Links');
 console.log('   ⚡ OpenAPI 3.0.3 Compliance');
 console.log('');
 console.log('📋 Complete API Endpoints Coverage:');
-console.log('   🔐 Authentication: /v1/auth/* (6 endpoints)');
+console.log('   🔐 Authentication: /v1/auth/* (8 endpoints)');
 console.log('   👤 Profile Management: /v1/profile/* (2 endpoints)');
 console.log('   👤 User Management: /v1/user/* (11 endpoints)');
 console.log('   ⚙️ Settings: /v1/user/settings/* (8 endpoints)');
@@ -2567,5 +2660,5 @@ console.log('   🏥 Health: /health, /v1/ping (2 endpoints)');
 console.log('   🔍 Debug: /debug/*, /_diag/* (4 endpoints)');
 console.log('   🏠 Root: / (1 endpoint)');
 console.log('');
-console.log('🎯 Total: 41 endpoints across 13 categories');
+console.log('🎯 Total: 43 endpoints across 13 categories');
 console.log('✨ Ready for production deployment and enterprise use!');
