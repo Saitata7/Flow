@@ -222,9 +222,16 @@ export const AuthProvider = ({ children }) => {
         throw new Error('No user logged in');
       }
       
-      await currentUser.updateProfile(updates);
+      // Update Firebase profile if displayName or photoURL are provided
+      const firebaseUpdates = {};
+      if (updates.displayName !== undefined) firebaseUpdates.displayName = updates.displayName;
+      if (updates.photoURL !== undefined) firebaseUpdates.photoURL = updates.photoURL;
       
-      // Update local state
+      if (Object.keys(firebaseUpdates).length > 0) {
+        await currentUser.updateProfile(firebaseUpdates);
+      }
+      
+      // Update local state with complete profile data
       const updatedUserData = {
         ...user,
         ...updates,

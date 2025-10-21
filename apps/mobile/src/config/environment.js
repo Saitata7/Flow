@@ -9,7 +9,7 @@ import { Platform } from 'react-native';
 // Environment configuration
 const ENV_CONFIG = {
   development: {
-    // API URLs for development - Use production API for consistency
+    // API URLs for development - Use GCP Cloud Run server
     API_BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
     
     // JWT Configuration

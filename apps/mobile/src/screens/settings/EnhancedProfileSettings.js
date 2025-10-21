@@ -431,6 +431,15 @@ const EnhancedProfileSettings = () => {
       
       if (result.success) {
         Alert.alert('Success', 'Profile updated successfully!');
+        
+        // Refresh profile data in auth context
+        if (updateProfile) {
+          await updateProfile(result.data);
+        }
+        
+        // Force refresh profile data by reloading it
+        await loadProfileData();
+        
         navigation.goBack();
       } else {
         Alert.alert('Error', result.error?.message || 'Failed to update profile');

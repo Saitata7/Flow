@@ -251,56 +251,47 @@ class ApiService {
    */
   async isUserAuthenticated() {
     try {
-      logger.log('🔍 === JWT AUTHENTICATION CHECK START ===');
+      logger.log('🔍 === FIREBASE AUTHENTICATION CHECK START ===');
       
-      // Check if we have a valid JWT token
-      const { getJWTTokenInfo } = require('../utils/jwtAuth');
-      const tokenInfo = await getJWTTokenInfo();
-      
-      if (!tokenInfo || !tokenInfo.valid) {
-        logger.log('❌ JWT Authentication check: No valid JWT token');
-        logger.log('❌ SOLUTION: User must login with JWT authentication');
-        logger.log('❌ Go to Login screen and enter email/password');
+      // Check if we have a Firebase user
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        logger.log('❌ Firebase Authentication check: No Firebase user');
+        logger.log('❌ SOLUTION: User must login with Firebase authentication');
         return false;
       }
 
-      logger.log('✅ JWT token found:', {
-        userId: tokenInfo.userData?.id,
-        email: tokenInfo.userData?.email,
-        valid: tokenInfo.valid,
-        expiresAt: tokenInfo.expiresAt
-      });
-
-      // Check if user has required data
-      if (!tokenInfo.userData?.id || !tokenInfo.userData?.email) {
-        logger.log('❌ JWT Authentication check: User data incomplete');
-        logger.log('❌ SOLUTION: User must login again');
+      logger.log('✅ Firebase user found:', currentUser.uid);
+      
+      // Check if we can get a Firebase token
+      const token = await this.getAuthToken();
+      if (!token) {
+        logger.log('❌ Firebase Authentication check: Cannot get Firebase token');
         return false;
       }
 
-      logger.log('✅ JWT Authentication check: User is properly authenticated');
-      logger.log('🔍 === JWT AUTHENTICATION CHECK END ===');
+      logger.log('✅ Firebase token available, length:', token.length);
+      logger.log('✅ Firebase Authentication check: PASSED');
+      logger.log('🔍 === FIREBASE AUTHENTICATION CHECK END ===');
       return true;
-      
     } catch (error) {
-      logger.error('❌ JWT Authentication check failed:', error);
-      logger.error('❌ SOLUTION: Check JWT configuration and user login');
+      logger.error('❌ Firebase Authentication check error:', error);
       return false;
     }
   }
 
   /**
-   * Wait for JWT authentication to be ready
+   * Wait for Firebase authentication to be ready
    */
   async waitForAuthReady() {
     try {
-      // Check if JWT token is available
-      const token = await this.getAuthToken();
-      if (token) {
-        logger.log('🔍 JWT token available');
-        return { id: 'jwt-user', email: 'jwt@user.com' }; // Return a mock user object
+      // Check if Firebase user is available
+      const currentUser = auth().currentUser;
+      if (currentUser) {
+        logger.log('🔍 Firebase user available');
+        return { id: currentUser.uid, email: currentUser.email };
       } else {
-        logger.log('🔍 No JWT token available');
+        logger.log('🔍 No Firebase user available');
         return null;
       }
     } catch (error) {
@@ -310,24 +301,26 @@ class ApiService {
   }
 
   /**
-   * Get authentication token from Firebase Auth with strict validation
+   * Get authentication token from Firebase Auth
    */
   async getAuthToken(forceRefresh = false) {
     try {
-      // Get JWT token from storage
-      const { getStoredJWTToken } = require('../utils/jwtAuth');
-      const token = await getStoredJWTToken();
-      
-      if (token) {
-        logger.log('✅ JWT token retrieved successfully, length:', token.length);
-        logger.log('✅ Token preview:', token.substring(0, 20) + '...');
-        return token;
-      } else {
-        logger.log('ℹ️ No JWT token found in storage');
+      const currentUser = auth().currentUser;
+      if (!currentUser) {
+        logger.log('ℹ️ No Firebase user found');
         return null;
       }
+
+      logger.log('✅ Firebase user found:', currentUser.uid);
+      
+      // Get Firebase ID token
+      const token = await currentUser.getIdToken(forceRefresh);
+      logger.log('✅ Firebase token retrieved successfully, length:', token.length);
+      logger.log('✅ Token preview:', token.substring(0, 20) + '...');
+      
+      return token;
     } catch (error) {
-      logger.error('❌ Error getting JWT token:', error);
+      logger.error('❌ Error getting Firebase token:', error);
       return null;
     }
   }
@@ -823,27 +816,15 @@ class ApiService {
    */
   async getProfile() {
     try {
-      // Check authentication before making the request
-      const isAuthenticated = await this.isUserAuthenticated();
-      if (!isAuthenticated) {
-        logger.log('❌ getProfile: User not authenticated, skipping API call');
-        return {
-          success: false,
-          error: {
-            message: 'Please login to access your profile',
-            code: 'NOT_AUTHENTICATED',
-            action: 'LOGIN_REQUIRED'
-          }
-        };
-      }
-
-      logger.log('✅ getProfile: User authenticated, making API call');
+      logger.log('✅ getProfile: Making API call');
       logger.log('✅ getProfile: Calling GET /v1/profile...');
+      
       const response = await this.client.get('/v1/profile');
+      
       logger.log('✅ getProfile: API response received:', response.data);
       return {
         success: true,
-        data: response.data.data,
+        data: response.data.data || response.data,
         message: response.data.message,
       };
     } catch (error) {

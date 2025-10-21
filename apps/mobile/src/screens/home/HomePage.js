@@ -48,7 +48,7 @@ export default function HomePage({ navigation }) {
   const insets = useSafeAreaInsets(); // Get safe area insets for proper positioning
   
   // Authentication guard
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, updateProfile } = useAuth();
   
   // Animation refs
   const gentlePulse = useRef(new Animated.Value(1)).current;
@@ -85,6 +85,30 @@ export default function HomePage({ navigation }) {
         console.log('HomePage: Flows already loaded, skipping refresh');
       }
     }, [loadData, flows.length])
+  );
+
+  // Refresh profile data when returning from profile settings
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('HomePage: Refreshing profile data on focus');
+      // Load fresh profile data to ensure validation is accurate
+      const refreshProfileData = async () => {
+        try {
+          const result = await apiService.getProfile();
+          if (result.success && result.data) {
+            console.log('HomePage: Profile data refreshed:', result.data);
+            // Update the user context with fresh profile data
+            if (updateProfile) {
+              await updateProfile(result.data);
+            }
+          }
+        } catch (error) {
+          console.error('HomePage: Error refreshing profile data:', error);
+        }
+      };
+      
+      refreshProfileData();
+    }, [updateProfile])
   );
 
   // Start the subtle attention animation
@@ -266,19 +290,46 @@ export default function HomePage({ navigation }) {
     try {
       console.log('HomePage: + button pressed, checking profile...');
       
-      // Load user profile
+      // First check if we have profile data in local user state
+      console.log('HomePage: User data for validation:', {
+        firstName: user?.firstName,
+        lastName: user?.lastName,
+        username: user?.username,
+        dateOfBirth: user?.dateOfBirth,
+        gender: user?.gender
+      });
+      
+      const localProfileCheck = canCreateFlows(user, user);
+      console.log('HomePage: Local profile check:', localProfileCheck);
+      
+      if (localProfileCheck.canCreateFlows) {
+        // Profile is complete locally, navigate to AddFlow
+        console.log('HomePage: Profile complete locally, navigating to AddFlow');
+        navigation.navigate('AddFlow');
+        return;
+      }
+      
+      // If local check fails, try to load fresh profile data from API
+      console.log('HomePage: Local profile incomplete, loading fresh data from API...');
       const result = await apiService.getProfile();
       if (result.success) {
         const profileData = result.data;
-        console.log('HomePage: Profile loaded:', profileData);
+        console.log('HomePage: Profile loaded from API:', profileData);
+        console.log('HomePage: API profile data for validation:', {
+          firstName: profileData?.firstName,
+          lastName: profileData?.lastName,
+          username: profileData?.username,
+          dateOfBirth: profileData?.dateOfBirth,
+          gender: profileData?.gender
+        });
         
-        // Validate profile completeness
+        // Validate profile completeness with fresh data
         const validation = canCreateFlows(user, profileData);
-        console.log('HomePage: Profile validation result:', validation);
+        console.log('HomePage: API profile validation result:', validation);
         
         if (validation.canCreateFlows) {
           // Profile is complete, navigate to AddFlow
-          console.log('HomePage: Profile complete, navigating to AddFlow');
+          console.log('HomePage: Profile complete from API, navigating to AddFlow');
           navigation.navigate('AddFlow');
         } else {
           // Profile is incomplete, show alert and navigate to profile
