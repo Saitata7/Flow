@@ -501,6 +501,43 @@ class UserModel {
     return db(this.tableName).where({ firebase_uid: firebaseUid, deleted_at: null }).first();
   }
 
+  static async createFromFirebase(firebaseUserData) {
+    try {
+      console.log('📋 UserModel: Creating user from Firebase data:', firebaseUserData);
+      
+      // Check if user already exists
+      const existingUser = await this.findByFirebaseUid(firebaseUserData.id);
+      if (existingUser) {
+        console.log('📋 UserModel: User already exists:', existingUser.id);
+        return existingUser;
+      }
+      
+      // Create new user with Firebase UID
+      const userData = {
+        firebase_uid: firebaseUserData.id,
+        email: firebaseUserData.email,
+        display_name: firebaseUserData.name || firebaseUserData.email?.split('@')[0] || 'User',
+        email_verified: firebaseUserData.emailVerified || false,
+        photo_url: firebaseUserData.picture || null,
+        auth_provider: 'firebase',
+        auth_metadata: JSON.stringify({
+          provider: 'firebase',
+          created_via: 'auto_create'
+        }),
+        created_at: new Date(),
+        updated_at: new Date(),
+      };
+      
+      const [newUser] = await db(this.tableName).insert(userData).returning('*');
+      console.log('✅ UserModel: User created successfully:', newUser.id);
+      
+      return newUser;
+    } catch (error) {
+      console.error('❌ UserModel: Error creating user from Firebase:', error);
+      throw error;
+    }
+  }
+
   static async update(id, data) {
     const [user] = await db(this.tableName)
       .where({ id })
@@ -529,13 +566,28 @@ class UserModel {
       console.log('📋 UserModel: Updating profile for Firebase UID:', firebaseUid);
       
       // First, find the user by Firebase UID to get the UUID primary key
-      const user = await this.findByFirebaseUid(firebaseUid);
+      let user = await this.findByFirebaseUid(firebaseUid);
+      
+      // If user doesn't exist, create them automatically
       if (!user) {
-        throw new Error(`User not found for Firebase UID: ${firebaseUid}`);
+        console.log('📋 UserModel: User not found, creating from Firebase UID:', firebaseUid);
+        
+        // Create a minimal user record with Firebase UID
+        const firebaseUserData = {
+          id: firebaseUid,
+          email: profileData.email || 'user@example.com', // Use email from profile data if available
+          name: profileData.firstName && profileData.lastName 
+            ? `${profileData.firstName} ${profileData.lastName}` 
+            : 'User',
+          emailVerified: true,
+          picture: null
+        };
+        
+        user = await this.createFromFirebase(firebaseUserData);
       }
       
       const userId = user.id; // This is the UUID primary key
-      console.log('📋 UserModel: Found user with UUID:', userId);
+      console.log('📋 UserModel: Found/created user with UUID:', userId);
       
       // Check which columns exist in the database
       const tableInfo = await db.raw(`
@@ -659,14 +711,26 @@ class UserModel {
       console.log('📋 UserModel: Getting profile for Firebase UID:', firebaseUid);
       
       // First, find the user by Firebase UID to get the UUID primary key
-      const user = await this.findByFirebaseUid(firebaseUid);
+      let user = await this.findByFirebaseUid(firebaseUid);
+      
+      // If user doesn't exist, create them automatically
       if (!user) {
-        console.log('❌ UserModel: User not found for Firebase UID:', firebaseUid);
-        return null;
+        console.log('📋 UserModel: User not found, creating from Firebase UID:', firebaseUid);
+        
+        // Create a minimal user record with Firebase UID
+        const firebaseUserData = {
+          id: firebaseUid,
+          email: 'user@example.com', // Default email
+          name: 'User',
+          emailVerified: true,
+          picture: null
+        };
+        
+        user = await this.createFromFirebase(firebaseUserData);
       }
       
       const userId = user.id; // This is the UUID primary key
-      console.log('📋 UserModel: Found user with UUID:', userId);
+      console.log('📋 UserModel: Found/created user with UUID:', userId);
       
       // Get username from user_profiles table
       const userProfile = await db('user_profiles')

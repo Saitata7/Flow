@@ -1,11 +1,40 @@
 const { v4: uuidv4 } = require('uuid');
 const moment = require('moment');
 const { NotFoundError, ConflictError, ForbiddenError } = require('../middleware/errorHandler');
-const { FlowModel, FlowEntryModel } = require('../db/models');
+const { FlowModel, FlowEntryModel, UserModel } = require('../db/models');
 
 // Helper functions
 const generateId = () => uuidv4();
 const getCurrentTimestamp = () => new Date().toISOString();
+
+// Helper function to get UUID primary key from Firebase UID
+const getUserIdFromFirebaseUid = async (firebaseUid) => {
+  try {
+    // First, find the user by Firebase UID to get the UUID primary key
+    let user = await UserModel.findByFirebaseUid(firebaseUid);
+    
+    // If user doesn't exist, create them automatically
+    if (!user) {
+      console.log('📋 FlowsController: User not found, creating from Firebase UID:', firebaseUid);
+      
+      // Create a minimal user record with Firebase UID
+      const firebaseUserData = {
+        id: firebaseUid,
+        email: 'user@example.com', // Default email
+        name: 'User',
+        emailVerified: true,
+        picture: null
+      };
+      
+      user = await UserModel.createFromFirebase(firebaseUserData);
+    }
+    
+    return user.id; // Return UUID primary key
+  } catch (error) {
+    console.error('❌ FlowsController: Error getting user ID:', error);
+    throw error;
+  }
+};
 
 // Create a new flow
 const createFlow = async (request, reply) => {
@@ -13,6 +42,10 @@ const createFlow = async (request, reply) => {
   const flowData = request.body;
 
   console.log('createFlow called with:', { user: user.id, flowData });
+
+  // Get UUID primary key from Firebase UID
+  const userId = await getUserIdFromFirebaseUid(user.id);
+  console.log('createFlow: Using UUID primary key:', userId);
 
   // Prepare flow data for database
   const flowRecord = {
@@ -32,7 +65,7 @@ const createFlow = async (request, reply) => {
     tags: flowData.tags,
     archived: false,
     visibility: flowData.visibility || 'private',
-    owner_id: user.id,
+    owner_id: userId, // Use UUID primary key, not Firebase UID
     schema_version: 1,
   };
 
@@ -118,12 +151,16 @@ const getUserFlows = async (request, reply) => {
   const { page = 1, limit = 20, archived = false, visibility } = request.query;
 
   try {
+    // Get UUID primary key from Firebase UID
+    const userId = await getUserIdFromFirebaseUid(user.id);
+    console.log('getUserFlows: Using UUID primary key:', userId);
+    
     // Get flows from database with status
-    console.log('Getting flows for user:', user.id);
+    console.log('Getting flows for user:', userId);
 
     let flows;
     try {
-      flows = await FlowModel.findByUserIdWithStatus(user.id, {
+      flows = await FlowModel.findByUserIdWithStatus(userId, {
         archived: archived === 'true',
         visibility,
       });
