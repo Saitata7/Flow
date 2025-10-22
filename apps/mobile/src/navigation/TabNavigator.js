@@ -14,7 +14,7 @@ import FlowDetail from '../screens/track/FlowDetails';
 import EditFlowScreen from '../screens/flow/EditFlow';
 import { colors, layout, typography } from '../../styles';
 import { ThemeContext } from '../context/ThemeContext';
-import { useAuth } from '../context/JWTAuthContext';
+import { useAuth } from '../context/AuthContext';
 
 // Import SVG icons
 import HomeIcon from '../../assets/icons/HomeIcon';

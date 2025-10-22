@@ -10,7 +10,7 @@ import TabNavigator from './TabNavigator';
 import Splash from '../screens/info/Splash';
 import Onboarding from '../screens/info/Onboarding';
 import Firsttime from '../screens/info/Firsttime';
-import { useAuth } from '../context/JWTAuthContext';
+import { useAuth } from '../context/AuthContext';
 import backgroundSyncService from '../services/backgroundSyncService';
 import { colors } from '../../styles';
 
@@ -75,7 +75,7 @@ const AppNavigator = () => {
     // Determine initial route based on authentication and guest mode
     const getInitialRoute = () => {
       // Only go to Main if we have a REAL authenticated user
-      if (user && user.id && user.email && !user.isGuest) {
+      if (user && user.uid && user.email && !user.isAnonymous) {
         return 'Main';
       }
       

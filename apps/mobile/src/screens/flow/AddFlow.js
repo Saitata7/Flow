@@ -18,7 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import TimePicker from '../../components/TimePicker';
 import { FlowsContext } from '../../context/FlowContext';
 import { useRoute } from '@react-navigation/native';
-import { useAuth } from '../../context/JWTAuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';

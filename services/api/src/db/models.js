@@ -602,6 +602,37 @@ class UserModel {
         .update(updateData)
         .returning('*');
       
+      // Handle username update in user_profiles table
+      if (profileData.username) {
+        console.log('📋 UserModel: Updating username in user_profiles table:', profileData.username);
+        
+        // Check if user_profiles record exists
+        const existingProfile = await db('user_profiles')
+          .where({ user_id: userId })
+          .first();
+        
+        if (existingProfile) {
+          // Update existing profile
+          await db('user_profiles')
+            .where({ user_id: userId })
+            .update({
+              username: profileData.username,
+              updated_at: new Date()
+            });
+        } else {
+          // Create new profile record
+          await db('user_profiles').insert({
+            user_id: userId,
+            username: profileData.username,
+            display_name: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim() || 'User',
+            created_at: new Date(),
+            updated_at: new Date()
+          });
+        }
+        
+        console.log('✅ UserModel: Username updated in user_profiles table');
+      }
+      
       console.log('✅ UserModel: Profile updated successfully');
       return updatedUser;
     } catch (error) {
@@ -622,12 +653,18 @@ class UserModel {
         return null;
       }
       
+      // Get username from user_profiles table
+      const userProfile = await db('user_profiles')
+        .where({ user_id: userId })
+        .first();
+      
       // Parse JSON fields
       const profile = {
         id: user.id,
         email: user.email,
         firstName: user.first_name || '',
         lastName: user.last_name || '',
+        username: userProfile?.username || '',
         phoneNumber: user.phone_number || '',
         dateOfBirth: user.date_of_birth,
         gender: user.gender || '',

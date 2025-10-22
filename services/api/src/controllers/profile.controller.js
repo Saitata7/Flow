@@ -148,33 +148,12 @@ const updateUserProfile = async (request, reply) => {
     
     console.log('✅ ProfileController: Profile updated successfully');
     
+    // Get the updated profile with username
+    const updatedProfile = await UserModel.getProfile(userId);
+    
     return reply.send({
       success: true,
-      data: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        firstName: updatedUser.first_name,
-        lastName: updatedUser.last_name,
-        phoneNumber: updatedUser.phone_number,
-        dateOfBirth: updatedUser.date_of_birth,
-        gender: updatedUser.gender,
-        race: updatedUser.race,
-        ethnicity: updatedUser.ethnicity,
-        disability: updatedUser.disability,
-        preferredLanguage: updatedUser.preferred_language,
-        country: updatedUser.country,
-        timezone: updatedUser.timezone,
-        healthGoals: updatedUser.health_goals ? JSON.parse(updatedUser.health_goals) : [],
-        fitnessLevel: updatedUser.fitness_level,
-        medicalConditions: updatedUser.medical_conditions,
-        profileVisibility: updatedUser.profile_visibility,
-        dataSharing: updatedUser.data_sharing ? JSON.parse(updatedUser.data_sharing) : {
-          analytics: true,
-          research: false,
-          marketing: false
-        },
-        updatedAt: updatedUser.updated_at
-      },
+      data: updatedProfile,
       message: 'Profile updated successfully'
     });
     

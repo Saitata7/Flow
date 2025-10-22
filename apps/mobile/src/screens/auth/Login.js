@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Button from '../../components/common/Button';
 import Toast from '../../components/common/Toast';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
-import { useAuth } from '../../context/JWTAuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { validateInput } from '../../utils/validation';
 import { colors, typography, layout, useAppTheme } from '../../../styles';
 

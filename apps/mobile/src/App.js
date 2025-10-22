@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Alert } from 'react-native';
 import AppNavigator from './navigation/AppNavigator';
 import { NotificationProvider } from './context/NotificationContext';
-import { AuthProvider } from './context/JWTAuthContext';
+import { AuthProvider } from './context/AuthContext';
 import { FlowsProvider } from './context/FlowContext';
 import { ActivityProvider } from './context/ActivityContext';
 // Environment variables are handled via React Native's built-in support
