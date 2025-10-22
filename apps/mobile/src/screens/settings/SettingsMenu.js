@@ -26,6 +26,8 @@ const SettingsMenu = ({ visible, onClose }) => {
   const themeColors = colors[theme] || colors.light;
   const { user, signOut } = useAuth();
 
+  console.log('SettingsMenu: Component rendered, visible:', visible);
+
   const settingsCategories = [
     {
       id: 'account',

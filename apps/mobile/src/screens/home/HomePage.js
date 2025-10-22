@@ -358,7 +358,11 @@ export default function HomePage({ navigation }) {
                     <View style={styles.headerIcons}>
                       <TouchableOpacity
                         style={styles.headerIconButton}
-                        onPress={() => setShowSettingsModal(true)}
+                        onPress={() => {
+                          console.log('HomePage: Settings button pressed');
+                          setShowSettingsModal(true);
+                          console.log('HomePage: showSettingsModal set to true');
+                        }}
                         accessibilityLabel="Open settings"
                         accessibilityHint="Tap to open app settings and preferences"
                       >

@@ -13,8 +13,59 @@ const { requireAuth, requireOwnership } = require('../middleware/auth');
 const { validateFlowData } = require('../middleware/errorHandler');
 
 const flowsRoutes = async fastify => {
-  // Debug endpoint to check mobile app connectivity (no auth required)
-  fastify.get('/debug', async (request, reply) => {
+  // Debug endpoint to check specific user by email
+  fastify.get('/debug-user/:email', async (request, reply) => {
+    const { FlowModel, UserModel } = require('../db/models');
+    try {
+      const email = request.params.email;
+      console.log('Debug endpoint: Checking user with email:', email);
+      
+      // Find user by email
+      const user = await UserModel.findByEmail(email);
+      if (!user) {
+        return reply.send({
+          success: false,
+          message: `User with email ${email} not found`,
+          data: null
+        });
+      }
+      
+      console.log('Debug endpoint: Found user:', user.id);
+      
+      // Get flows for this user
+      const flows = await FlowModel.findByUserIdWithStatus(user.id);
+      
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
+        user: {
+          id: user.id,
+          email: user.email,
+          display_name: user.display_name,
+          created_at: user.created_at
+        },
+        totalFlows: flows.length,
+        flows: flows.map(f => ({
+          id: f.id,
+          title: f.title,
+          description: f.description,
+          created_at: f.created_at,
+          status: f.status
+        }))
+      };
+
+      return reply.send({
+        success: true,
+        data: debugInfo,
+        message: `Debug endpoint - user ${email} data`,
+      });
+    } catch (error) {
+      console.error('Debug user endpoint error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
     const { FlowModel } = require('../db/models');
     try {
       const flows = await FlowModel.findByUserIdWithStatus('550e8400-e29b-41d4-a716-446655440000');
