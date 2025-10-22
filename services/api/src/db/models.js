@@ -497,6 +497,10 @@ class UserModel {
     return db(this.tableName).where({ username }).first();
   }
 
+  static async findByFirebaseUid(firebaseUid) {
+    return db(this.tableName).where({ firebase_uid: firebaseUid, deleted_at: null }).first();
+  }
+
   static async update(id, data) {
     const [user] = await db(this.tableName)
       .where({ id })
@@ -520,9 +524,18 @@ class UserModel {
   }
 
   // Enhanced profile methods
-  static async updateProfile(userId, profileData) {
+  static async updateProfile(firebaseUid, profileData) {
     try {
-      console.log('📋 UserModel: Updating profile for user:', userId);
+      console.log('📋 UserModel: Updating profile for Firebase UID:', firebaseUid);
+      
+      // First, find the user by Firebase UID to get the UUID primary key
+      const user = await this.findByFirebaseUid(firebaseUid);
+      if (!user) {
+        throw new Error(`User not found for Firebase UID: ${firebaseUid}`);
+      }
+      
+      const userId = user.id; // This is the UUID primary key
+      console.log('📋 UserModel: Found user with UUID:', userId);
       
       // Check which columns exist in the database
       const tableInfo = await db.raw(`
@@ -598,7 +611,7 @@ class UserModel {
       console.log('📋 UserModel: Update data:', updateData);
       
       const [updatedUser] = await db(this.tableName)
-        .where({ id: userId })
+        .where({ id: userId }) // Use UUID primary key, not Firebase UID
         .update(updateData)
         .returning('*');
       
@@ -641,17 +654,19 @@ class UserModel {
     }
   }
 
-  static async getProfile(userId) {
+  static async getProfile(firebaseUid) {
     try {
-      console.log('📋 UserModel: Getting profile for user:', userId);
+      console.log('📋 UserModel: Getting profile for Firebase UID:', firebaseUid);
       
-      const user = await db(this.tableName)
-        .where({ id: userId })
-        .first();
-      
+      // First, find the user by Firebase UID to get the UUID primary key
+      const user = await this.findByFirebaseUid(firebaseUid);
       if (!user) {
+        console.log('❌ UserModel: User not found for Firebase UID:', firebaseUid);
         return null;
       }
+      
+      const userId = user.id; // This is the UUID primary key
+      console.log('📋 UserModel: Found user with UUID:', userId);
       
       // Get username from user_profiles table
       const userProfile = await db('user_profiles')
@@ -661,6 +676,7 @@ class UserModel {
       // Parse JSON fields
       const profile = {
         id: user.id,
+        firebaseUid: user.firebase_uid,
         email: user.email,
         firstName: user.first_name || '',
         lastName: user.last_name || '',
