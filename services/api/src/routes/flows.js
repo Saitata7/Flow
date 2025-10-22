@@ -66,44 +66,6 @@ const flowsRoutes = async fastify => {
       });
     }
   });
-    const { FlowModel } = require('../db/models');
-    try {
-      const flows = await FlowModel.findByUserIdWithStatus('550e8400-e29b-41d4-a716-446655440000');
-
-      const debugInfo = {
-        timestamp: new Date().toISOString(),
-        totalFlows: flows.length,
-        flowsWithStatus: flows.filter(f => f.status && Object.keys(f.status).length > 0).length,
-        sampleFlow: flows[0]
-          ? {
-              id: flows[0].id,
-              title: flows[0].title,
-              statusKeys: flows[0].status ? Object.keys(flows[0].status) : [],
-              statusCount: flows[0].status ? Object.keys(flows[0].status).length : 0,
-              statusSample: flows[0].status ? Object.entries(flows[0].status)[0] : null,
-            }
-          : null,
-        allFlowsStatus: flows.map(f => ({
-          id: f.id,
-          title: f.title,
-          statusCount: f.status ? Object.keys(f.status).length : 0,
-          statusKeys: f.status ? Object.keys(f.status) : [],
-        })),
-      };
-
-      return reply.send({
-        success: true,
-        data: debugInfo,
-        message: 'Debug endpoint - mobile app connectivity check',
-      });
-    } catch (error) {
-      console.error('Debug endpoint error:', error);
-      return reply.status(500).send({
-        success: false,
-        error: error.message,
-      });
-    }
-  });
 
   // Create a new flow
   fastify.post(
