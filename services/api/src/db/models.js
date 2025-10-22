@@ -493,6 +493,10 @@ class UserModel {
     return db(this.tableName).where({ email }).first();
   }
 
+  static async findByUsername(username) {
+    return db(this.tableName).where({ username }).first();
+  }
+
   static async update(id, data) {
     const [user] = await db(this.tableName)
       .where({ id })

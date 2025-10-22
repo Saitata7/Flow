@@ -7,7 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const JWT_SECRET = 'Flow-prod-secret-key-2024'; // Must match backend JWT_SECRET
+const JWT_SECRET = process.env.EXPO_PUBLIC_JWT_SECRET || 'Flow-prod-secret-key-2024'; // Must match backend JWT_SECRET
 const JWT_EXPIRES_IN = '7d';
 const JWT_STORAGE_KEY = 'flow_jwt_token';
 

@@ -274,7 +274,7 @@ jest.mock('lz-string', () => ({
 
 // Set test environment variables for GCP production
 process.env.NODE_ENV = 'test';
-process.env.EXPO_PUBLIC_API_URL = 'https://flow-api-891963913698.us-central1.run.app';
+process.env.EXPO_PUBLIC_API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app';
 process.env.EXPO_PUBLIC_ENVIRONMENT = 'production';
 
 // Silence console warnings in tests

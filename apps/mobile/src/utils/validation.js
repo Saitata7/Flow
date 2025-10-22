@@ -30,7 +30,7 @@ export const validateInput = (type, value) => {
   
   if (!value || typeof value !== 'string') {
     errors.push(`${type} is required`);
-    return { valid: false, errors };
+    return { valid: false, error: errors[0], errors };
   }
 
   const sanitized = sanitizeTextInput(value);
@@ -71,6 +71,7 @@ export const validateInput = (type, value) => {
   
   return {
     valid: errors.length === 0,
+    error: errors[0] || null,
     errors,
     sanitized: sanitized
   };

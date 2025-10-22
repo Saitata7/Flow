@@ -51,7 +51,7 @@ class FirebaseNativeService {
     try {
       // Configure Google Sign-In with your web client ID
       await GoogleSignin.configure({
-        webClientId: '891963913698-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com', // TODO: Replace with your actual web client ID from Firebase Console
+        webClientId: process.env.EXPO_PUBLIC_FIREBASE_WEB_CLIENT_ID || '891963913698-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com', // TODO: Replace with your actual web client ID from Firebase Console
         offlineAccess: true,
         hostedDomain: '',
         forceCodeForRefreshToken: true,

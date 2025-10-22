@@ -8,21 +8,21 @@ import { Platform } from 'react-native';
 
 // API Configuration
 const API_CONFIG = {
-  // Development URLs - Use production API for consistency
+  // Development URLs - Use environment variables
   development: {
     // For Android emulator
-    android: 'https://flow-api-891963913698.us-central1.run.app',
+    android: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
     // For iOS simulator
-    ios: 'https://flow-api-891963913698.us-central1.run.app',
+    ios: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
     // For physical device
-    device: 'https://flow-api-891963913698.us-central1.run.app',
+    device: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
   },
   
   // Production URL - GCP Cloud Run
   production: {
-    android: 'https://flow-api-891963913698.us-central1.run.app',
-    ios: 'https://flow-api-891963913698.us-central1.run.app',
-    device: 'https://flow-api-891963913698.us-central1.run.app',
+    android: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
+    ios: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
+    device: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
   }
 };
 
@@ -61,7 +61,7 @@ const getApiBaseUrl = () => {
   }
   
   // Fallback
-  return 'https://flow-api-891963913698.us-central1.run.app';
+  return process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app';
 };
 
 // API Configuration object

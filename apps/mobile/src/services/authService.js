@@ -256,21 +256,15 @@ class AuthService {
   }
 
   /**
-   * Register new user with email and password
-   * @param {string} email - User email
-   * @param {string} password - User password
-   * @param {string} displayName - User display name
+   * Register new user with complete profile data
+   * @param {object} registrationData - Complete registration data
    * @returns {Promise<object>} Registration result
    */
-  async register(email, password, displayName = null) {
+  async register(registrationData) {
     try {
-      console.log('🔐 Attempting registration for:', email);
+      console.log('🔐 Attempting registration for:', registrationData.email);
       
-      const response = await api.post('/v1/auth/register', {
-        email,
-        password,
-        name: displayName || email.split('@')[0]
-      });
+      const response = await api.post('/v1/auth/register', registrationData);
 
       if (response.data.success) {
         const { token, user } = response.data.data;

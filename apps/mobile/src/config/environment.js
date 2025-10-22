@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
 const ENV_CONFIG = {
   development: {
     // API URLs for development - Use GCP Cloud Run server
-    API_BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
+    API_BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
     
     // JWT Configuration
     JWT_SECRET: process.env.EXPO_PUBLIC_JWT_SECRET || 'Flow-dev-secret-key-2024',
@@ -23,7 +23,7 @@ const ENV_CONFIG = {
   
   production: {
     // API URLs for production - GCP Cloud Run
-    API_BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
+    API_BASE_URL: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app',
     
     // JWT Configuration
     JWT_SECRET: process.env.EXPO_PUBLIC_JWT_SECRET || 'Flow-prod-secret-key-2024',

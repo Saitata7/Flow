@@ -346,13 +346,32 @@ const authRoutes = async fastify => {
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [email, name]
+   *             required: [email, name, username, dateOfBirth, gender, firstName, lastName]
    *             properties:
    *               email:
    *                 type: string
    *                 format: email
    *               name:
    *                 type: string
+   *               firstName:
+   *                 type: string
+   *                 minLength: 2
+   *                 maxLength: 50
+   *               lastName:
+   *                 type: string
+   *                 minLength: 2
+   *                 maxLength: 50
+   *               username:
+   *                 type: string
+   *                 minLength: 3
+   *                 maxLength: 25
+   *                 pattern: '^[a-zA-Z0-9_]+$'
+   *               dateOfBirth:
+   *                 type: string
+   *                 format: date
+   *               gender:
+   *                 type: string
+   *                 enum: [male, female, other, prefer_not_to_say]
    *               password:
    *                 type: string
    *                 minLength: 6
@@ -446,20 +465,57 @@ const authRoutes = async fastify => {
     },
   }, async (request, reply) => {
     try {
-      const { email, name, password, picture } = request.body;
+      const { email, name, password, picture, username, dateOfBirth, gender, firstName, lastName } = request.body;
 
-      if (!email || !name) {
-        throw new BadRequestError('Email and name are required');
+      // Validate required fields
+      if (!email || !name || !username || !dateOfBirth || !gender || !firstName || !lastName) {
+        throw new BadRequestError('Email, name, username, date of birth, gender, first name, and last name are required');
       }
 
-      // Check if user already exists
+      // Validate age (must be 18+)
+      const birthDate = new Date(dateOfBirth);
+      const today = new Date();
+      const age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      if (age < 18) {
+        throw new BadRequestError('You must be at least 18 years old to register');
+      }
+
+      // Validate username format (3-25 characters, alphanumeric and underscores only)
+      const usernameRegex = /^[a-zA-Z0-9_]{3,25}$/;
+      if (!usernameRegex.test(username)) {
+        throw new BadRequestError('Username must be 3-25 characters long and contain only letters, numbers, and underscores');
+      }
+
+      // Validate gender
+      const validGenders = ['male', 'female', 'other', 'prefer_not_to_say'];
+      if (!validGenders.includes(gender.toLowerCase())) {
+        throw new BadRequestError('Invalid gender selection');
+      }
+
+      // Check if user already exists by email
       try {
-        const existingUser = await UserModel.findByEmail(email);
-        if (existingUser) {
+        const existingUserByEmail = await UserModel.findByEmail(email);
+        if (existingUserByEmail) {
           throw new BadRequestError('User already exists with this email');
         }
       } catch (error) {
         // User doesn't exist, continue with registration
+      }
+
+      // Check if username already exists
+      try {
+        const existingUserByUsername = await UserModel.findByUsername(username);
+        if (existingUserByUsername) {
+          throw new BadRequestError('Username is already taken');
+        }
+      } catch (error) {
+        // Username doesn't exist, continue with registration
       }
 
       // Create new user
@@ -469,6 +525,11 @@ const authRoutes = async fastify => {
         firebase_uid: userId, // Use same UUID for firebase_uid when no Firebase token
         email: email,
         display_name: name,
+        first_name: firstName,
+        last_name: lastName,
+        username: username,
+        date_of_birth: birthDate,
+        gender: gender.toLowerCase(),
         email_verified: false,
         photo_url: picture,
         created_at: new Date(),

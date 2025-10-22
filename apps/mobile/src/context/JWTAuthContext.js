@@ -139,7 +139,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Register with email and password
-  const register = async (email, password, displayName = null) => {
+  const register = async (registrationData) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -147,7 +147,7 @@ export const AuthProvider = ({ children }) => {
       console.log('🔐 JWTAuthContext: Starting JWT registration...');
       
       // Use authService for registration
-      const result = await authService.register(email, password, displayName);
+      const result = await authService.register(registrationData);
       
       if (result.success) {
         console.log('✅ JWTAuthContext: Registration successful');
@@ -157,8 +157,13 @@ export const AuthProvider = ({ children }) => {
           id: result.user.id,
           uid: result.user.id,
           email: result.user.email,
-          name: result.user.name || displayName,
-          displayName: result.user.name || displayName,
+          name: result.user.name || registrationData.name,
+          displayName: result.user.name || registrationData.name,
+          firstName: result.user.firstName || registrationData.firstName,
+          lastName: result.user.lastName || registrationData.lastName,
+          username: result.user.username || registrationData.username,
+          dateOfBirth: result.user.dateOfBirth || registrationData.dateOfBirth,
+          gender: result.user.gender || registrationData.gender,
           emailVerified: result.user.emailVerified || true,
           picture: result.user.picture,
           isGuest: false,
