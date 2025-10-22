@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../../context/ThemeContext';
 import { FlowsContext } from '../../context/FlowContext';
-import { useAuth } from '../../context/JWTAuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { useAchievements } from '../../hooks/useAchievements';
 import { canCreateFlows } from '../../utils/profileValidation';
 import apiService from '../../services/apiService';
@@ -74,42 +74,30 @@ export default function HomePage({ navigation }) {
   
   // ALL EFFECTS AND HOOKS MUST BE CALLED HERE - BEFORE ANY EARLY RETURNS
   
-  // Refresh flows when home page comes into focus (only if flows are empty)
+  // Refresh flows when home page comes into focus (only if flows are empty and user is authenticated)
   useFocusEffect(
     React.useCallback(() => {
       console.log('HomePage: Checking flows on focus - current count:', flows.length);
-      if (flows.length === 0) {
-        console.log('HomePage: No flows found, loading data');
-        loadData();
+      console.log('HomePage: User authenticated:', !!user);
+      
+      // Only load data if we have a user and no flows
+      if (user && flows.length === 0) {
+        console.log('HomePage: User authenticated and no flows found, loading data');
+        try {
+          loadData();
+        } catch (error) {
+          console.error('HomePage: Error loading data:', error);
+        }
+      } else if (!user) {
+        console.log('HomePage: No user authenticated, skipping data load');
       } else {
         console.log('HomePage: Flows already loaded, skipping refresh');
       }
-    }, [loadData, flows.length])
+    }, [loadData, flows.length, user])
   );
 
-  // Refresh profile data when returning from profile settings
-  useFocusEffect(
-    React.useCallback(() => {
-      console.log('HomePage: Refreshing profile data on focus');
-      // Load fresh profile data to ensure validation is accurate
-      const refreshProfileData = async () => {
-        try {
-          const result = await apiService.getProfile();
-          if (result.success && result.data) {
-            console.log('HomePage: Profile data refreshed:', result.data);
-            // Update the user context with fresh profile data
-            if (updateProfile) {
-              await updateProfile(result.data);
-            }
-          }
-        } catch (error) {
-          console.error('HomePage: Error refreshing profile data:', error);
-        }
-      };
-      
-      refreshProfileData();
-    }, [updateProfile])
-  );
+  // Profile refresh removed to prevent continuous reloading
+  // Profile data will be updated when user actually changes settings
 
   // Start the subtle attention animation
   useEffect(() => {
