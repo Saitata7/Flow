@@ -17,7 +17,7 @@ const {
 } = require('../middleware/jwtAuth');
 
 const { UnauthorizedError, BadRequestError, ValidationError, NotFoundError } = require('../middleware/errorHandler');
-const UserModel = require('../db/userModel');
+const UserModel = require('../db/jwtUserModel');
 
 const jwtAuthRoutes = async fastify => {
   /**
@@ -266,18 +266,24 @@ const jwtAuthRoutes = async fastify => {
         throw new UnauthorizedError('Invalid email or password');
       }
       
-      // Check if user has password_hash column (JWT auth)
-      if (!user.password_hash) {
+      // Check if user is JWT user
+      if (!UserModel.isJWTUser(user)) {
+        throw new UnauthorizedError('Account not set up for password login. Please use social login or reset your password.');
+      }
+      
+      // Get password hash from auth_metadata
+      const passwordHash = UserModel.getPasswordHash(user);
+      if (!passwordHash) {
         throw new UnauthorizedError('Account not set up for password login. Please use social login or reset your password.');
       }
       
       // Check password
-      const isPasswordValid = await comparePassword(password, user.password_hash);
+      const isPasswordValid = await comparePassword(password, passwordHash);
       if (!isPasswordValid) {
         throw new UnauthorizedError('Invalid email or password');
       }
       
-      // Check if user is active (if status column exists)
+      // Check if user is active
       if (user.status && user.status !== 'active') {
         throw new UnauthorizedError('Account is not active');
       }
