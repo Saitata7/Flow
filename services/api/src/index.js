@@ -12,6 +12,7 @@ const { errorHandler } = require('./middleware/errorHandler');
 const { requestLogger } = require('./middleware/requestLogger');
 const { authenticateToken } = require('./middleware/jwtAuth');
 const { testConnection, closePool } = require('./db/config');
+const debugRoutes = require('./routes/debug');
 const jwtAuthRoutes = require('./routes/jwtAuth');
 // const flowsRoutes = require('./routes/flows');
 // const flowEntriesRoutes = require('./routes/flowEntries');
@@ -437,6 +438,14 @@ const registerRoutes = async () => {
   // API routes with explicit versioned prefixes (avoid nested group issues)
   // Add Redis to request context for all routes
   fastify.decorate('redis', redis);
+
+  try {
+    console.log('🔧 Registering debug routes at /debug ...');
+    await fastify.register(debugRoutes, { prefix: '/debug' });
+    console.log('✅ Debug routes registered at /debug');
+  } catch (error) {
+    console.error('❌ Failed to register debug routes:', error.message);
+  }
 
   try {
     console.log('🔐 Registering JWT auth routes at /v1/auth ...');
