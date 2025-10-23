@@ -92,8 +92,8 @@ class JWTAPIService {
       
       const response = await fetch(url, config);
       
-      // Handle token expiration
-      if (response.status === 401) {
+      // Handle token expiration - only attempt refresh if we have a token
+      if (response.status === 401 && token) {
         console.log('⚠️ Token expired, attempting refresh...');
         try {
           await this.refreshToken();
@@ -106,7 +106,8 @@ class JWTAPIService {
           }
         } catch (refreshError) {
           console.error('❌ Token refresh failed:', refreshError);
-          throw new Error('Authentication failed');
+          // Don't override the original error, let it bubble up
+          throw refreshError;
         }
       }
       
@@ -121,6 +122,12 @@ class JWTAPIService {
     try {
       const data = await response.json();
       
+      // For validation errors (400) and conflict errors (409), return the response data instead of throwing
+      if (!response.ok && (response.status === 400 || response.status === 409)) {
+        return data;
+      }
+      
+      // For other errors, throw as before
       if (!response.ok) {
         throw new Error(data.error || data.message || `HTTP ${response.status}`);
       }
@@ -156,10 +163,23 @@ class JWTAPIService {
   }
 
   async register(registrationData) {
-    return this.makeRequest('/v1/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(registrationData),
-    });
+    try {
+      console.log('🌐 JWT API Service: Starting registration for:', registrationData.email);
+      console.log('🌐 JWT API Service: Base URL:', this.baseURL);
+      console.log('🌐 JWT API Service: Making request to:', `${this.baseURL}/v1/auth/register`);
+      
+      const response = await this.makeRequest('/v1/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(registrationData),
+      });
+      
+      console.log('🌐 JWT API Service: Registration response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ JWT API Service: Registration error:', error);
+      console.error('❌ JWT API Service: Error details:', error.message, error.stack);
+      return { success: false, error: error.message };
+    }
   }
 
   async logout() {
@@ -169,10 +189,25 @@ class JWTAPIService {
   }
 
   async refreshToken(refreshToken) {
-    return this.makeRequest('/v1/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refreshToken }),
-    });
+    try {
+      const url = `${this.baseURL}/v1/auth/refresh`;
+      const config = {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      };
+
+      console.log(`🌐 API Request: ${config.method} ${url}`);
+      
+      const response = await fetch(url, config);
+      return await this.handleResponse(response);
+    } catch (error) {
+      console.error('❌ Refresh token error:', error);
+      throw error;
+    }
   }
 
   async forgotPassword(email) {

@@ -153,7 +153,12 @@ export const JWTAuthProvider = ({ children }) => {
         console.log('✅ Login successful:', userData.email);
         return { success: true, user: userData };
       } else {
-        throw new Error(response.error || 'Login failed');
+        console.log('❌ Login failed:', response.error);
+        // Use the errors array if available, otherwise fall back to error message
+        const errorMessage = response.errors && response.errors.length > 0 
+          ? response.errors.join(', ') 
+          : response.error || 'Login failed';
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
       console.error('❌ Login error:', error);
@@ -187,7 +192,12 @@ export const JWTAuthProvider = ({ children }) => {
         console.log('✅ Registration successful:', userData.email);
         return { success: true, user: userData };
       } else {
-        throw new Error(response.error || 'Registration failed');
+        console.log('❌ Registration failed:', response.error);
+        // Use the errors array if available, otherwise fall back to error message
+        const errorMessage = response.errors && response.errors.length > 0 
+          ? response.errors.join(', ') 
+          : response.error || 'Registration failed';
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
       console.error('❌ Registration error:', error);

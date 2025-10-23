@@ -34,9 +34,7 @@ const fallbackColors = {
 const Register = ({ navigation }) => {
   const { 
     register, 
-    isLoading, 
-    error, 
-    clearError 
+    isLoading
   } = useAuth();
   const { colors: themeColors } = useAppTheme();
   const [formData, setFormData] = useState({
@@ -53,6 +51,7 @@ const Register = ({ navigation }) => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [showToast, setShowToast] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -137,7 +136,7 @@ const Register = ({ navigation }) => {
     try {
       console.log('🔍 Register: Starting registration process');
       // Clear previous errors
-      clearError();
+      setErrorMessage('');
       
       const result = await register({
         email: formData.email,
@@ -154,14 +153,16 @@ const Register = ({ navigation }) => {
       if (result.success) {
         console.log('🔍 Register: Registration successful, navigating to Main');
         // Navigate to main app after successful registration
-        navigation.navigate('Main');
+        navigation.getParent()?.navigate('Main');
       } else {
-        console.log('🔍 Register: Registration failed, showing error');
-        // Show error toast
+        console.log('🔍 Register: Registration failed, showing error:', result.error);
+        // Set error message and show toast
+        setErrorMessage(result.error || 'Registration failed. Please try again.');
         setShowToast(true);
       }
     } catch (err) {
       console.error('❌ Registration error:', err);
+      setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
       setShowToast(true);
     }
   };
@@ -615,10 +616,10 @@ const Register = ({ navigation }) => {
       {showToast && (
         <Toast
           type="error"
-          message={error || 'Registration failed. Please try again.'}
+          message={errorMessage || 'Registration failed. Please try again.'}
           onDismiss={() => {
             setShowToast(false);
-            clearError();
+            setErrorMessage('');
           }}
           position="top"
         />

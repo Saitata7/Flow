@@ -173,7 +173,7 @@ const Login = ({ navigation, route }) => {
         
         // Navigate to main app after a short delay
         setTimeout(() => {
-          navigation.navigate('Main');
+          navigation.getParent()?.navigate('Main');
         }, 1500);
       } else {
         console.log('❌ Login: Authentication failed:', result.error);
@@ -219,11 +219,29 @@ const Login = ({ navigation, route }) => {
   };
 
   const handleForgotPassword = () => {
-    navigation.navigate('ForgotPassword');
+    console.log('🔐 Login: Forgot Password button pressed');
+    console.log('🔐 Login: isSubmitting:', isSubmitting, 'isLoading:', isLoading);
+    console.log('🔐 Login: navigation object:', navigation);
+    console.log('🔐 Login: navigation.navigate function:', typeof navigation.navigate);
+    try {
+      navigation.navigate('ForgotPassword');
+      console.log('🔐 Login: Navigation to ForgotPassword successful');
+    } catch (error) {
+      console.error('🔐 Login: Navigation error:', error);
+    }
   };
 
   const handleRegister = () => {
-    navigation.navigate('Register');
+    console.log('🔐 Login: Sign Up button pressed');
+    console.log('🔐 Login: isSubmitting:', isSubmitting, 'isLoading:', isLoading);
+    console.log('🔐 Login: navigation object:', navigation);
+    console.log('🔐 Login: navigation.navigate function:', typeof navigation.navigate);
+    try {
+      navigation.navigate('Register');
+      console.log('🔐 Login: Navigation to Register successful');
+    } catch (error) {
+      console.error('🔐 Login: Navigation error:', error);
+    }
   };
 
 
@@ -360,7 +378,6 @@ const Login = ({ navigation, route }) => {
             <TouchableOpacity 
               onPress={handleForgotPassword}
               style={styles.forgotPasswordContainer}
-              disabled={isSubmitting || isLoading}
             >
               <Text style={[styles.forgotPasswordText, { color: safeColors.primaryOrange }]}>
                 Forgot Password?
@@ -404,7 +421,6 @@ const Login = ({ navigation, route }) => {
               </Text>
               <TouchableOpacity 
                 onPress={handleRegister}
-                disabled={isSubmitting || isLoading}
               >
                 <Text style={[styles.registerLink, { color: safeColors.primaryOrange }]}>
                   Sign Up

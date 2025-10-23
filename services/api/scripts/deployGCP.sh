@@ -71,7 +71,6 @@ gcloud run deploy ${SERVICE_NAME} \
     --timeout 300 \
     --concurrency 80 \
     --set-env-vars NODE_ENV=production \
-    --set-env-vars PORT=8080 \
     --set-env-vars HOST=0.0.0.0 \
     --set-env-vars DB_HOST=34.63.78.153 \
     --set-env-vars DB_NAME=flow \
@@ -94,7 +93,10 @@ gcloud run deploy ${SERVICE_NAME} \
     --set-env-vars ALLOW_UNAUTHENTICATED=true \
     --set-secrets VALID_API_KEYS=api-keys:latest \
     --set-secrets CORS_ORIGIN=cors-origin:latest \
-    --set-env-vars LOG_LEVEL=info
+    --set-env-vars LOG_LEVEL=info \
+    --set-secrets SENDGRID_API_KEY=sendgrid-api-key:latest \
+    --set-env-vars SMTP_FROM=noreply@flow.app \
+    --set-env-vars FRONTEND_URL=https://flow.app
 
 # Get service URL
 SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --platform managed --region ${REGION} --format 'value(status.url)')

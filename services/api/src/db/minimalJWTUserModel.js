@@ -210,7 +210,7 @@ class MinimalJWTUserModel {
       return { 
         success: true, 
         message: 'If the email exists, a reset link has been sent',
-        resetToken // Only return in development
+        resetToken // Always return resetToken for email service
       };
     } catch (error) {
       console.error('❌ MinimalJWTUserModel: Error requesting password reset:', error);

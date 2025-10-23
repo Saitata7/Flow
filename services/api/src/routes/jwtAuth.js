@@ -18,6 +18,7 @@ const {
 
 const { UnauthorizedError, BadRequestError, ValidationError, NotFoundError } = require('../middleware/errorHandler');
 const UserModel = require('../db/minimalJWTUserModel');
+const emailService = require('../services/emailService');
 
 const jwtAuthRoutes = async fastify => {
   /**
@@ -470,9 +471,17 @@ const jwtAuthRoutes = async fastify => {
       
       console.log('✅ AuthController: Password reset token generated');
       
-      // TODO: Send reset email
+      // Send reset email if token was generated
       if (result.resetToken) {
-        console.log('📧 Password reset token:', result.resetToken);
+        try {
+          console.log('📧 Sending password reset email to:', email);
+          await emailService.sendPasswordResetEmail(email, result.resetToken, 'User');
+          console.log('✅ AuthController: Password reset email sent successfully');
+        } catch (emailError) {
+          console.error('❌ AuthController: Failed to send password reset email:', emailError);
+          // Don't fail the request if email sending fails - token is still generated
+          console.log('⚠️ AuthController: Password reset token generated but email failed to send');
+        }
       }
       
       return reply.send({

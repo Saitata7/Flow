@@ -61,7 +61,12 @@ export const validateInput = (type, value) => {
       break;
       
     case 'password':
-      if (sanitized.length < 6) errors.push('Password must be at least 6 characters');
+      if (sanitized.length < 8) errors.push('Password must be at least 8 characters');
+      if (!/[A-Z]/.test(sanitized)) errors.push('Password must contain at least one uppercase letter');
+      if (!/[0-9]/.test(sanitized)) errors.push('Password must contain at least one number');
+      if (!/[!@#$%^&*()_+\-=\[\]{}|;:,.<>?]/.test(sanitized)) {
+        errors.push('Password must contain at least one special character: !@#$%^&*()_+-=[]{}|;:,.<>?');
+      }
       break;
       
     default:

@@ -36,7 +36,7 @@ const ForgotPassword = ({ navigation }) => {
   const authContext = useAuth();
   
   const { 
-    resetPassword, 
+    forgotPassword, 
     isLoading, 
     error, 
     clearError
@@ -82,7 +82,7 @@ const ForgotPassword = ({ navigation }) => {
 
             try {
               console.log('🔍 ForgotPassword: Attempting password reset for:', email);
-              const result = await resetPassword(email);
+              const result = await forgotPassword(email);
               console.log('🔍 ForgotPassword: Reset password result:', result);
               
               if (result.success) {

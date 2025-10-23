@@ -75,7 +75,8 @@ const AppNavigator = () => {
     // Determine initial route based on authentication and guest mode
     const getInitialRoute = () => {
       // Only go to Main if we have a REAL authenticated user
-      if (user && user.id && user.email && user.emailVerified) {
+      // For newly registered users, emailVerified might be false initially
+      if (user && user.id && user.email) {
         return 'Main';
       }
       
