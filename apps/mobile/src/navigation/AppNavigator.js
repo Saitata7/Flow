@@ -39,41 +39,41 @@ const Stack = createNativeStackNavigator();
 
 
 const AppNavigator = () => {
-  try {
-    const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
-    useEffect(() => {
-      Haptics.selectionAsync();
-      
-      // Initialize background sync service
-      try {
-        backgroundSyncService.init();
-      } catch (error) {
-        console.error('❌ Error initializing background sync service:', error);
-      }
-    }, []);
-
-    // Show loading while checking auth status
-    if (authLoading) {
-      return (
-        <SafeAreaProvider>
-          <StatusBar
-            translucent
-            backgroundColor="transparent"
-            barStyle="dark-content"
-          />
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.light.primaryOrange} />
-            <Text style={{ marginTop: 20, color: colors.light.primaryText }}>
-              Loading...
-            </Text>
-          </View>
-        </SafeAreaProvider>
-      );
+  useEffect(() => {
+    Haptics.selectionAsync();
+    
+    // Initialize background sync service
+    try {
+      backgroundSyncService.init();
+    } catch (error) {
+      console.error('❌ Error initializing background sync service:', error);
     }
+  }, []);
 
-    // Determine initial route based on authentication and guest mode
-    const getInitialRoute = () => {
+  // Show loading while checking auth status
+  if (authLoading) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="dark-content"
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.light.primaryOrange} />
+          <Text style={{ marginTop: 20, color: colors.light.primaryText }}>
+            Loading...
+          </Text>
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
+  // Determine initial route based on authentication and guest mode
+  const getInitialRoute = () => {
+    try {
       // Only go to Main if we have a REAL authenticated user
       // For newly registered users, emailVerified might be false initially
       if (user && user.id && user.email) {
@@ -82,11 +82,16 @@ const AppNavigator = () => {
       
       // Default to Auth screen for ANY uncertainty
       return 'Auth';
-    };
+    } catch (error) {
+      console.error('❌ Error determining initial route:', error);
+      return 'Auth';
+    }
+  };
 
-    const initialRoute = getInitialRoute();
+  const initialRoute = getInitialRoute();
 
-    // FIXED: Use single NavigationContainer with all routes
+  // FIXED: Use single NavigationContainer with all routes
+  try {
     return (
       <SafeAreaProvider>
         <StatusBar
@@ -120,11 +125,13 @@ const AppNavigator = () => {
   } catch (error) {
     console.error('❌ AppNavigator Error:', error);
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <Text style={{ fontSize: 18, color: 'red', textAlign: 'center' }}>
-          Navigation Error: {error.message}
-        </Text>
-      </View>
+      <SafeAreaProvider>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+          <Text style={{ fontSize: 18, color: 'red', textAlign: 'center' }}>
+            Navigation Error: {error.message}
+          </Text>
+        </View>
+      </SafeAreaProvider>
     );
   }
 };
