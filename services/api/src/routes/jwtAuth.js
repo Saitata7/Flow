@@ -17,7 +17,7 @@ const {
 } = require('../middleware/jwtAuth');
 
 const { UnauthorizedError, BadRequestError, ValidationError, NotFoundError } = require('../middleware/errorHandler');
-const UserModel = require('../db/jwtUserModel');
+const UserModel = require('../db/minimalJWTUserModel');
 
 const jwtAuthRoutes = async fastify => {
   /**
@@ -267,12 +267,13 @@ const jwtAuthRoutes = async fastify => {
       }
       
       // Check if user is JWT user
-      if (!UserModel.isJWTUser(user)) {
+      const isJWTUser = await UserModel.isJWTUser(user);
+      if (!isJWTUser) {
         throw new UnauthorizedError('Account not set up for password login. Please use social login or reset your password.');
       }
       
-      // Get password hash from auth_metadata
-      const passwordHash = UserModel.getPasswordHash(user);
+      // Get password hash from jwt_users table
+      const passwordHash = await UserModel.getPasswordHash(user);
       if (!passwordHash) {
         throw new UnauthorizedError('Account not set up for password login. Please use social login or reset your password.');
       }

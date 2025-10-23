@@ -2,7 +2,7 @@
 // Enhanced profile management controller with JWT authentication
 // Handles comprehensive user profile data including demographics and privacy settings
 
-const UserModel = require('../db/jwtUserModel');
+const UserModel = require('../db/minimalJWTUserModel');
 const { ConflictError, NotFoundError, ForbiddenError, ValidationError } = require('../middleware/errorHandler');
 const moment = require('moment');
 
