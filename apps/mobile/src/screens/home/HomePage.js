@@ -21,7 +21,7 @@ import { FlowsContext } from '../../context/FlowContext';
 import { useAuth } from '../../context/JWTAuthContext';
 import { useAchievements } from '../../hooks/useAchievements';
 import { canCreateFlows } from '../../utils/profileValidation';
-import apiService from '../../services/apiService';
+import jwtApiService from '../../services/jwtApiService';
 import moment from 'moment';
 import TodaysFlows from '../../components/flow/todayResponse/TodaysFlows';
 import FTUEOverlay from '../../components/home/FTUEOverlay';

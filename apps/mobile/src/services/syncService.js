@@ -4,7 +4,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import apiService from './apiService';
+import jwtApiService from './jwtApiService';
 import settingsService from './settingsService';
 import { safeSetItem, safeGetItem, safeMultiSet, safeMultiGet } from '../utils/safeAsyncStorage';
 
@@ -103,7 +103,7 @@ class SyncService {
       this.isOnline &&
       !this.isSyncing &&
       settingsService.isSyncEnabled() &&
-      apiService.canSync()
+      jwtApiService.canSync()
     );
   }
 
@@ -190,22 +190,22 @@ class SyncService {
 
     switch (type) {
       case 'CREATE_FLOW':
-        await apiService.createFlow(data);
+        await jwtApiService.createFlow(data);
         break;
       case 'UPDATE_FLOW':
-        await apiService.updateFlow(flowId, data);
+        await jwtApiService.updateFlow(flowId, data);
         break;
       case 'DELETE_FLOW':
-        await apiService.deleteFlow(flowId);
+        await jwtApiService.deleteFlow(flowId);
         break;
       case 'CREATE_ENTRY':
-        await apiService.createFlowEntry(data);
+        await jwtApiService.createFlowEntry(data);
         break;
       case 'UPDATE_ENTRY':
-        await apiService.updateFlowEntry(entryId, data);
+        await jwtApiService.updateFlowEntry(entryId, data);
         break;
       case 'DELETE_ENTRY':
-        await apiService.deleteFlowEntry(entryId);
+        await jwtApiService.deleteFlowEntry(entryId);
         break;
       default:
         throw new Error(`Unknown upload operation: ${type}`);
@@ -220,21 +220,21 @@ class SyncService {
       console.log('📥 Downloading latest data from backend...');
 
       // Check authentication before making API calls
-      const isAuthenticated = await apiService.isUserAuthenticated();
+      const isAuthenticated = await jwtApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('📥 User not authenticated, skipping download');
         return;
       }
 
       // Get flows
-      const flowsResponse = await apiService.getFlows();
+      const flowsResponse = await jwtApiService.getFlows();
       if (flowsResponse.success) {
         await this.mergeFlowsFromServer(flowsResponse.data);
         console.log(`📥 Downloaded ${flowsResponse.data.length} flows`);
       }
 
       // Get flow entries for last 30 days
-      const entriesResponse = await apiService.getFlowEntries({
+      const entriesResponse = await jwtApiService.getFlowEntries({
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: new Date().toISOString(),
       });
@@ -245,7 +245,7 @@ class SyncService {
       }
 
       // Get user settings
-      const settingsResponse = await apiService.getUserSettings();
+      const settingsResponse = await jwtApiService.getUserSettings();
       if (settingsResponse.success) {
         await this.mergeSettingsFromServer(settingsResponse.data);
         console.log('📥 Downloaded user settings');

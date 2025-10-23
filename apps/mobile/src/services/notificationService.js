@@ -2,7 +2,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform, Alert, PermissionsAndroid, Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import apiService from './apiService';
+import jwtApiService from './jwtApiService';
 
 const NOTIFICATION_STORAGE_KEY = 'notification_settings';
 const EXPO_TOKEN_KEY = 'expo_token';
@@ -280,14 +280,14 @@ class NotificationService {
   async registerDeviceWithBackend(token) {
     try {
       // Check authentication before making API call
-      const isAuthenticated = await apiService.isUserAuthenticated();
+      const isAuthenticated = await jwtApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('User not authenticated, skipping device registration');
         return;
       }
 
       const platform = Platform.OS === 'ios' ? 'ios' : 'android';
-      await apiService.registerDevice({
+      await jwtApiService.registerDevice({
         deviceToken: token,
         platform: platform,
       });
@@ -1334,13 +1334,13 @@ class NotificationService {
   async loadSettingsFromBackend() {
     try {
       // Check authentication before making API call
-      const isAuthenticated = await apiService.isUserAuthenticated();
+      const isAuthenticated = await jwtApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('User not authenticated, skipping notification settings load');
         return null;
       }
 
-      const response = await apiService.getNotificationSettings();
+      const response = await jwtApiService.getNotificationSettings();
       if (response.data && response.data.success) {
         const backendSettings = response.data.data;
         await AsyncStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(backendSettings));

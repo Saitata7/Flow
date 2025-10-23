@@ -2,7 +2,7 @@
 // Simple authentication status checker for debugging
 
 import auth from '@react-native-firebase/auth';
-import apiService from '../services/apiService';
+import jwtApiService from '../services/jwtApiService';
 
 class AuthStatusChecker {
   constructor() {
@@ -33,7 +33,7 @@ class AuthStatusChecker {
       let hasToken = false;
       let tokenPreview = null;
       try {
-        const token = await apiService.getAuthToken();
+        const token = await jwtApiService.getAuthToken();
         hasToken = !!token;
         tokenPreview = token ? token.substring(0, 20) + '...' : null;
         console.log('🔍 Auth token:', {
@@ -48,7 +48,7 @@ class AuthStatusChecker {
       // 3. Check API authentication
       let isAuthenticated = false;
       try {
-        isAuthenticated = await apiService.isUserAuthenticated();
+        isAuthenticated = await jwtApiService.isUserAuthenticated();
         console.log('🔍 API authentication:', isAuthenticated);
       } catch (authError) {
         console.error('🔍 Auth check error:', authError.message);
@@ -58,7 +58,7 @@ class AuthStatusChecker {
       let apiTestResult = null;
       try {
         console.log('🔍 Testing API call...');
-        const testResult = await apiService.testApiConnection();
+        const testResult = await jwtApiService.testApiConnection();
         apiTestResult = testResult;
         console.log('🔍 API test result:', testResult);
       } catch (apiError) {

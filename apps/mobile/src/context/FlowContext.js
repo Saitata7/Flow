@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, addDays } from 'date-fns';
-import apiService from '../services/apiService';
+import jwtApiService from '../services/jwtApiService';
 import syncService from '../services/syncService';
 import notificationService from '../services/notificationService';
 import { useAuth } from './JWTAuthContext';
@@ -187,11 +187,11 @@ export const FlowsProvider = ({ children }) => {
     logger.log('FlowsContext: user exists:', !!user);
     
     // Debug authentication state
-    const authDebug = await apiService.debugAuthState();
+    const authDebug = await jwtApiService.debugAuthState();
     logger.log('FlowsContext: Auth debug result:', authDebug);
     
     // Double-check authentication with actual JWT token
-    const userAuthenticated = await apiService.isUserAuthenticated();
+    const userAuthenticated = await jwtApiService.isUserAuthenticated();
     logger.log('FlowsContext: userAuthenticated:', userAuthenticated);
     
     if (!userAuthenticated) {
@@ -229,15 +229,15 @@ export const FlowsProvider = ({ children }) => {
       // Add a small delay to allow auth state to settle after login
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const isAuthenticated = await apiService.isUserAuthenticated();
+      const isAuthenticated = await jwtApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         logger.log('FlowsContext: User not authenticated, skipping API call');
         logger.log('FlowsContext: This is expected if user is not logged in or is anonymous');
         return;
       }
       
-      logger.log('FlowsContext: About to call apiService.getFlows()...');
-      const flowsResponse = await apiService.getFlows();
+      logger.log('FlowsContext: About to call jwtApiService.getFlows()...');
+      const flowsResponse = await jwtApiService.getFlows();
       logger.log('FlowsContext: API response received:', flowsResponse);
       
       if (flowsResponse.success) {
@@ -350,8 +350,8 @@ export const FlowsProvider = ({ children }) => {
       logger.log('FlowsContext: Flow created locally:', newFlow.title);
 
       // Queue for sync if online
-      if (isAuthenticated && apiService.canSync()) {
-        await apiService.addToSyncQueue({
+      if (isAuthenticated && jwtApiService.canSync()) {
+        await jwtApiService.addToSyncQueue({
           type: 'create_flow',
           data: newFlow,
           flowId: tempId,
@@ -391,8 +391,8 @@ export const FlowsProvider = ({ children }) => {
       logger.log('FlowsContext: Flow updated locally:', updatedFlow.title);
 
       // Queue for sync if online
-      if (isAuthenticated && apiService.canSync()) {
-        await apiService.addToSyncQueue({
+      if (isAuthenticated && jwtApiService.canSync()) {
+        await jwtApiService.addToSyncQueue({
           type: 'update_flow',
           data: updatedFlow,
           flowId: flowId,
@@ -591,7 +591,7 @@ export const FlowsProvider = ({ children }) => {
         if (isAuthenticated && syncService.canSync()) {
           logger.log('FlowsContext: Attempting immediate API call for flow creation');
           try {
-            const apiResult = await apiService.createFlow(newFlow);
+            const apiResult = await jwtApiService.createFlow(newFlow);
             if (apiResult.success) {
               logger.log('FlowsContext: Flow created successfully on backend:', apiResult.data);
               // Update local flow with backend data if needed
@@ -805,7 +805,7 @@ export const FlowsProvider = ({ children }) => {
         if (isAuthenticated && syncService.canSync() && !fromQueue) {
           logger.log('FlowContext: Attempting immediate API call for flow update');
           try {
-            const apiResult = await apiService.updateFlow(id, updates);
+            const apiResult = await jwtApiService.updateFlow(id, updates);
             if (apiResult.success) {
               logger.log('FlowContext: Flow updated successfully on backend:', apiResult.data);
             } else {
@@ -868,7 +868,7 @@ export const FlowsProvider = ({ children }) => {
           if (isAuthenticated && syncService.canSync()) {
             logger.log('FlowsContext: Attempting immediate API call for flow deletion');
             try {
-              const apiResult = await apiService.deleteFlow(id);
+              const apiResult = await jwtApiService.deleteFlow(id);
               if (apiResult.success) {
                 logger.log('FlowsContext: Flow deleted successfully on backend');
               } else {
