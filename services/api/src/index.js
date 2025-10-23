@@ -448,6 +448,15 @@ const registerRoutes = async () => {
   }
 
   try {
+    console.log('🔧 Registering migration routes at /migration ...');
+    const migrationRoutes = require('./routes/migration');
+    await fastify.register(migrationRoutes, { prefix: '/migration' });
+    console.log('✅ Migration routes registered at /migration');
+  } catch (error) {
+    console.error('❌ Failed to register migration routes:', error.message);
+  }
+
+  try {
     console.log('🔐 Registering JWT auth routes at /v1/auth ...');
     await fastify.register(jwtAuthRoutes, { prefix: '/v1/auth' });
     console.log('✅ JWT auth routes registered at /v1/auth');
