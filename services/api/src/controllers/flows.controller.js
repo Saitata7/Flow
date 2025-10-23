@@ -1,35 +1,19 @@
 const { v4: uuidv4 } = require('uuid');
 const moment = require('moment');
 const { NotFoundError, ConflictError, ForbiddenError } = require('../middleware/errorHandler');
-const { FlowModel, FlowEntryModel, UserModel } = require('../db/models');
+const { FlowModel, FlowEntryModel } = require('../db/models');
+const UserModel = require('../db/userModel');
 
 // Helper functions
 const generateId = () => uuidv4();
 const getCurrentTimestamp = () => new Date().toISOString();
 
-// Helper function to get UUID primary key from Firebase UID
-const getUserIdFromFirebaseUid = async (firebaseUid) => {
+// Helper function to get UUID primary key from user ID (JWT auth)
+const getUserIdFromJWT = async (userId) => {
   try {
-    // First, find the user by Firebase UID to get the UUID primary key
-    let user = await UserModel.findByFirebaseUid(firebaseUid);
-    
-    // If user doesn't exist, create them automatically
-    if (!user) {
-      console.log('📋 FlowsController: User not found, creating from Firebase UID:', firebaseUid);
-      
-      // Create a minimal user record with Firebase UID
-      const firebaseUserData = {
-        id: firebaseUid,
-        email: 'user@example.com', // Default email
-        name: 'User',
-        emailVerified: true,
-        picture: null
-      };
-      
-      user = await UserModel.createFromFirebase(firebaseUserData);
-    }
-    
-    return user.id; // Return UUID primary key
+    // In JWT authentication, userId is already the UUID primary key
+    console.log('📋 FlowsController: Using JWT user ID:', userId);
+    return userId;
   } catch (error) {
     console.error('❌ FlowsController: Error getting user ID:', error);
     throw error;
@@ -43,8 +27,8 @@ const createFlow = async (request, reply) => {
 
   console.log('createFlow called with:', { user: user.id, flowData });
 
-  // Get UUID primary key from Firebase UID
-  const userId = await getUserIdFromFirebaseUid(user.id);
+  // Get UUID primary key from JWT user ID
+  const userId = await getUserIdFromJWT(user.id);
   console.log('createFlow: Using UUID primary key:', userId);
 
   // Prepare flow data for database
@@ -151,8 +135,8 @@ const getUserFlows = async (request, reply) => {
   const { page = 1, limit = 20, archived = false, visibility } = request.query;
 
   try {
-    // Get UUID primary key from Firebase UID
-    const userId = await getUserIdFromFirebaseUid(user.id);
+    // Get UUID primary key from JWT user ID
+    const userId = await getUserIdFromJWT(user.id);
     console.log('getUserFlows: Using UUID primary key:', userId);
     
     // Get flows from database with status

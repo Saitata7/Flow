@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { ThemeContext } from '../../context/ThemeContext';
 import { FlowsContext } from '../../context/FlowContext';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/JWTAuthContext';
 import { useAchievements } from '../../hooks/useAchievements';
 import { canCreateFlows } from '../../utils/profileValidation';
 import apiService from '../../services/apiService';

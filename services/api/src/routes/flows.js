@@ -9,7 +9,7 @@ const {
   getFlowStats,
 } = require('../controllers/flows.controller');
 
-const { requireAuth, requireOwnership } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/jwtAuth');
 const { validateFlowData } = require('../middleware/errorHandler');
 
 const flowsRoutes = async fastify => {
@@ -71,7 +71,7 @@ const flowsRoutes = async fastify => {
   fastify.post(
     '/',
     {
-      preHandler: [requireAuth],
+      preHandler: [authenticateToken],
     },
     createFlow
   );
@@ -103,7 +103,7 @@ const flowsRoutes = async fastify => {
   fastify.get(
     '/',
     {
-      preHandler: [requireAuth],
+      preHandler: [authenticateToken],
     },
     getUserFlows
   );
@@ -112,7 +112,7 @@ const flowsRoutes = async fastify => {
   fastify.get(
     '/:id',
     {
-      preHandler: [requireAuth, requireOwnership('id')],
+      preHandler: [authenticateToken],
       schema: {
         description: 'Get a specific flow by ID',
         tags: ['flows'],
@@ -142,7 +142,7 @@ const flowsRoutes = async fastify => {
   fastify.put(
     '/:id',
     {
-      preHandler: [requireAuth, requireOwnership('id'), validateFlowData],
+      preHandler: [authenticateToken, validateFlowData],
       schema: {
         description: 'Update a specific flow by ID',
         tags: ['flows'],
@@ -202,7 +202,7 @@ const flowsRoutes = async fastify => {
   fastify.patch(
     '/:id/archive',
     {
-      preHandler: [requireAuth, requireOwnership('id')],
+      preHandler: [authenticateToken],
       schema: {
         description: 'Archive a specific flow by ID',
         tags: ['flows'],
@@ -232,7 +232,7 @@ const flowsRoutes = async fastify => {
   fastify.delete(
     '/:id',
     {
-      preHandler: [requireAuth, requireOwnership('id')],
+      preHandler: [authenticateToken],
       schema: {
         description: 'Delete a specific flow by ID',
         tags: ['flows'],
@@ -262,7 +262,7 @@ const flowsRoutes = async fastify => {
   fastify.get(
     '/search',
     {
-      preHandler: [requireAuth],
+      preHandler: [authenticateToken],
       schema: {
         description: 'Search flows by title or description',
         tags: ['flows'],
@@ -306,7 +306,7 @@ const flowsRoutes = async fastify => {
   fastify.get(
     '/:id/stats',
     {
-      preHandler: [requireAuth, requireOwnership('id')],
+      preHandler: [authenticateToken],
       schema: {
         description: 'Get statistics for a specific flow',
         tags: ['flows'],

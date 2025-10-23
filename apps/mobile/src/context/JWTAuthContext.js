@@ -1,402 +1,440 @@
-// src/context/JWTAuthContext.js
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
+// context/JWTAuthContext.js
+// Professional JWT Authentication Context
+// Implements industry-standard authentication patterns for mobile apps
+
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-import apiService from '../services/apiService';
-import sessionManager from '../utils/sessionManager';
-import { generateJWTToken, verifyJWTToken, storeJWTToken, clearJWTToken, getJWTTokenInfo } from '../utils/jwtAuth';
-import authService from '../services/authService';
+import jwtApiService from '../services/jwtApiService';
 
-const AuthContext = createContext({});
+// JWT Token Management
+const TOKEN_KEY = 'jwt_access_token';
+const REFRESH_TOKEN_KEY = 'jwt_refresh_token';
+const USER_KEY = 'jwt_user_data';
 
-// JWT error code mapping to user-friendly messages
-const getErrorMessage = (errorCode) => {
-  const errorMessages = {
-    'AUTH_ERROR': 'Your session has expired. Please log in again.',
-    'JWT_TOKEN_EXPIRED': 'Your session has expired. Please log in again.',
-    'TOKEN_REFRESH_FAILED': 'Your session has expired. Please log in again.',
-    'INVALID_CREDENTIALS': 'Invalid email or password. Please check your credentials.',
-    'USER_NOT_FOUND': 'No account found with this email address. Please check your email or create a new account.',
-    'NETWORK_ERROR': 'Network error. Please check your internet connection and try again.',
-    'SERVER_ERROR': 'Server error. Please try again later.',
-    'VALIDATION_ERROR': 'Please check your input and try again.',
-  };
-  
-  return errorMessages[errorCode] || 'Authentication failed. Please try again.';
-};
-
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  // Check for existing session on app start
-  useEffect(() => {
-    const checkAuthState = async () => {
-      try {
-        console.log('🔍 JWTAuthContext: Checking existing session...');
-        
-        // Check if we have a stored JWT token
-        const tokenInfo = await getJWTTokenInfo();
-        if (tokenInfo && tokenInfo.valid) {
-          console.log('✅ JWTAuthContext: Valid JWT token found');
-          
-          // Verify token with backend
-          const verifyResult = await authService.verifyToken();
-          if (verifyResult.success) {
-            console.log('✅ JWTAuthContext: Token verified with backend');
-            setUser(verifyResult.user); // Use user data from backend verification
-          } else {
-            console.log('❌ JWTAuthContext: Token verification failed, clearing session');
-            await clearSession();
-          }
-        } else {
-          console.log('ℹ️ JWTAuthContext: No valid token found');
-          await clearSession();
-        }
-      } catch (error) {
-        console.error('❌ JWTAuthContext: Error checking session:', error);
-        await clearSession();
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuthState();
-    
-    // Safety timeout - force loading to false after 5 seconds
-    const timeoutId = setTimeout(() => {
-      setIsLoading(false);
-    }, 5000);
-    
-    return () => clearTimeout(timeoutId);
-  }, []);
-
-  // Clear session data
-  const clearSession = async () => {
-    try {
-      await Promise.all([
-        clearJWTToken(),
-        sessionManager.clearSession(),
-        SecureStore.deleteItemAsync('user_data'),
-        AsyncStorage.removeItem('user_session'),
-      ]);
-      setUser(null);
-      setError(null);
-      console.log('✅ JWTAuthContext: Session cleared');
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Error clearing session:', error);
-    }
-  };
-
-  // Login with email and password
-  const login = async (email, password) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log('🔐 JWTAuthContext: Starting JWT login...');
-      
-      // Use authService for login
-      const result = await authService.login(email, password);
-      
-      if (result.success) {
-        console.log('✅ JWTAuthContext: Login successful');
-        
-        // Store user data and token
-        const userData = {
-          id: result.user.id,
-          uid: result.user.id,
-          email: result.user.email,
-          name: result.user.name,
-          displayName: result.user.name,
-          emailVerified: result.user.emailVerified || true,
-          picture: result.user.picture,
-          isGuest: false,
-        };
-        
-        setUser(userData);
-        
-        // Store session
-        await sessionManager.storeSession(userData, result.token);
-        
-        return { success: true, user: userData };
-      } else {
-        console.log('❌ JWTAuthContext: Login failed:', result.error);
-        const errorMessage = getErrorMessage(result.error?.code) || result.error?.message || 'Login failed';
-        setError(errorMessage);
-        return { success: false, error: errorMessage };
-      }
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Login error:', error);
-      const errorMessage = getErrorMessage(error.code) || error.message || 'Login failed. Please try again.';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Register with email and password
-  const register = async (registrationData) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log('🔐 JWTAuthContext: Starting JWT registration...');
-      
-      // Use authService for registration
-      const result = await authService.register(registrationData);
-      
-      if (result.success) {
-        console.log('✅ JWTAuthContext: Registration successful');
-        
-        // Store user data and token
-        const userData = {
-          id: result.user.id,
-          uid: result.user.id,
-          email: result.user.email,
-          name: result.user.name || registrationData.name,
-          displayName: result.user.name || registrationData.name,
-          firstName: result.user.firstName || registrationData.firstName,
-          lastName: result.user.lastName || registrationData.lastName,
-          username: result.user.username || registrationData.username,
-          dateOfBirth: result.user.dateOfBirth || registrationData.dateOfBirth,
-          gender: result.user.gender || registrationData.gender,
-          emailVerified: result.user.emailVerified || true,
-          picture: result.user.picture,
-          isGuest: false,
-        };
-        
-        setUser(userData);
-        
-        // Store session
-        await sessionManager.storeSession(userData, result.token);
-        
-        return { success: true, user: userData };
-      } else {
-        console.log('❌ JWTAuthContext: Registration failed:', result.error);
-        const errorMessage = getErrorMessage(result.error?.code) || result.error?.message || 'Registration failed';
-        setError(errorMessage);
-        return { success: false, error: errorMessage };
-      }
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Registration error:', error);
-      const errorMessage = getErrorMessage(error.code) || error.message || 'Registration failed. Please try again.';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Sign out
-  const signOut = async () => {
-    try {
-      setIsLoading(true);
-      
-      console.log('🔐 JWTAuthContext: Starting logout...');
-      
-      // Use authService for logout
-      await authService.logout();
-      
-      // Clear local session
-      await clearSession();
-      
-      console.log('✅ JWTAuthContext: Logout successful');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Logout error:', error);
-      setError('Sign out failed. Please try again.');
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Reset password
-  const resetPassword = async (email) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log('🔐 JWTAuthContext: Starting password reset...');
-      
-      // Use authService for password reset
-      const result = await authService.resetPassword(email);
-      
-      if (result.success) {
-        console.log('✅ JWTAuthContext: Password reset email sent');
-        return { success: true };
-      } else {
-        console.log('❌ JWTAuthContext: Password reset failed:', result.error);
-        const errorMessage = getErrorMessage(result.error?.code) || result.error?.message || 'Password reset failed';
-        setError(errorMessage);
-        return { success: false, error: errorMessage };
-      }
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Password reset error:', error);
-      const errorMessage = getErrorMessage(error.code) || error.message || 'Password reset failed. Please try again.';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Update user profile
-  const updateProfile = async (updates) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log('🔐 JWTAuthContext: Updating profile...');
-      
-      // Update local state
-      const updatedUserData = {
-        ...user,
-        ...updates,
-      };
-      setUser(updatedUserData);
-      
-      // Store updated session
-      await sessionManager.storeSession(updatedUserData);
-      
-      console.log('✅ JWTAuthContext: Profile updated');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Profile update error:', error);
-      setError('Profile update failed. Please try again.');
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Send email verification
-  const sendEmailVerification = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log('🔐 JWTAuthContext: Sending email verification...');
-      
-      // For JWT auth, we assume email is verified
-      console.log('✅ JWTAuthContext: Email verification not needed for JWT auth');
-      return { success: true };
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Email verification error:', error);
-      setError('Failed to send verification email. Please try again.');
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Delete user account
-  const deleteAccount = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      console.log('🔐 JWTAuthContext: Deleting account...');
-      
-      // Use authService for account deletion
-      const result = await authService.deleteAccount();
-      
-      if (result.success) {
-        await clearSession();
-        console.log('✅ JWTAuthContext: Account deleted');
-        return { success: true };
-      } else {
-        console.log('❌ JWTAuthContext: Account deletion failed:', result.error);
-        const errorMessage = getErrorMessage(result.error?.code) || result.error?.message || 'Account deletion failed';
-        setError(errorMessage);
-        return { success: false, error: errorMessage };
-      }
-    } catch (error) {
-      console.error('❌ JWTAuthContext: Account deletion error:', error);
-      setError('Account deletion failed. Please try again.');
-      return { success: false, error: error.message };
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Clear error
-  const clearError = () => {
-    setError(null);
-  };
-
-  // Test authentication system
-  const testAuthSystem = async () => {
-    try {
-      const testEmail = 'test@example.com';
-      const testPassword = 'testpassword123';
-      
-      // Test registration
-      const registerResult = await register(testEmail, testPassword, 'Test User');
-      if (!registerResult.success) {
-        return { success: false, error: 'Registration test failed' };
-      }
-      
-      // Test login
-      const loginResult = await login(testEmail, testPassword);
-      if (!loginResult.success) {
-        return { success: false, error: 'Login test failed' };
-      }
-      
-      // Test sign out
-      const signOutResult = await signOut();
-      if (!signOutResult.success) {
-        return { success: false, error: 'Sign out test failed' };
-      }
-      
-      return { success: true, message: 'All authentication tests passed' };
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  // Test password reset
-  const testPasswordReset = async (email) => {
-    try {
-      const result = await resetPassword(email);
-      return result;
-    } catch (error) {
-      return { success: false, error: error.message };
-    }
-  };
-
-  const value = {
-    user,
-    isLoading,
-    error,
-    isAuthenticated: !!user,
-    login,
-    register,
-    signOut,
-    resetPassword,
-    updateProfile,
-    sendEmailVerification,
-    deleteAccount,
-    clearError,
-    testAuthSystem,
-    testPasswordReset,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+// Professional Authentication Context
+const JWTAuthContext = createContext();
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = useContext(JWTAuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error('useAuth must be used within a JWTAuthProvider');
   }
   return context;
 };
+
+export const JWTAuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Token management functions
+  const storeTokens = async (accessToken, refreshToken) => {
+    try {
+      await AsyncStorage.multiSet([
+        [TOKEN_KEY, accessToken],
+        [REFRESH_TOKEN_KEY, refreshToken]
+      ]);
+      console.log('✅ Tokens stored successfully');
+    } catch (error) {
+      console.error('❌ Error storing tokens:', error);
+      throw error;
+    }
+  };
+
+  const getStoredTokens = async () => {
+    try {
+      const [accessToken, refreshToken] = await AsyncStorage.multiGet([TOKEN_KEY, REFRESH_TOKEN_KEY]);
+      return {
+        accessToken: accessToken[1],
+        refreshToken: refreshToken[1]
+      };
+    } catch (error) {
+      console.error('❌ Error getting stored tokens:', error);
+      return { accessToken: null, refreshToken: null };
+    }
+  };
+
+  const clearTokens = async () => {
+    try {
+      await AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
+      console.log('✅ Tokens cleared successfully');
+    } catch (error) {
+      console.error('❌ Error clearing tokens:', error);
+    }
+  };
+
+  const storeUserData = async (userData) => {
+    try {
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(userData));
+      console.log('✅ User data stored successfully');
+    } catch (error) {
+      console.error('❌ Error storing user data:', error);
+    }
+  };
+
+  const getStoredUserData = async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_KEY);
+      return userData ? JSON.parse(userData) : null;
+    } catch (error) {
+      console.error('❌ Error getting stored user data:', error);
+      return null;
+    }
+  };
+
+  // Token validation
+  const isTokenValid = (token) => {
+    if (!token) return false;
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+      return payload.exp > currentTime;
+    } catch (error) {
+      console.error('❌ Error validating token:', error);
+      return false;
+    }
+  };
+
+  // Refresh token
+  const refreshAccessToken = async () => {
+    try {
+      const { refreshToken } = await getStoredTokens();
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      console.log('🔄 Refreshing access token...');
+      const response = await jwtApiService.refreshToken(refreshToken);
+      
+      if (response.success) {
+        await storeTokens(response.data.accessToken, refreshToken);
+        console.log('✅ Access token refreshed successfully');
+        return response.data.accessToken;
+      } else {
+        throw new Error(response.error || 'Token refresh failed');
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing token:', error);
+      await logout();
+      throw error;
+    }
+  };
+
+  // Authentication functions
+  const login = async (email, password) => {
+    try {
+      setLoading(true);
+      console.log('🔐 Attempting login for:', email);
+
+      const response = await jwtApiService.login(email, password);
+      
+      if (response.success) {
+        const { user: userData, tokens } = response.data;
+        
+        // Store tokens and user data
+        await storeTokens(tokens.accessToken, tokens.refreshToken);
+        await storeUserData(userData);
+        
+        // Update state
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        console.log('✅ Login successful:', userData.email);
+        return { success: true, user: userData };
+      } else {
+        throw new Error(response.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      await clearTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const register = async (registrationData) => {
+    try {
+      setLoading(true);
+      console.log('📝 Attempting registration for:', registrationData.email);
+
+      const response = await jwtApiService.register(registrationData);
+      
+      if (response.success) {
+        const { user: userData, tokens } = response.data;
+        
+        // Store tokens and user data
+        await storeTokens(tokens.accessToken, tokens.refreshToken);
+        await storeUserData(userData);
+        
+        // Update state
+        setUser(userData);
+        setIsAuthenticated(true);
+        
+        console.log('✅ Registration successful:', userData.email);
+        return { success: true, user: userData };
+      } else {
+        throw new Error(response.error || 'Registration failed');
+      }
+    } catch (error) {
+      console.error('❌ Registration error:', error);
+      await clearTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      console.log('🚪 Logging out user');
+      
+      // Call logout API if user is authenticated
+      if (isAuthenticated) {
+        try {
+          await jwtApiService.logout();
+        } catch (error) {
+          console.warn('⚠️ Logout API call failed:', error);
+        }
+      }
+      
+      // Clear local data
+      await clearTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+      
+      console.log('✅ Logout successful');
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      // Force clear local data even if API call fails
+      await clearTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
+
+  const updateProfile = async (profileData) => {
+    try {
+      console.log('👤 Updating profile for user:', user?.email);
+      
+      const response = await jwtApiService.updateProfile(profileData);
+      
+      if (response.success) {
+        const updatedUser = { ...user, ...response.data };
+        await storeUserData(updatedUser);
+        setUser(updatedUser);
+        
+        console.log('✅ Profile updated successfully');
+        return { success: true, user: updatedUser };
+      } else {
+        throw new Error(response.error || 'Profile update failed');
+      }
+    } catch (error) {
+      console.error('❌ Profile update error:', error);
+      throw error;
+    }
+  };
+
+  const loadProfileData = async () => {
+    try {
+      if (!isAuthenticated) return;
+      
+      console.log('📋 Loading profile data for user:', user?.email);
+      
+      const response = await jwtApiService.getProfile();
+      
+      if (response.success) {
+        const updatedUser = { ...user, ...response.data };
+        await storeUserData(updatedUser);
+        setUser(updatedUser);
+        
+        console.log('✅ Profile data loaded successfully');
+        return updatedUser;
+      } else {
+        throw new Error(response.error || 'Failed to load profile');
+      }
+    } catch (error) {
+      console.error('❌ Profile data load error:', error);
+      throw error;
+    }
+  };
+
+  const forgotPassword = async (email) => {
+    try {
+      console.log('🔑 Requesting password reset for:', email);
+      
+      const response = await jwtApiService.forgotPassword(email);
+      
+      if (response.success) {
+        console.log('✅ Password reset email sent');
+        return { success: true, message: response.message };
+      } else {
+        throw new Error(response.error || 'Password reset request failed');
+      }
+    } catch (error) {
+      console.error('❌ Password reset error:', error);
+      throw error;
+    }
+  };
+
+  const resetPassword = async (token, password) => {
+    try {
+      console.log('🔑 Resetting password with token');
+      
+      const response = await jwtApiService.resetPassword(token, password);
+      
+      if (response.success) {
+        console.log('✅ Password reset successfully');
+        return { success: true, message: response.message };
+      } else {
+        throw new Error(response.error || 'Password reset failed');
+      }
+    } catch (error) {
+      console.error('❌ Password reset error:', error);
+      throw error;
+    }
+  };
+
+  const verifyEmail = async (token) => {
+    try {
+      console.log('📧 Verifying email with token');
+      
+      const response = await jwtApiService.verifyEmail(token);
+      
+      if (response.success) {
+        // Update user verification status
+        const updatedUser = { ...user, emailVerified: true };
+        await storeUserData(updatedUser);
+        setUser(updatedUser);
+        
+        console.log('✅ Email verified successfully');
+        return { success: true, user: updatedUser };
+      } else {
+        throw new Error(response.error || 'Email verification failed');
+      }
+    } catch (error) {
+      console.error('❌ Email verification error:', error);
+      throw error;
+    }
+  };
+
+  // Initialize authentication state
+  const initializeAuth = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 Initializing authentication state...');
+      
+      const { accessToken, refreshToken } = await getStoredTokens();
+      const storedUserData = await getStoredUserData();
+      
+      if (accessToken && refreshToken && storedUserData) {
+        // Check if access token is still valid
+        if (isTokenValid(accessToken)) {
+          console.log('✅ Valid access token found, user authenticated');
+          setUser(storedUserData);
+          setIsAuthenticated(true);
+        } else {
+          console.log('⚠️ Access token expired, attempting refresh...');
+          try {
+            await refreshAccessToken();
+            setUser(storedUserData);
+            setIsAuthenticated(true);
+            console.log('✅ Token refreshed successfully');
+          } catch (refreshError) {
+            console.log('❌ Token refresh failed, user needs to login again');
+            await clearTokens();
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        }
+      } else {
+        console.log('ℹ️ No stored authentication data found');
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    } catch (error) {
+      console.error('❌ Error initializing authentication:', error);
+      await clearTokens();
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Initialize on mount
+  useEffect(() => {
+    initializeAuth();
+  }, [initializeAuth]);
+
+  // Auto-refresh token before expiration
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const { accessToken } = getStoredTokens();
+    if (!accessToken) return;
+
+    try {
+      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      const expirationTime = payload.exp * 1000; // Convert to milliseconds
+      const currentTime = Date.now();
+      const timeUntilExpiry = expirationTime - currentTime;
+      
+      // Refresh token 5 minutes before expiration
+      const refreshTime = Math.max(timeUntilExpiry - 5 * 60 * 1000, 60000); // At least 1 minute
+      
+      console.log(`🔄 Token will refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`);
+      
+      const refreshTimer = setTimeout(async () => {
+        try {
+          await refreshAccessToken();
+        } catch (error) {
+          console.error('❌ Auto-refresh failed:', error);
+        }
+      }, refreshTime);
+
+      return () => clearTimeout(refreshTimer);
+    } catch (error) {
+      console.error('❌ Error setting up token refresh:', error);
+    }
+  }, [isAuthenticated]);
+
+  const value = {
+    // State
+    user,
+    loading,
+    isAuthenticated,
+    
+    // Authentication functions
+    login,
+    register,
+    logout,
+    forgotPassword,
+    resetPassword,
+    verifyEmail,
+    
+    // Profile functions
+    updateProfile,
+    loadProfileData,
+    
+    // Token management
+    refreshAccessToken,
+    
+    // Utility functions
+    initializeAuth
+  };
+
+  return (
+    <JWTAuthContext.Provider value={value}>
+      {children}
+    </JWTAuthContext.Provider>
+  );
+};
+
+export default JWTAuthContext;

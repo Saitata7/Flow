@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Alert } from 'react-native';
 import AppNavigator from './navigation/AppNavigator';
 import { NotificationProvider } from './context/NotificationContext';
-import { AuthProvider } from './context/AuthContext';
+import { JWTAuthProvider } from './context/JWTAuthContext';
 import { FlowsProvider } from './context/FlowContext';
 import { ActivityProvider } from './context/ActivityContext';
 // Environment variables are handled via React Native's built-in support
@@ -56,7 +56,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>
+        <JWTAuthProvider>
           <FlowsProvider>
             <ActivityProvider>
               <NotificationProvider>
@@ -64,7 +64,7 @@ export default function App() {
               </NotificationProvider>
             </ActivityProvider>
           </FlowsProvider>
-        </AuthProvider>
+        </JWTAuthProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

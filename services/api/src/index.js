@@ -10,9 +10,9 @@ const swaggerUi = require('@fastify/swagger-ui');
 const { RedisClient } = require('./redis/client');
 const { errorHandler } = require('./middleware/errorHandler');
 const { requestLogger } = require('./middleware/requestLogger');
-const { authMiddleware } = require('./middleware/auth');
+const { authenticateToken } = require('./middleware/jwtAuth');
 const { testConnection, closePool } = require('./db/config');
-const authRoutes = require('./routes/auth');
+const jwtAuthRoutes = require('./routes/jwtAuth');
 // const flowsRoutes = require('./routes/flows');
 // const flowEntriesRoutes = require('./routes/flowEntries');
 // const plansRoutes = require('./routes/plans');
@@ -439,12 +439,12 @@ const registerRoutes = async () => {
   fastify.decorate('redis', redis);
 
   try {
-    console.log('🔐 Registering auth routes at /v1/auth ...');
-    await fastify.register(authRoutes, { prefix: '/v1/auth' });
-    console.log('✅ Auth routes registered at /v1/auth');
+    console.log('🔐 Registering JWT auth routes at /v1/auth ...');
+    await fastify.register(jwtAuthRoutes, { prefix: '/v1/auth' });
+    console.log('✅ JWT auth routes registered at /v1/auth');
   } catch (error) {
-    console.error('❌ Failed to register auth routes:', error.message);
-    console.error('❌ Auth routes error stack:', error.stack);
+    console.error('❌ Failed to register JWT auth routes:', error.message);
+    console.error('❌ JWT auth routes error stack:', error.stack);
   }
 
   try {

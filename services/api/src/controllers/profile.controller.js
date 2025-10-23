@@ -1,8 +1,8 @@
 // controllers/profile.controller.js
-// Enhanced profile management controller
+// Enhanced profile management controller with JWT authentication
 // Handles comprehensive user profile data including demographics and privacy settings
 
-const { UserModel, UserProfileModel } = require('../db/models');
+const UserModel = require('../db/userModel');
 const { ConflictError, NotFoundError, ForbiddenError, ValidationError } = require('../middleware/errorHandler');
 const moment = require('moment');
 

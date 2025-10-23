@@ -4,7 +4,7 @@ import { format, addDays } from 'date-fns';
 import apiService from '../services/apiService';
 import syncService from '../services/syncService';
 import notificationService from '../services/notificationService';
-import { useAuth } from './AuthContext';
+import { useAuth } from './JWTAuthContext';
 import logger from '../utils/logger';
 
 const FLOWS_STORAGE_KEY = 'flows';
