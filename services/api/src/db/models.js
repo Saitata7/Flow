@@ -512,21 +512,41 @@ class UserModel {
         return existingUser;
       }
       
-      // Create new user with Firebase UID
+      // Check which columns exist in the database
+      const tableInfo = await db.raw(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND table_schema = 'public'
+      `);
+      
+      const existingColumns = tableInfo.rows.map(row => row.column_name);
+      console.log('📋 UserModel: Existing columns for user creation:', existingColumns);
+      
+      // Create new user with only existing columns
       const userData = {
         firebase_uid: firebaseUserData.id,
         email: firebaseUserData.email,
         display_name: firebaseUserData.name || firebaseUserData.email?.split('@')[0] || 'User',
         email_verified: firebaseUserData.emailVerified || false,
-        photo_url: firebaseUserData.picture || null,
-        auth_provider: 'firebase',
-        auth_metadata: JSON.stringify({
-          provider: 'firebase',
-          created_via: 'auto_create'
-        }),
         created_at: new Date(),
         updated_at: new Date(),
       };
+      
+      // Only add columns that exist in the database
+      if (existingColumns.includes('photo_url') && firebaseUserData.picture) {
+        userData.photo_url = firebaseUserData.picture;
+      }
+      if (existingColumns.includes('auth_provider')) {
+        userData.auth_provider = 'firebase';
+      }
+      if (existingColumns.includes('auth_metadata')) {
+        userData.auth_metadata = JSON.stringify({
+          provider: 'firebase',
+          created_via: 'auto_create'
+        });
+      }
+      
+      console.log('📋 UserModel: User data to insert:', userData);
       
       const [newUser] = await db(this.tableName).insert(userData).returning('*');
       console.log('✅ UserModel: User created successfully:', newUser.id);
