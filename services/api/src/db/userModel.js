@@ -92,10 +92,19 @@ class UserModel {
         }
       }
       
-      // Prepare user data
+      // Check which columns exist in the database
+      const tableInfo = await db.raw(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' AND table_schema = 'public'
+      `);
+      
+      const existingColumns = tableInfo.rows.map(row => row.column_name);
+      console.log('📋 UserModel: Existing columns for user creation:', existingColumns);
+      
+      // Prepare user data with only existing columns
       const newUserData = {
         email: userData.email,
-        password_hash: userData.passwordHash,
         display_name: userData.displayName || userData.email.split('@')[0],
         first_name: userData.firstName || '',
         last_name: userData.lastName || '',
@@ -104,13 +113,28 @@ class UserModel {
         date_of_birth: userData.dateOfBirth || null,
         gender: userData.gender || '',
         email_verified: false,
-        email_verification_token: userData.emailVerificationToken,
-        email_verification_expires: userData.emailVerificationExpires,
-        role: userData.role || 'user',
-        status: 'active',
         created_at: new Date(),
         updated_at: new Date(),
       };
+      
+      // Only add columns that exist in the database
+      if (existingColumns.includes('password_hash') && userData.passwordHash) {
+        newUserData.password_hash = userData.passwordHash;
+      }
+      if (existingColumns.includes('email_verification_token') && userData.emailVerificationToken) {
+        newUserData.email_verification_token = userData.emailVerificationToken;
+      }
+      if (existingColumns.includes('email_verification_expires') && userData.emailVerificationExpires) {
+        newUserData.email_verification_expires = userData.emailVerificationExpires;
+      }
+      if (existingColumns.includes('role')) {
+        newUserData.role = userData.role || 'user';
+      }
+      if (existingColumns.includes('status')) {
+        newUserData.status = 'active';
+      }
+      
+      console.log('📋 UserModel: User data to insert:', newUserData);
       
       const [user] = await db(this.tableName).insert(newUserData).returning('*');
       console.log('✅ UserModel: User created successfully:', user.id);

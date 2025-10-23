@@ -266,14 +266,19 @@ const jwtAuthRoutes = async fastify => {
         throw new UnauthorizedError('Invalid email or password');
       }
       
+      // Check if user has password_hash column (JWT auth)
+      if (!user.password_hash) {
+        throw new UnauthorizedError('Account not set up for password login. Please use social login or reset your password.');
+      }
+      
       // Check password
       const isPasswordValid = await comparePassword(password, user.password_hash);
       if (!isPasswordValid) {
         throw new UnauthorizedError('Invalid email or password');
       }
       
-      // Check if user is active
-      if (user.status !== 'active') {
+      // Check if user is active (if status column exists)
+      if (user.status && user.status !== 'active') {
         throw new UnauthorizedError('Account is not active');
       }
       
