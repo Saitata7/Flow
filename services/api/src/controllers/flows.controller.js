@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid');
 const moment = require('moment');
 const { NotFoundError, ConflictError, ForbiddenError } = require('../middleware/errorHandler');
 const { FlowModel, FlowEntryModel } = require('../db/models');
-const UserModel = require('../db/userModel');
+const UserModel = require('../db/minimalJWTUserModel');
 
 // Helper functions
 const generateId = () => uuidv4();

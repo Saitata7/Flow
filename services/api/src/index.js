@@ -330,14 +330,14 @@ const registerRoutes = async () => {
         ORDER BY ordinal_position
       `);
       
-      return reply.json({ 
+      return reply.send({ 
         ok: true, 
         timestamp: new Date().toISOString(),
         users_table_columns: rows,
         total_columns: rows.length
       });
     } catch (err) {
-      return reply.status(500).json({ 
+      return reply.status(500).send({ 
         ok: false, 
         error: err.message, 
         timestamp: new Date().toISOString(),
