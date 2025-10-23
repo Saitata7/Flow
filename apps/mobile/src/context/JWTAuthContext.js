@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
+import { Buffer } from '@craftzdog/react-native-buffer';
 import jwtApiService from '../services/jwtApiService';
 
 // JWT Token Management
@@ -88,7 +89,9 @@ export const JWTAuthProvider = ({ children }) => {
     if (!token) return false;
     
     try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Use Buffer instead of atob for React Native
+      const base64 = token.split('.')[1];
+      const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
       const currentTime = Math.floor(Date.now() / 1000);
       return payload.exp > currentTime;
     } catch (error) {
