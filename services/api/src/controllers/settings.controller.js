@@ -2,7 +2,7 @@
 // Settings and privacy management controller
 // Handles user settings, privacy preferences, and cross-device sync
 
-const { FlowModel } = require('../db/models');
+const { FlowModel } = require('../db/flowModel');
 const { ConflictError, NotFoundError, ForbiddenError } = require('../middleware/errorHandler');
 const moment = require('moment');
 
