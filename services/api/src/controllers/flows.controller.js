@@ -49,7 +49,7 @@ const createFlow = async (request, reply) => {
     tags: flowData.tags,
     archived: false,
     visibility: flowData.visibility || 'private',
-    owner_id: userId, // Use UUID primary key, not Firebase UID
+    owner_id: userId, // Use UUID primary key
     schema_version: 1,
   };
 

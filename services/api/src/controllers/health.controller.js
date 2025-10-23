@@ -13,8 +13,7 @@ const healthCheck = async (request, reply) => {
       environment: process.env.NODE_ENV || 'development',
       services: {
         database: 'healthy',
-        redis: 'healthy',
-        firebase: 'healthy'
+        redis: 'healthy'
       }
     };
 
@@ -33,7 +32,6 @@ const readinessCheck = async (request, reply) => {
   try {
     // Check database connection
     // Check Redis connection
-    // Check Firebase connection
     
     return reply.send({
       status: 'ready',

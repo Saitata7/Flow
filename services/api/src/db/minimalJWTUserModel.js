@@ -91,7 +91,6 @@ class MinimalJWTUserModel {
       
       // Create user with minimal schema
       const newUserData = {
-        firebase_uid: `jwt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
         email: userData.email,
         display_name: userData.username || userData.email.split('@')[0],
         created_at: new Date(),

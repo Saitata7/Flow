@@ -11,10 +11,8 @@ import { ActivityProvider } from './context/ActivityContext';
 // Environment variables are handled via React Native's built-in support
 // No need to import dotenv in React Native environment
 
-import './config/firebaseInit'; // Initialize Firebase
-
-// Firebase is initialized via firebaseInit.js
-console.log('🔥 Firebase initialized with React Native Firebase');
+// JWT Authentication is initialized via JWTAuthContext
+console.log('🔐 JWT Authentication initialized');
 
 // Global error handler
 const originalConsoleError = console.error;

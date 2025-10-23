@@ -76,30 +76,20 @@ jest.mock('react-native', () => ({
   },
 }));
 
-// Mock Firebase
-jest.mock('@react-native-firebase/app', () => ({
+// Mock JWT API Service
+jest.mock('../src/services/jwtApiService', () => ({
   __esModule: true,
-  default: () => ({
-    auth: () => ({
-      signInWithEmailAndPassword: jest.fn(),
-      signOut: jest.fn(),
-      currentUser: null,
-      onAuthStateChanged: jest.fn(),
-    }),
-  }),
+  default: {
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn(),
+    getProfile: jest.fn(),
+    updateProfile: jest.fn(),
+    healthCheck: jest.fn(),
+  },
 }));
 
-jest.mock('@react-native-firebase/auth', () => ({
-  __esModule: true,
-  default: () => ({
-    signInWithEmailAndPassword: jest.fn(),
-    signOut: jest.fn(),
-    currentUser: null,
-    onAuthStateChanged: jest.fn(),
-  }),
-}));
-
-// Mock Google Sign-In
+// Mock Google Sign-In (disabled in JWT-only mode)
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {
     configure: jest.fn(),

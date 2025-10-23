@@ -194,15 +194,6 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
-
-    // Firebase BOM for consistent versions
-    implementation platform('com.google.firebase:firebase-bom:33.1.2')
-    
-    // Firebase Auth
-    implementation 'com.google.firebase:firebase-auth'
-    
-    // Google Sign-In
-    implementation 'com.google.android.gms:play-services-auth:21.2.0'
     
     // Multidex support
     implementation 'androidx.multidex:multidex:2.0.1'

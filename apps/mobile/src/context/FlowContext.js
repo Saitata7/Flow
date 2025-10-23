@@ -190,7 +190,7 @@ export const FlowsProvider = ({ children }) => {
     const authDebug = await apiService.debugAuthState();
     logger.log('FlowsContext: Auth debug result:', authDebug);
     
-    // Double-check authentication with actual Firebase token
+    // Double-check authentication with actual JWT token
     const userAuthenticated = await apiService.isUserAuthenticated();
     logger.log('FlowsContext: userAuthenticated:', userAuthenticated);
     

@@ -117,7 +117,7 @@ const Login = ({ navigation, route }) => {
   };
 
   const handleLogin = async () => {
-    console.log('🔐 Login: Starting Firebase authentication...');
+    console.log('🔐 Login: Starting JWT authentication...');
     console.log('🔐 Login: Email:', formData.email);
     console.log('🔐 Login: Password length:', formData.password.length);
     console.log('🔐 Login: isLoading:', isLoading);
@@ -156,13 +156,13 @@ const Login = ({ navigation, route }) => {
     setIsSubmitting(true);
 
     try {
-      console.log('🔐 Login: Calling Firebase authentication...');
+      console.log('🔐 Login: Calling JWT authentication...');
       
-      // Use Firebase authentication with proper error handling
+      // Use JWT authentication with proper error handling
       const result = await login(email, password);
       
       if (result.success) {
-        console.log('✅ Login: Firebase authentication successful');
+        console.log('✅ Login: JWT authentication successful');
         console.log('✅ Login: User data:', result.user);
         
         // Play success animation
@@ -182,21 +182,21 @@ const Login = ({ navigation, route }) => {
       }
       
     } catch (error) {
-      console.error('❌ Login: Firebase authentication failed:', error);
+      console.error('❌ Login: JWT authentication failed:', error);
       
-      // Handle specific Firebase error codes
+      // Handle specific JWT error codes
       let errorMessage = 'Login failed. Please try again.';
       
       if (error.message) {
-        if (error.message.includes('user-not-found')) {
+        if (error.message.includes('user-not-found') || error.message.includes('Invalid credentials')) {
           errorMessage = 'No account found with this email address.';
-        } else if (error.message.includes('wrong-password')) {
+        } else if (error.message.includes('wrong-password') || error.message.includes('Invalid password')) {
           errorMessage = 'Incorrect password. Please try again.';
         } else if (error.message.includes('invalid-email')) {
           errorMessage = 'Please enter a valid email address.';
-        } else if (error.message.includes('user-disabled')) {
+        } else if (error.message.includes('user-disabled') || error.message.includes('Account disabled')) {
           errorMessage = 'This account has been disabled.';
-        } else if (error.message.includes('too-many-requests')) {
+        } else if (error.message.includes('too-many-requests') || error.message.includes('Rate limit')) {
           errorMessage = 'Too many failed attempts. Please try again later.';
         } else if (error.message.includes('network-request-failed')) {
           errorMessage = 'Network error. Please check your connection.';
