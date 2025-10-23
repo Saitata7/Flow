@@ -1,69 +1,63 @@
-// src/App.js
+// src/App.js - Step 4: Add Real Login Screen
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Alert } from 'react-native';
-import AppNavigator from './navigation/AppNavigator';
-import { NotificationProvider } from './context/NotificationContext';
+import { View, Text, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { JWTAuthProvider } from './context/JWTAuthContext';
-import { FlowsProvider } from './context/FlowContext';
-import { ActivityProvider } from './context/ActivityContext';
-// Environment variables are handled via React Native's built-in support
-// No need to import dotenv in React Native environment
+import Login from './screens/auth/Login';
 
-// JWT Authentication is initialized via JWTAuthContext
-console.log('🔐 JWT Authentication initialized');
+const Stack = createNativeStackNavigator();
 
-// Global error handler
-const originalConsoleError = console.error;
-console.error = (...args) => {
-  // Filter out known non-critical errors
-  const errorMessage = args.join(' ');
-  if (
-    errorMessage.includes('CanceledError') ||
-    errorMessage.includes('Request canceled') ||
-    errorMessage.includes('Network Error') ||
-    errorMessage.includes('timeout')
-  ) {
-    // These are expected errors, don't log them as errors
-    console.log('ℹ️ Expected error (not critical):', ...args);
-    return;
-  }
-  
-  // Log other errors normally
-  originalConsoleError(...args);
-};
-
-// Create QueryClient instance with proper configuration
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      retry: 1,
-      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 30000),
-      refetchOnWindowFocus: false,
-    },
-    mutations: {
-      retry: 1,
-    },
-  },
-});
-
-// Main App component that wraps everything with QueryClientProvider
-export default function App() {
+// Simple home screen for testing
+function HomeScreen() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <JWTAuthProvider>
-          <FlowsProvider>
-            <ActivityProvider>
-              <NotificationProvider>
-                <AppNavigator />
-              </NotificationProvider>
-            </ActivityProvider>
-          </FlowsProvider>
-        </JWTAuthProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <View style={styles.container}>
+      <Text style={styles.text}>Flow App - Home Screen</Text>
+      <Text style={styles.subtext}>Login successful! Navigation working!</Text>
+    </View>
   );
 }
+
+// Navigation component
+function AppNavigator() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator 
+        initialRouteName="Login"
+        screenOptions={{
+          headerShown: false, // Hide headers for cleaner look
+        }}
+      >
+        <Stack.Screen name="Login" component={Login} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+// Main App component with JWT Auth Provider and Navigation
+export default function App() {
+  return (
+    <JWTAuthProvider>
+      <AppNavigator />
+    </JWTAuthProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  text: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  subtext: {
+    fontSize: 16,
+    color: '#666',
+  },
+});

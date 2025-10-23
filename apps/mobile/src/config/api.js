@@ -28,40 +28,52 @@ const API_CONFIG = {
 
 // Get current environment
 const getEnvironment = () => {
-  return process.env.NODE_ENV || 'development';
+  try {
+    return process.env.NODE_ENV || 'production'; // Default to production for release builds
+  } catch (error) {
+    console.warn('⚠️ Error getting environment, defaulting to production:', error);
+    return 'production';
+  }
 };
 
 // Get current platform
 const getPlatform = () => {
-  return Platform.OS;
+  try {
+    return Platform.OS || 'android'; // Default to android for release builds
+  } catch (error) {
+    console.warn('⚠️ Error getting platform, defaulting to android:', error);
+    return 'android';
+  }
 };
 
 // Get API base URL
 const getApiBaseUrl = () => {
-  const env = getEnvironment();
-  const platform = getPlatform();
-  
-  // Check if custom URL is provided via environment variable
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
-  }
-  
-  // Use environment-specific URL
-  const config = API_CONFIG[env];
-  
-  if (config) {
-    // For development, try to detect if running on device or emulator
-    if (env === 'development') {
-      // You can add logic here to detect device vs emulator
-      // For now, default to Android emulator IP
-      return config.android;
+  try {
+    const env = getEnvironment();
+    const platform = getPlatform();
+    
+    console.log('🔍 API Config: Environment:', env, 'Platform:', platform);
+    
+    // Check if custom URL is provided via environment variable
+    if (process.env.EXPO_PUBLIC_API_URL) {
+      console.log('🔍 API Config: Using custom URL:', process.env.EXPO_PUBLIC_API_URL);
+      return process.env.EXPO_PUBLIC_API_URL;
     }
     
-    return config[platform] || config.android;
+    // Use environment-specific URL
+    const config = API_CONFIG[env];
+    if (config && config[platform]) {
+      console.log('🔍 API Config: Using config URL:', config[platform]);
+      return config[platform];
+    }
+    
+    // Fallback to default URL
+    console.log('🔍 API Config: Using fallback URL');
+    return 'https://flow-api-firebase-891963913698.us-central1.run.app';
+  } catch (error) {
+    console.error('❌ Error getting API base URL:', error);
+    return 'https://flow-api-firebase-891963913698.us-central1.run.app';
   }
-  
-  // Fallback
-  return process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-firebase-891963913698.us-central1.run.app';
 };
 
 // API Configuration object
@@ -81,4 +93,5 @@ console.log('  Environment:', getEnvironment());
 console.log('  Platform:', getPlatform());
 console.log('  Base URL:', config.baseURL);
 
+export { getApiBaseUrl };
 export default config;

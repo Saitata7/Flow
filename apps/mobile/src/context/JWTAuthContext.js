@@ -29,6 +29,10 @@ export const JWTAuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  console.log('🔍 JWTAuthProvider: Context initialized');
+  console.log('🔍 JWTAuthProvider: loading state:', loading);
+  console.log('🔍 JWTAuthProvider: isAuthenticated state:', isAuthenticated);
+
   // Token management functions
   const storeTokens = async (accessToken, refreshToken) => {
     try {
@@ -128,6 +132,8 @@ export const JWTAuthProvider = ({ children }) => {
   // Authentication functions
   const login = async (email, password) => {
     try {
+      console.log('🔐 JWTAuthContext: Login function called with email:', email);
+      console.log('🔐 JWTAuthContext: Current loading state:', loading);
       setLoading(true);
       console.log('🔐 Attempting login for:', email);
 
@@ -412,7 +418,10 @@ export const JWTAuthProvider = ({ children }) => {
     // State
     user,
     loading,
+    isLoading: loading, // Alias for compatibility
     isAuthenticated,
+    error: null, // Add error state for compatibility
+    clearError: () => {}, // Add clearError function for compatibility
     
     // Authentication functions
     login,

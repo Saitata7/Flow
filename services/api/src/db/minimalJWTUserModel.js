@@ -93,6 +93,7 @@ class MinimalJWTUserModel {
       const newUserData = {
         email: userData.email,
         display_name: userData.username || userData.email.split('@')[0],
+        firebase_uid: `jwt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique firebase_uid for JWT users
         created_at: new Date(),
         updated_at: new Date(),
       };

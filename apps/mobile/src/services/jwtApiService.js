@@ -10,8 +10,13 @@ const REFRESH_TOKEN_KEY = 'jwt_refresh_token';
 
 class JWTAPIService {
   constructor() {
-    this.baseURL = getApiBaseUrl();
-    console.log('🌐 JWT API Service initialized with base URL:', this.baseURL);
+    try {
+      this.baseURL = getApiBaseUrl();
+      console.log('🌐 JWT API Service initialized with base URL:', this.baseURL);
+    } catch (error) {
+      console.error('❌ Error initializing JWT API Service:', error);
+      this.baseURL = 'https://flow-api-firebase-891963913698.us-central1.run.app';
+    }
   }
 
   // Token management
@@ -80,6 +85,11 @@ class JWTAPIService {
 
       console.log(`🌐 API Request: ${config.method} ${url}`);
       
+      // Check if fetch is available
+      if (typeof fetch === 'undefined') {
+        throw new Error('Fetch is not available');
+      }
+      
       const response = await fetch(url, config);
       
       // Handle token expiration
@@ -126,10 +136,23 @@ class JWTAPIService {
 
   // Authentication endpoints
   async login(email, password) {
-    return this.makeRequest('/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      console.log('🌐 JWT API Service: Starting login for:', email);
+      console.log('🌐 JWT API Service: Base URL:', this.baseURL);
+      console.log('🌐 JWT API Service: Making request to:', `${this.baseURL}/v1/auth/login`);
+      
+      const response = await this.makeRequest('/v1/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      
+      console.log('🌐 JWT API Service: Login response:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ JWT API Service: Login error:', error);
+      console.error('❌ JWT API Service: Error details:', error.message, error.stack);
+      return { success: false, error: error.message };
+    }
   }
 
   async register(registrationData) {
