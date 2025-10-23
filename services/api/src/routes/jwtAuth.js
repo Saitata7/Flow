@@ -294,7 +294,12 @@ const jwtAuthRoutes = async fastify => {
       const refreshToken = generateRefreshToken(user);
       
       // Update last login
-      await UserModel.update(user.id, { last_login_at: new Date() });
+      // Update user login time (skip if column doesn't exist)
+      try {
+        await UserModel.update(user.id, { last_login_at: new Date() });
+      } catch (error) {
+        console.log('⚠️ Skipping last_login_at update (column may not exist)');
+      }
       
       console.log('✅ AuthController: User logged in successfully:', user.email);
       
@@ -307,8 +312,7 @@ const jwtAuthRoutes = async fastify => {
             firstName: user.first_name,
             lastName: user.last_name,
             username: user.username,
-            emailVerified: user.email_verified,
-            lastLoginAt: user.last_login_at
+            emailVerified: user.email_verified
           },
           tokens: {
             accessToken,

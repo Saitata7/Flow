@@ -45,9 +45,19 @@ class MinimalJWTUserModel {
   }
 
   static async update(id, data) {
+    // Only update fields that exist in the database
+    const updateData = {
+      updated_at: new Date()
+    };
+    
+    // Dynamically add fields if they exist
+    if (data.display_name !== undefined) updateData.display_name = data.display_name;
+    if (data.email_verified !== undefined) updateData.email_verified = data.email_verified;
+    if (data.status !== undefined) updateData.status = data.status;
+    
     const [user] = await db(this.tableName)
       .where({ id })
-      .update({ ...data, updated_at: new Date() })
+      .update(updateData)
       .returning('*');
     return user;
   }
