@@ -1,7 +1,7 @@
 // hooks/useSettings.js
 import { useState, useEffect, useCallback } from 'react';
 import settingsService from '../services/settingsService';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/JWTAuthContext';
 
 export const useSettings = () => {
   const { user } = useAuth();

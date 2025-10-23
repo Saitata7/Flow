@@ -4,7 +4,7 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography, layout } from '../../../styles';
 import useFirstTime from '../../hooks/useFirstTime';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/JWTAuthContext';
 
 const Splash = () => {
   const navigation = useNavigation();

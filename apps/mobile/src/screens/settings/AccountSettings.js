@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useSettings } from '../../hooks/useSettings';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/JWTAuthContext';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 
