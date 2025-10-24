@@ -4,6 +4,7 @@ import { JWTAuthProvider } from './context/JWTAuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { FlowsProvider } from './context/FlowContext';
 import { ActivityProvider } from './context/ActivityContext';
+import { NotificationProvider } from './context/NotificationContext';
 import AppNavigator from './navigation/AppNavigator';
 
 // Main App component with JWT Auth Provider and Full Navigation
@@ -13,7 +14,9 @@ export default function App() {
       <JWTAuthProvider>
         <FlowsProvider>
           <ActivityProvider>
-            <AppNavigator />
+            <NotificationProvider>
+              <AppNavigator />
+            </NotificationProvider>
           </ActivityProvider>
         </FlowsProvider>
       </JWTAuthProvider>

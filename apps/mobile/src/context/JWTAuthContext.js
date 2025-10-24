@@ -211,30 +211,43 @@ export const JWTAuthProvider = ({ children }) => {
   };
 
   const logout = async () => {
+    console.log('🚪 Logging out user');
+    
     try {
-      console.log('🚪 Logging out user');
-      
       // Call logout API if user is authenticated
       if (isAuthenticated) {
         try {
           await jwtApiService.logout();
+          console.log('✅ Logout API call successful');
         } catch (error) {
           console.warn('⚠️ Logout API call failed:', error);
+          // Continue with local logout even if API fails
         }
       }
-      
-      // Clear local data
-      await clearTokens();
-      setUser(null);
-      setIsAuthenticated(false);
-      
-      console.log('✅ Logout successful');
     } catch (error) {
-      console.error('❌ Logout error:', error);
-      // Force clear local data even if API call fails
+      console.warn('⚠️ Logout API call error:', error);
+      // Continue with local logout even if API fails
+    }
+    
+    try {
+      // Clear local data - this should always succeed
       await clearTokens();
+      
+      // Force clear state immediately
       setUser(null);
       setIsAuthenticated(false);
+      
+      console.log('✅ Logout successful - local data cleared');
+      
+      // Force a small delay to ensure state updates propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+    } catch (error) {
+      console.error('❌ Error clearing local data:', error);
+      // Force clear state even if AsyncStorage fails
+      setUser(null);
+      setIsAuthenticated(false);
+      console.log('✅ Logout successful - state cleared (AsyncStorage may have failed)');
     }
   };
 
@@ -400,7 +413,9 @@ export const JWTAuthProvider = ({ children }) => {
     if (!accessToken) return;
 
     try {
-      const payload = JSON.parse(atob(accessToken.split('.')[1]));
+      // Use Buffer instead of atob for React Native
+      const base64 = accessToken.split('.')[1];
+      const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
       const expirationTime = payload.exp * 1000; // Convert to milliseconds
       const currentTime = Date.now();
       const timeUntilExpiry = expirationTime - currentTime;

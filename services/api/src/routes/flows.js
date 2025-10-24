@@ -181,6 +181,7 @@ const flowsRoutes = async fastify => {
             progressMode: { type: 'string', enum: ['sum', 'average', 'latest'] },
             tags: { type: 'array', items: { type: 'string', maxLength: 30 }, maxItems: 10 },
             visibility: { type: 'string', enum: ['private', 'friends', 'public'] },
+            storagePreference: { type: 'string', enum: ['local', 'cloud'] },
           },
         },
         response: {

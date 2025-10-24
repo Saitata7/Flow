@@ -1,5 +1,5 @@
 // navigation/AppNavigator.js
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar, ActivityIndicator, View, Text, StyleSheet } from 'react-native';
@@ -40,6 +40,7 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { user, isLoading: authLoading } = useAuth();
+  const navigationRef = useRef(null);
 
   useEffect(() => {
     Haptics.selectionAsync();
@@ -51,6 +52,27 @@ const AppNavigator = () => {
       console.error('❌ Error initializing background sync service:', error);
     }
   }, []);
+
+  // Handle navigation based on authentication state changes
+  useEffect(() => {
+    if (!authLoading && navigationRef.current) {
+      console.log('🔍 AppNavigator: Auth state changed, user:', user);
+      
+      if (user && user.id && user.email) {
+        console.log('✅ AppNavigator: User authenticated, navigating to Main');
+        navigationRef.current.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        });
+      } else {
+        console.log('🔍 AppNavigator: No authenticated user, navigating to Auth');
+        navigationRef.current.reset({
+          index: 0,
+          routes: [{ name: 'Auth' }],
+        });
+      }
+    }
+  }, [user, authLoading]);
 
   // Show loading while checking auth status
   if (authLoading) {
@@ -74,13 +96,19 @@ const AppNavigator = () => {
   // Determine initial route based on authentication and guest mode
   const getInitialRoute = () => {
     try {
+      console.log('🔍 AppNavigator: Determining initial route');
+      console.log('🔍 AppNavigator: User:', user);
+      console.log('🔍 AppNavigator: AuthLoading:', authLoading);
+      
       // Only go to Main if we have a REAL authenticated user
       // For newly registered users, emailVerified might be false initially
       if (user && user.id && user.email) {
+        console.log('✅ AppNavigator: User authenticated, going to Main');
         return 'Main';
       }
       
       // Default to Auth screen for ANY uncertainty
+      console.log('🔍 AppNavigator: No authenticated user, going to Auth');
       return 'Auth';
     } catch (error) {
       console.error('❌ Error determining initial route:', error);
@@ -99,7 +127,7 @@ const AppNavigator = () => {
           backgroundColor="transparent"
           barStyle="dark-content"
         />
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <Stack.Navigator 
             screenOptions={screenOptions}
             initialRouteName={initialRoute}

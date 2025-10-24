@@ -74,26 +74,24 @@ export default function HomePage({ navigation }) {
   
   // ALL EFFECTS AND HOOKS MUST BE CALLED HERE - BEFORE ANY EARLY RETURNS
   
-  // Refresh flows when home page comes into focus (only if flows are empty and user is authenticated)
+  // Refresh flows when home page comes into focus
   useFocusEffect(
     React.useCallback(() => {
       console.log('HomePage: Checking flows on focus - current count:', flows.length);
       console.log('HomePage: User authenticated:', !!user);
       
-      // Only load data if we have a user and no flows
-      if (user && flows.length === 0) {
-        console.log('HomePage: User authenticated and no flows found, loading data');
+      // Always try to load data if user is authenticated
+      if (user) {
+        console.log('HomePage: User authenticated, refreshing flows data');
         try {
           loadData();
         } catch (error) {
           console.error('HomePage: Error loading data:', error);
         }
-      } else if (!user) {
-        console.log('HomePage: No user authenticated, skipping data load');
       } else {
-        console.log('HomePage: Flows already loaded, skipping refresh');
+        console.log('HomePage: No user authenticated, skipping data load');
       }
-    }, [loadData, flows.length, user])
+    }, [loadData, user])
   );
 
   // Profile refresh removed to prevent continuous reloading

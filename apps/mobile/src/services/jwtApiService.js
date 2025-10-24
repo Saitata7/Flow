@@ -261,6 +261,11 @@ class JWTAPIService {
   }
 
   async createFlow(flowData) {
+    // Only create cloud flows via API
+    if (flowData.storagePreference === 'local') {
+      console.log('JWT API Service: Skipping API call for local-only flow');
+      return { success: true, data: flowData, message: 'Local flow created' };
+    }
     return this.makeRequest('/v1/flows', {
       method: 'POST',
       body: JSON.stringify(flowData),

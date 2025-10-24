@@ -20,12 +20,31 @@ const getUserIdFromJWT = async (userId) => {
   }
 };
 
-// Create a new flow
+// Create a new flow (with storage preference handling)
 const createFlow = async (request, reply) => {
   const { user } = request;
   const flowData = request.body;
 
   console.log('createFlow called with:', { user: user.id, flowData });
+
+  // Check storage preference
+  const storagePreference = flowData.storagePreference || 'local';
+  
+  // If it's a local-only flow, return success without database storage
+  if (storagePreference === 'local') {
+    console.log('📱 Local-only flow creation - skipping database storage');
+    return reply.status(201).send({
+      success: true,
+      data: {
+        ...flowData,
+        id: flowData.id || generateId(),
+        storagePreference: 'local',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      message: 'Local flow created successfully (not stored in database)',
+    });
+  }
 
   // Get UUID primary key from JWT user ID
   const userId = await getUserIdFromJWT(user.id);
@@ -49,8 +68,9 @@ const createFlow = async (request, reply) => {
     tags: flowData.tags,
     archived: false,
     visibility: flowData.visibility || 'private',
+    storage_preference: flowData.storagePreference || 'cloud', // Default to cloud for database storage
     owner_id: userId, // Use UUID primary key
-    schema_version: 1,
+    schema_version: 2, // Increment schema version
   };
 
   try {
@@ -62,15 +82,15 @@ const createFlow = async (request, reply) => {
       await request.server.redis.set(`flow:${flow.id}`, flow, 3600); // 1 hour TTL
     }
 
-    request.log.info({ flowId: flow.id, userId: user.id }, 'Flow created');
+    request.log.info({ flowId: flow.id, userId: user.id }, 'Cloud flow created');
 
     return reply.status(201).send({
       success: true,
       data: flow,
-      message: 'Flow created successfully',
+      message: 'Cloud flow created successfully',
     });
   } catch (error) {
-    request.log.error({ error: error.message, userId: user.id }, 'Failed to create flow');
+    request.log.error({ error: error.message, userId: user.id }, 'Failed to create cloud flow');
     
     // Handle specific database errors
     if (error.message.includes('database') || error.message.includes('connection')) {
@@ -81,7 +101,7 @@ const createFlow = async (request, reply) => {
       });
     }
     
-    throw new ConflictError('Failed to create flow');
+    throw new ConflictError('Failed to create cloud flow');
   }
 };
 
@@ -139,14 +159,15 @@ const getUserFlows = async (request, reply) => {
     const userId = await getUserIdFromJWT(user.id);
     console.log('getUserFlows: Using UUID primary key:', userId);
     
-    // Get flows from database with status
-    console.log('Getting flows for user:', userId);
+    // Get cloud flows from database with status (local flows are not stored in DB)
+    console.log('Getting cloud flows for user:', userId);
 
     let flows;
     try {
       flows = await FlowModel.findByUserIdWithStatus(userId, {
         archived: archived === 'true',
         visibility,
+        storagePreference: 'cloud', // Only get cloud flows
       });
     } catch (dbError) {
       console.error('Database error:', dbError.message);
@@ -208,6 +229,7 @@ const getUserFlows = async (request, reply) => {
             tags: flow.tags || [],
             archived: flow.archived,
             visibility: flow.visibility,
+            storagePreference: flow.storage_preference || 'local', // Add storage preference
             ownerId: flow.owner_id,
             schemaVersion: flow.schema_version,
             createdAt: flow.created_at,
@@ -364,6 +386,7 @@ const updateFlow = async (request, reply) => {
     if (updateData.tags) updateRecord.tags = updateData.tags;
     if (updateData.visibility) updateRecord.visibility = updateData.visibility;
     if (updateData.archived !== undefined) updateRecord.archived = updateData.archived;
+    if (updateData.storagePreference) updateRecord.storage_preference = updateData.storagePreference;
 
     // Update flow in database
     const updatedFlow = await FlowModel.update(id, updateRecord);

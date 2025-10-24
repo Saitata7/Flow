@@ -131,12 +131,27 @@ export const FlowsProvider = ({ children }) => {
         setFlows([]);
       }
 
-      // If user is authenticated, try to sync with backend (bypass canSync check for development)
+      // Always try to sync with backend if user is authenticated
       if (isAuthenticated && user) {
-        logger.log('FlowsContext: User authenticated, attempting sync...');
+        logger.log('FlowsContext: User authenticated, attempting sync for cloud flows...');
         try {
           logger.log('FlowsContext: About to call syncWithBackend...');
           await syncWithBackend();
+          
+          // After sync, reload flows from storage to ensure we have the latest data
+          const updatedFlowsData = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
+          if (updatedFlowsData) {
+            const updatedFlows = JSON.parse(updatedFlowsData).filter(flow => {
+              if (!flow || !flow.id || flow.id === 'undefined') {
+                return false;
+              }
+              return true;
+            });
+            logger.log('FlowsContext: Updated flows after sync:', updatedFlows.length, 'flows');
+            logger.log('FlowsContext: Cloud flows:', updatedFlows.filter(f => f.storagePreference === 'cloud').length);
+            logger.log('FlowsContext: Local flows:', updatedFlows.filter(f => f.storagePreference === 'local').length);
+            setFlows(updatedFlows);
+          }
           logger.log('FlowsContext: syncWithBackend completed');
         } catch (syncError) {
           logger.log('ℹ️ FlowsContext: Sync failed (expected if not authenticated):', syncError.message);
@@ -588,17 +603,18 @@ export const FlowsProvider = ({ children }) => {
         setFlows(newFlows);
         
         // If authenticated and sync enabled, try immediate API call first, then queue as fallback
-        if (isAuthenticated && syncService.canSync()) {
-          logger.log('FlowsContext: Attempting immediate API call for flow creation');
+        if (isAuthenticated && syncService.canSync() && newFlow.storagePreference === 'cloud') {
+          logger.log('FlowsContext: Attempting immediate API call for cloud flow creation');
           try {
             const apiResult = await jwtApiService.createFlow(newFlow);
             if (apiResult.success) {
-              logger.log('FlowsContext: Flow created successfully on backend:', apiResult.data);
+              logger.log('FlowsContext: Cloud flow created successfully on backend:', apiResult.data);
               // Update local flow with backend data if needed
               if (apiResult.data && apiResult.data.id !== newFlow.id) {
-                const updatedFlows = flows.map(f => f.id === newFlow.id ? { ...f, id: apiResult.data.id } : f);
+                const updatedFlows = newFlows.map(f => f.id === newFlow.id ? { ...f, id: apiResult.data.id } : f);
                 await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
                 setFlows(updatedFlows);
+                logger.log('FlowsContext: Updated flows with backend ID');
               }
             } else {
               logger.log('FlowsContext: API call failed, adding to sync queue:', apiResult.error);
@@ -616,6 +632,10 @@ export const FlowsProvider = ({ children }) => {
               flowId: newFlow.id,
             });
           }
+        } else if (newFlow.storagePreference === 'local') {
+          logger.log('FlowsContext: Local-only flow created, no cloud sync needed');
+        } else {
+          logger.log('FlowsContext: Not authenticated or sync not available, flow saved locally only');
         }
         
         // Verify the save worked

@@ -171,10 +171,8 @@ const Login = ({ navigation, route }) => {
         // Show success toast
         showCustomToast('Login successful!', 'success');
         
-        // Navigate to main app after a short delay
-        setTimeout(() => {
-          navigation.getParent()?.navigate('Main');
-        }, 1500);
+        // Navigation will be handled by AppNavigator based on authentication state
+        // No need to manually navigate - the auth state change will trigger the navigation
       } else {
         console.log('❌ Login: Authentication failed:', result.error);
         showCustomToast(result.error, 'error');

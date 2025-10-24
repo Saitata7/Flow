@@ -607,6 +607,23 @@ const start = async () => {
     if (!dbConnected) {
       fastify.log.warn('Database connection failed - running in offline mode');
       // Don't exit, continue without database
+    } else {
+      // Run database migrations if connected
+      try {
+        console.log('🔄 Running database migrations...');
+        const MigrationRunner = require('./db/migrate');
+        const runner = new MigrationRunner();
+        await runner.runAll();
+        console.log('✅ Database migrations completed');
+      } catch (migrationError) {
+        console.error('❌ Database migration failed:', migrationError.message);
+        // Don't fail startup for migration errors in production
+        if (process.env.NODE_ENV === 'production') {
+          console.warn('⚠️ Continuing startup despite migration failure');
+        } else {
+          throw migrationError;
+        }
+      }
     }
 
     // Connect to Redis (optional for development)

@@ -24,7 +24,7 @@ const SettingsMenu = ({ visible, onClose }) => {
   const navigation = useNavigation();
   const { theme } = useContext(ThemeContext) || { theme: 'light' };
   const themeColors = colors[theme] || colors.light;
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
 
   console.log('SettingsMenu: Component rendered, visible:', visible);
 
@@ -108,12 +108,22 @@ const SettingsMenu = ({ visible, onClose }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await signOut();
-              // FIXED: Navigate to auth screen after logout using parent navigator
-              navigation.getParent()?.navigate('Auth');
+              console.log('🔐 SettingsMenu: Starting logout process...');
+              await logout();
+              console.log('✅ SettingsMenu: Sign out successful');
+              
+              // Force close the settings modal
+              onClose();
+              
+              // Navigation will be handled by AppNavigator based on authentication state
             } catch (error) {
-              console.error('Error signing out:', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
+              console.error('❌ SettingsMenu: Error signing out:', error);
+              // Even if there's an error, the logout function should have cleared local data
+              // So we don't show an error to the user
+              console.log('✅ SettingsMenu: Sign out completed (with warnings)');
+              
+              // Still close the modal
+              onClose();
             }
           }
         }

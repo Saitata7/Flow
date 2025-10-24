@@ -82,6 +82,10 @@ const EditFlowScreen = ({ route, navigation }) => {
   const [titleError, setTitleError] = useState('');
   const [isCheckingTitle, setIsCheckingTitle] = useState(false);
 
+  // Storage preference state
+  const [storagePreference, setStoragePreference] = useState(flow.storagePreference || 'local');
+  const [showUpgradeWarning, setShowUpgradeWarning] = useState(false);
+
   // v2 schema fields
   const [planId, setPlanId] = useState(flow.planId || null);
   const [progressMode, setProgressMode] = useState(flow.progressMode || 'sum');
@@ -203,6 +207,9 @@ const EditFlowScreen = ({ route, navigation }) => {
       seconds: trackingType === 'Time-based' ? seconds : undefined,
       goal: trackingType === 'Quantitative' ? goal : undefined,
       
+      // Storage preference
+      storagePreference,
+      
       // v2 schema fields
       planId,
       progressMode,
@@ -216,6 +223,7 @@ const EditFlowScreen = ({ route, navigation }) => {
       schemaVersion: flow.schemaVersion || 2,
       ownerId: flow.ownerId || 'user123',
       createdAt: flow.createdAt,
+      updatedAt: new Date().toISOString(),
     };
 
     try {
@@ -363,6 +371,143 @@ const EditFlowScreen = ({ route, navigation }) => {
               accessibilityLabel="Flow description input"
               accessibilityHint="Enter an optional description for your flow"
             />
+          </Card>
+
+          {/* Storage Preference Card */}
+          <Card variant="elevated" padding="md" margin="none">
+            <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Storage Preference</Text>
+            <Text style={[styles.storageSubtitle, { color: themeColors.secondaryText }]}>
+              Current: {storagePreference === 'local' ? 'Local Only' : 'Cloud Sync'}
+            </Text>
+            
+            <View style={styles.storageOptionsContainer}>
+              {/* Local Storage Option */}
+              <TouchableOpacity
+                style={[
+                  styles.storageOption,
+                  { borderColor: themeColors.border, backgroundColor: themeColors.cardBackground },
+                  storagePreference === 'local' && { borderColor: themeColors.primaryOrange, backgroundColor: themeColors.primaryOrange + '10' }
+                ]}
+                onPress={() => setStoragePreference('local')}
+                accessibilityLabel="Local storage option"
+                accessibilityHint="Store flow data locally on device only"
+                accessibilityRole="button"
+              >
+                <View style={styles.storageOptionHeader}>
+                  <Ionicons 
+                    name="phone-portrait-outline" 
+                    size={24} 
+                    color={storagePreference === 'local' ? themeColors.primaryOrange : themeColors.secondaryText} 
+                  />
+                  <Text style={[
+                    styles.storageOptionTitle,
+                    { color: themeColors.primaryText },
+                    storagePreference === 'local' && { color: themeColors.primaryOrange }
+                  ]}>
+                    Local Only
+                  </Text>
+                </View>
+                <Text style={[
+                  styles.storageOptionDescription,
+                  { color: themeColors.secondaryText },
+                  storagePreference === 'local' && { color: themeColors.primaryText }
+                ]}>
+                  • Stored on your device only
+                </Text>
+                <Text style={[
+                  styles.storageOptionDescription,
+                  { color: themeColors.secondaryText },
+                  storagePreference === 'local' && { color: themeColors.primaryText }
+                ]}>
+                  • Works offline
+                </Text>
+                <Text style={[
+                  styles.storageOptionDescription,
+                  { color: themeColors.secondaryText },
+                  storagePreference === 'local' && { color: themeColors.primaryText }
+                ]}>
+                  • Can be upgraded to cloud
+                </Text>
+                <Text style={[
+                  styles.storageOptionDescription,
+                  { color: themeColors.secondaryText },
+                  storagePreference === 'local' && { color: themeColors.primaryText }
+                ]}>
+                  • Data lost if device is reset
+                </Text>
+              </TouchableOpacity>
+
+              {/* Cloud Storage Option */}
+              <TouchableOpacity
+                style={[
+                  styles.storageOption,
+                  { borderColor: themeColors.border, backgroundColor: themeColors.cardBackground },
+                  storagePreference === 'cloud' && { borderColor: themeColors.primaryOrange, backgroundColor: themeColors.primaryOrange + '10' }
+                ]}
+                onPress={() => {
+                  if (flow.storagePreference === 'local') {
+                    setShowUpgradeWarning(true);
+                  }
+                  setStoragePreference('cloud');
+                }}
+                accessibilityLabel="Cloud storage option"
+                accessibilityHint="Store flow data in cloud database - cannot be reverted"
+                accessibilityRole="button"
+              >
+                <View style={styles.storageOptionHeader}>
+                  <Ionicons 
+                    name="cloud-outline" 
+                    size={24} 
+                    color={storagePreference === 'cloud' ? themeColors.primaryOrange : themeColors.secondaryText} 
+                  />
+                  <Text style={[
+                    styles.storageOptionTitle,
+                    { color: themeColors.primaryText },
+                    storagePreference === 'cloud' && { color: themeColors.primaryOrange }
+                  ]}>
+                    Cloud Sync
+                  </Text>
+                </View>
+                <Text style={[
+                  styles.storageOptionDescription,
+                  { color: themeColors.secondaryText },
+                  storagePreference === 'cloud' && { color: themeColors.primaryText }
+                ]}>
+                  • Synced across all devices
+                </Text>
+                <Text style={[
+                  styles.storageOptionDescription,
+                  { color: themeColors.secondaryText },
+                  storagePreference === 'cloud' && { color: themeColors.primaryText }
+                ]}>
+                  • Backed up automatically
+                </Text>
+                <Text style={[
+                  styles.storageOptionDescription,
+                  { color: themeColors.secondaryText },
+                  storagePreference === 'cloud' && { color: themeColors.primaryText }
+                ]}>
+                  • Requires internet connection
+                </Text>
+                <Text style={[
+                  styles.storageOptionWarning,
+                  { color: themeColors.warning },
+                  storagePreference === 'cloud' && { color: themeColors.warning }
+                ]}>
+                  ⚠️ Cannot be reverted to local
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Upgrade Warning */}
+            {showUpgradeWarning && flow.storagePreference === 'local' && storagePreference === 'cloud' && (
+              <View style={[styles.warningContainer, { backgroundColor: themeColors.warning + '20', borderLeftColor: themeColors.warning }]}>
+                <Ionicons name="warning-outline" size={20} color={themeColors.warning} />
+                <Text style={[styles.warningText, { color: themeColors.warning }]}>
+                  Upgrading to cloud storage cannot be reverted. Your flow will be synced across all devices and backed up automatically.
+                </Text>
+              </View>
+            )}
           </Card>
 
           {/* Tracking Type Card */}
@@ -966,6 +1111,53 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  storageSubtitle: {
+    ...typography.styles.caption1,
+    marginBottom: layout.spacing.md,
+  },
+  storageOptionsContainer: {
+    flexDirection: 'row',
+    gap: layout.spacing.sm,
+  },
+  storageOption: {
+    flex: 1,
+    padding: layout.spacing.md,
+    borderRadius: layout.radii.squircle,
+    borderWidth: 2,
+  },
+  storageOptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: layout.spacing.sm,
+  },
+  storageOptionTitle: {
+    ...typography.styles.body,
+    fontWeight: typography.weights.semibold,
+    marginLeft: layout.spacing.xs,
+  },
+  storageOptionDescription: {
+    ...typography.styles.caption1,
+    marginBottom: layout.spacing.xs,
+  },
+  storageOptionWarning: {
+    ...typography.styles.caption1,
+    fontWeight: typography.weights.semibold,
+    marginTop: layout.spacing.xs,
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: layout.spacing.md,
+    padding: layout.spacing.sm,
+    borderRadius: layout.radii.squircle,
+    borderLeftWidth: 3,
+  },
+  warningText: {
+    ...typography.styles.caption1,
+    marginLeft: layout.spacing.xs,
+    flex: 1,
+    lineHeight: 18,
   },
   trackingTypeContainer: {
     flexDirection: 'row',
