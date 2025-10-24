@@ -58,6 +58,16 @@ class JWTAPIService {
     return true;
   }
 
+  async canSync() {
+    try {
+      const isAuthenticated = await this.isUserAuthenticated();
+      return isAuthenticated;
+    } catch (error) {
+      console.error('❌ Error checking sync capability:', error);
+      return false;
+    }
+  }
+
   // HTTP request helper
   async makeRequest(endpoint, options = {}) {
     try {

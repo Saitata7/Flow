@@ -34,8 +34,8 @@ class ActivityCacheService {
       this.startPeriodicSync();
 
       // Listen for network changes
-      NetInfo.addEventListener(state => {
-        if (state.isConnected && this.shouldSync()) {
+      NetInfo.addEventListener(async (state) => {
+        if (state.isConnected && await this.shouldSync()) {
           console.log('🌐 Network reconnected, triggering activity cache sync...');
           this.syncWithBackend();
         }
@@ -55,8 +55,8 @@ class ActivityCacheService {
       clearInterval(this.syncInterval);
     }
 
-    this.syncInterval = setInterval(() => {
-      if (this.shouldSync()) {
+    this.syncInterval = setInterval(async () => {
+      if (await this.shouldSync()) {
         console.log('⏰ Periodic activity cache sync triggered...');
         this.syncWithBackend();
       }
@@ -79,7 +79,7 @@ class ActivityCacheService {
   /**
    * Check if sync should be performed
    */
-  shouldSync() {
+  async shouldSync() {
     // Don't sync if already processing
     if (this.isProcessing) return false;
 
@@ -89,8 +89,9 @@ class ActivityCacheService {
     // Don't sync if user has disabled cloud sync
     if (!settingsService.getSetting('cloudSyncEnabled', true)) return false;
 
-    // Don't sync if not online
-    if (!NetInfo.isConnected) return false;
+    // Don't sync if not online - use async check
+    const netInfo = await NetInfo.fetch();
+    if (!netInfo.isConnected) return false;
 
     // Sync if never synced before
     if (!this.lastSyncTime) return true;
@@ -104,7 +105,7 @@ class ActivityCacheService {
    * Sync activity cache with backend
    */
   async syncWithBackend() {
-    if (!this.shouldSync()) {
+    if (!(await this.shouldSync())) {
       console.log('⏸️ Activity cache sync skipped - conditions not met');
       return;
     }
@@ -261,14 +262,15 @@ class ActivityCacheService {
   /**
    * Get sync status
    */
-  getSyncStatus() {
+  async getSyncStatus() {
+    const netInfo = await NetInfo.fetch();
     return {
       isProcessing: this.isProcessing,
       lastSyncTime: this.lastSyncTime,
-      shouldSync: this.shouldSync(),
+      shouldSync: await this.shouldSync(),
       canSync: syncService.canSync(),
       syncEnabled: settingsService.getSetting('cloudSyncEnabled', true),
-      isOnline: NetInfo.isConnected,
+      isOnline: netInfo.isConnected,
     };
   }
 
@@ -315,7 +317,7 @@ class ActivityCacheService {
         lastFullRebuild: cacheMetadata.lastFullRebuild,
         version: cacheMetadata.version,
         lastSyncTime: this.lastSyncTime,
-        syncStatus: this.getSyncStatus(),
+        syncStatus: await this.getSyncStatus(),
       };
     } catch (error) {
       console.error('❌ Failed to get cache stats:', error);
@@ -326,7 +328,7 @@ class ActivityCacheService {
         lastFullRebuild: null,
         version: '1.0.0',
         lastSyncTime: null,
-        syncStatus: this.getSyncStatus(),
+        syncStatus: await this.getSyncStatus(),
       };
     }
   }
