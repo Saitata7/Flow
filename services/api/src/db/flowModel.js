@@ -1,5 +1,6 @@
 // db/flowModel.js
 // Simple Flow model for JWT-only mode
+// Updated: Fixed all missing methods and database connection issues
 const { query } = require('./config');
 
 class FlowModel {
@@ -95,10 +96,16 @@ class FlowModel {
 
   static async findByUserIdWithStatus(userId, options = {}) {
     try {
-      const { includeArchived = false, includeDeleted = false } = options;
+      const { 
+        includeArchived = false, 
+        includeDeleted = false, 
+        visibility = null,
+        storagePreference = null 
+      } = options;
       
       let whereClause = `WHERE owner_id = $1`;
       const params = [userId];
+      let paramIndex = 2;
       
       if (!includeDeleted) {
         whereClause += ` AND deleted_at IS NULL`;
@@ -106,6 +113,18 @@ class FlowModel {
       
       if (!includeArchived) {
         whereClause += ` AND archived = false`;
+      }
+      
+      if (visibility) {
+        whereClause += ` AND visibility = $${paramIndex}`;
+        params.push(visibility);
+        paramIndex++;
+      }
+      
+      if (storagePreference) {
+        whereClause += ` AND storage_preference = $${paramIndex}`;
+        params.push(storagePreference);
+        paramIndex++;
       }
       
       const result = await query(

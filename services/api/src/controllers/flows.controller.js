@@ -101,6 +101,36 @@ const createFlow = async (request, reply) => {
       });
     }
     
+    // Handle specific constraint violations
+    if (error.code === '23505') { // Unique constraint violation
+      return reply.status(409).send({
+        success: false,
+        error: 'Flow with this title already exists',
+        message: 'Please choose a different title',
+        code: 'CONFLICT'
+      });
+    }
+    
+    // Handle column not found errors (like missing storage_preference column)
+    if (error.message.includes('column') && error.message.includes('does not exist')) {
+      return reply.status(500).send({
+        success: false,
+        error: 'Database schema error',
+        message: 'Missing required database column. Please contact support.',
+        code: 'SCHEMA_ERROR'
+      });
+    }
+    
+    // Log the actual error for debugging
+    console.error('Flow creation error details:', {
+      message: error.message,
+      code: error.code,
+      detail: error.detail,
+      constraint: error.constraint,
+      table: error.table,
+      column: error.column
+    });
+    
     throw new ConflictError('Failed to create cloud flow');
   }
 };
