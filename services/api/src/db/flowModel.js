@@ -10,7 +10,7 @@ class FlowModel {
   
   // Debug: Log when FlowModel is loaded
   static {
-    console.log('🚀 FlowModel v2.0 loaded - All database issues resolved');
+    console.log('🚀 FlowModel v2.1 loaded - All database issues resolved - Fresh deployment');
   }
 
   // Settings management methods
