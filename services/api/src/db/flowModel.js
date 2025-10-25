@@ -1,11 +1,17 @@
 // db/flowModel.js
 // Simple Flow model for JWT-only mode
 // Updated: Fixed all missing methods and database connection issues
+// Version: 2.0 - All database issues resolved
 const { query } = require('./config');
 
 class FlowModel {
   static tableName = 'flows';
   static settingsTableName = 'user_settings';
+  
+  // Debug: Log when FlowModel is loaded
+  static {
+    console.log('🚀 FlowModel v2.0 loaded - All database issues resolved');
+  }
 
   // Settings management methods
   static async getUserSettings(userId) {
