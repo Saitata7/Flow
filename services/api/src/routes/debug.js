@@ -1,7 +1,14 @@
 // routes/debug.js
 // Debug routes to inspect database schema
 
+const DebugController = require('../controllers/debug.controller');
+
 const debugRoutes = async fastify => {
+  // Debug status endpoint
+  fastify.get('/debug/status', DebugController.getStatus);
+  
+  // Test FlowModel creation
+  fastify.post('/debug/test-flow-creation', DebugController.testFlowCreation);
   // Debug endpoint to check database schema
   fastify.get('/debug/schema', async (request, reply) => {
     try {

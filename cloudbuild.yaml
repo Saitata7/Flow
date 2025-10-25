@@ -2,12 +2,12 @@
 steps:
   # Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '--no-cache', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-registry/flow-api:latest', '.']
+    args: ['build', '--no-cache', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-app/api:latest', '.']
     dir: 'services/api'
 
   # Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-registry/flow-api:latest']
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-app/api:latest']
 
   # Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
@@ -16,7 +16,7 @@ steps:
       - 'run'
       - 'deploy'
       - 'flow-api'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/flow-registry/flow-api:latest'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/flow-app/api:latest'
       - '--platform=managed'
       - '--region=us-central1'
       - '--allow-unauthenticated'
@@ -56,7 +56,7 @@ steps:
 
 # Store images in Artifact Registry
 images:
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-registry/flow-api:latest'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/flow-app/api:latest'
 
 # Build options
 options:

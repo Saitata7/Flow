@@ -1,5 +1,5 @@
 // Models index file - exports all database models
-const FlowModel = require('./flowModel');
+const { FlowModel } = require('./flowModel');
 const UserModel = require('./minimalJWTUserModel');
 
 // Export models

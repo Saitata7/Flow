@@ -4,10 +4,20 @@ class RedisClient {
   constructor() {
     this.client = null;
     this.isConnected = false;
+    this.fallbackMode = false;
+    this.connectionAttempts = 0;
+    this.maxConnectionAttempts = 3;
   }
 
   async connect() {
     try {
+      // Check if Redis is enabled
+      if (process.env.REDIS_ENABLED === 'false' || !process.env.REDIS_HOST) {
+        console.log('⚠️ Redis disabled or not configured - running without cache');
+        this.fallbackMode = true;
+        return false;
+      }
+
       // Redis configuration for both local and GCP environments
       const redisConfig = {
         host: process.env.REDIS_HOST || 'localhost',
@@ -20,6 +30,7 @@ class RedisClient {
         keepAlive: 30000,
         connectTimeout: 10000,
         commandTimeout: 5000,
+        reconnectStrategy: (retries) => Math.min(retries * 50, 500),
       };
 
       console.log('🔴 Redis Config:', {
@@ -33,25 +44,32 @@ class RedisClient {
       // Handle connection events
       this.client.on('connect', () => {
         this.isConnected = true;
-        console.log('Redis connected');
+        this.fallbackMode = false;
+        console.log('✅ Redis connected successfully');
       });
 
       this.client.on('error', error => {
         this.isConnected = false;
-        console.error('Redis connection error:', error);
+        console.warn('⚠️ Redis not connected (non-critical):', error.message);
       });
 
       this.client.on('close', () => {
         this.isConnected = false;
-        console.log('Redis connection closed');
+        console.log('🔌 Redis connection closed');
       });
 
-      // Connect
-      await this.client.connect();
+      // Connect with timeout
+      await Promise.race([
+        this.client.connect(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connection timeout')), 5000))
+      ]);
+      
       return true;
     } catch (error) {
-      console.error('Failed to connect to Redis:', error);
-      throw error;
+      console.warn('⚠️ Redis connection failed - running without cache:', error.message);
+      this.fallbackMode = true;
+      this.isConnected = false;
+      return false;
     }
   }
 
@@ -64,6 +82,10 @@ class RedisClient {
   }
 
   async ping() {
+    if (this.fallbackMode) {
+      return false; // Redis is disabled
+    }
+    
     if (!this.client || !this.isConnected) {
       return false;
     }
@@ -72,7 +94,7 @@ class RedisClient {
       const result = await this.client.ping();
       return result === 'PONG';
     } catch (error) {
-      console.error('Redis ping failed:', error);
+      console.warn('⚠️ Redis ping failed:', error.message);
       return false;
     }
   }

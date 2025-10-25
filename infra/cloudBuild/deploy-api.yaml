@@ -160,7 +160,7 @@ steps:
 # Substitution variables
 substitutions:
   _REGION: 'us-central1'
-  _ARTIFACT_REGISTRY_REPO: 'flow-repo'
+  _ARTIFACT_REGISTRY_REPO: 'flow-app'
   _CLOUD_SQL_INSTANCE: 'flow-db'
 
 # Build options

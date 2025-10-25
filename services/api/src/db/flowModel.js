@@ -11,6 +11,7 @@ class FlowModel {
   // Debug: Log when FlowModel is loaded
   static {
     console.log('🚀 FlowModel v2.1 loaded - All database issues resolved - Fresh deployment');
+    console.log('[INIT] FlowModel loaded successfully - create method available:', typeof this.create === 'function');
   }
 
   // Settings management methods
@@ -56,8 +57,11 @@ class FlowModel {
   // Basic flow methods
   static async create(data) {
     try {
-      const columns = Object.keys(data);
-      const values = Object.values(data);
+      // Normalize data to ensure valid values
+      const normalizedData = this.normalizeFlowData(data);
+      
+      const columns = Object.keys(normalizedData);
+      const values = Object.values(normalizedData);
       const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
       
       const queryText = `
@@ -72,6 +76,31 @@ class FlowModel {
       console.error('Error creating flow:', error);
       throw error;
     }
+  }
+
+  // Normalize flow data to ensure valid values
+  static normalizeFlowData(data) {
+    const normalized = { ...data };
+    
+    // Valid frequency values
+    const validFrequencies = ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Custom'];
+    if (normalized.frequency && !validFrequencies.includes(normalized.frequency)) {
+      normalized.frequency = 'Daily'; // Default to Daily
+    }
+    
+    // Valid tracking type values
+    const validTrackingTypes = ['binary', 'numeric', 'time', 'counter'];
+    if (normalized.tracking_type && !validTrackingTypes.includes(normalized.tracking_type)) {
+      normalized.tracking_type = 'binary'; // Default to binary
+    }
+    
+    // Valid storage preference values
+    const validStoragePreferences = ['local', 'cloud'];
+    if (normalized.storage_preference && !validStoragePreferences.includes(normalized.storage_preference)) {
+      normalized.storage_preference = 'local'; // Default to local
+    }
+    
+    return normalized;
   }
 
   static async findById(id) {

@@ -255,20 +255,24 @@ const registerRoutes = async () => {
       // Check Redis health
       const redisPing = await redis.ping();
       health.services.redis = {
-        status: redisPing ? 'healthy' : 'unhealthy',
+        status: redisPing ? 'healthy' : 'skipped',
         connected: redisPing,
         fallbackMode: redis.fallbackMode || false,
       };
-      if (!redisPing) {
+      // Only add Redis as an error if it's required but not working
+      if (!redisPing && !redis.fallbackMode) {
         errors.push('Redis connection failed');
       }
     } catch (error) {
       health.services.redis = {
-        status: 'unhealthy',
+        status: 'skipped',
         error: error.message,
         fallbackMode: true,
       };
-      errors.push('Redis health check failed');
+      // Don't add Redis errors to the main error list if it's in fallback mode
+      if (!redis.fallbackMode) {
+        errors.push('Redis health check failed');
+      }
     }
 
     try {

@@ -6,7 +6,7 @@ PROJECT_ID="quick-doodad-472200-k0"
 SERVICE_NAME="flow-api"
 REGION="us-central1"
 INSTANCE_NAME="flow-prod"
-IMAGE_NAME="gcr.io/${PROJECT_ID}/flow-api:latest"
+IMAGE_NAME="us-central1-docker.pkg.dev/${PROJECT_ID}/flow-app/api:latest"
 
 echo "🚀 Clean Cloud Run Deployment Script"
 echo "===================================="
