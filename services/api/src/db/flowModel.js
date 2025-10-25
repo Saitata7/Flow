@@ -93,6 +93,32 @@ class FlowModel {
     }
   }
 
+  static async findByUserIdWithStatus(userId, options = {}) {
+    try {
+      const { includeArchived = false, includeDeleted = false } = options;
+      
+      let whereClause = `WHERE owner_id = $1`;
+      const params = [userId];
+      
+      if (!includeDeleted) {
+        whereClause += ` AND deleted_at IS NULL`;
+      }
+      
+      if (!includeArchived) {
+        whereClause += ` AND archived = false`;
+      }
+      
+      const result = await query(
+        `SELECT * FROM ${this.tableName} ${whereClause} ORDER BY created_at DESC`,
+        params
+      );
+      return result.rows;
+    } catch (error) {
+      console.error('Error finding flows by user ID with status:', error);
+      throw error;
+    }
+  }
+
   static async update(id, data) {
     try {
       const columns = Object.keys(data);
@@ -123,6 +149,19 @@ class FlowModel {
       return result.rowCount > 0;
     } catch (error) {
       console.error('Error deleting flow:', error);
+      throw error;
+    }
+  }
+
+  static async softDelete(id) {
+    try {
+      const result = await query(
+        `UPDATE ${this.tableName} SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error soft deleting flow:', error);
       throw error;
     }
   }
