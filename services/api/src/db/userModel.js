@@ -2,75 +2,151 @@
 // Professional JWT Authentication User Model
 // Implements industry-standard user management patterns
 
-const knex = require('knex');
-
-// Knex configuration for Cloud Run
-const knexConfig = {
-  client: 'pg',
-  connection: {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: 5432,
-    ssl: false,
-  },
-  pool: {
-    min: 2,
-    max: 10,
-  },
-};
-
-const db = knex(knexConfig);
+const { query } = require('./config');
 
 class UserModel {
   static tableName = 'users';
 
   static async create(data) {
-    const [user] = await db(this.tableName).insert(data).returning('*');
-    return user;
+    try {
+      const columns = Object.keys(data);
+      const values = Object.values(data);
+      const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
+      
+      const queryText = `
+        INSERT INTO ${this.tableName} (${columns.join(', ')}) 
+        VALUES (${placeholders}) 
+        RETURNING *
+      `;
+      
+      const result = await query(queryText, values);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
   }
 
   static async findById(id) {
-    return db(this.tableName).where({ id, deleted_at: null }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE id = $1 AND deleted_at IS NULL`,
+        [id]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by ID:', error);
+      throw error;
+    }
   }
 
   static async findByEmail(email) {
-    return db(this.tableName).where({ email, deleted_at: null }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE email = $1 AND deleted_at IS NULL`,
+        [email]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by email:', error);
+      throw error;
+    }
   }
 
   static async findByUsername(username) {
-    return db(this.tableName).where({ username, deleted_at: null }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE username = $1 AND deleted_at IS NULL`,
+        [username]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by username:', error);
+      throw error;
+    }
   }
 
   static async findByEmailVerificationToken(token) {
-    return db(this.tableName).where({ email_verification_token: token, deleted_at: null }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE email_verification_token = $1 AND deleted_at IS NULL`,
+        [token]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by email verification token:', error);
+      throw error;
+    }
   }
 
   static async findByPasswordResetToken(token) {
-    return db(this.tableName).where({ password_reset_token: token, deleted_at: null }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE password_reset_token = $1 AND deleted_at IS NULL`,
+        [token]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by password reset token:', error);
+      throw error;
+    }
   }
 
   static async update(id, data) {
-    const [user] = await db(this.tableName)
-      .where({ id })
-      .update({ ...data, updated_at: new Date() })
-      .returning('*');
-    return user;
+    try {
+      const columns = Object.keys(data);
+      const values = Object.values(data);
+      const setClause = columns.map((col, index) => `${col} = $${index + 2}`).join(', ');
+      
+      const queryText = `
+        UPDATE ${this.tableName} 
+        SET ${setClause}, updated_at = NOW() 
+        WHERE id = $1 
+        RETURNING *
+      `;
+      
+      const result = await query(queryText, [id, ...values]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
   }
 
   static async delete(id) {
-    return db(this.tableName).where({ id }).del();
+    try {
+      const result = await query(
+        `DELETE FROM ${this.tableName} WHERE id = $1`,
+        [id]
+      );
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
   }
 
   static async softDelete(id) {
-    return db(this.tableName)
-      .where({ id })
-      .update({ deleted_at: new Date(), updated_at: new Date() });
+    try {
+      const result = await query(
+        `UPDATE ${this.tableName} SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error soft deleting user:', error);
+      throw error;
+    }
   }
 
   static async findAll() {
-    return db(this.tableName).select('*');
+    try {
+      const result = await query(`SELECT * FROM ${this.tableName}`);
+      return result.rows;
+    } catch (error) {
+      console.error('Error finding all users:', error);
+      throw error;
+    }
   }
 
   // Professional JWT Authentication Methods
@@ -92,17 +168,7 @@ class UserModel {
         }
       }
       
-      // Check which columns exist in the database
-      const tableInfo = await db.raw(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' AND table_schema = 'public'
-      `);
-      
-      const existingColumns = tableInfo.rows.map(row => row.column_name);
-      console.log('📋 UserModel: Existing columns for user creation:', existingColumns);
-      
-      // Prepare user data with only existing columns
+      // Prepare user data
       const newUserData = {
         email: userData.email,
         display_name: userData.displayName || userData.email.split('@')[0],
@@ -117,26 +183,26 @@ class UserModel {
         updated_at: new Date(),
       };
       
-      // Only add columns that exist in the database
-      if (existingColumns.includes('password_hash') && userData.passwordHash) {
+      // Add optional fields if provided
+      if (userData.passwordHash) {
         newUserData.password_hash = userData.passwordHash;
       }
-      if (existingColumns.includes('email_verification_token') && userData.emailVerificationToken) {
+      if (userData.emailVerificationToken) {
         newUserData.email_verification_token = userData.emailVerificationToken;
       }
-      if (existingColumns.includes('email_verification_expires') && userData.emailVerificationExpires) {
+      if (userData.emailVerificationExpires) {
         newUserData.email_verification_expires = userData.emailVerificationExpires;
       }
-      if (existingColumns.includes('role')) {
-        newUserData.role = userData.role || 'user';
+      if (userData.role) {
+        newUserData.role = userData.role;
       }
-      if (existingColumns.includes('status')) {
-        newUserData.status = 'active';
+      if (userData.status) {
+        newUserData.status = userData.status;
       }
       
       console.log('📋 UserModel: User data to insert:', newUserData);
       
-      const [user] = await db(this.tableName).insert(newUserData).returning('*');
+      const user = await this.create(newUserData);
       console.log('✅ UserModel: User created successfully:', user.id);
       
       return user;
@@ -161,15 +227,11 @@ class UserModel {
       }
       
       // Update user as verified
-      const [updatedUser] = await db(this.tableName)
-        .where({ id: user.id })
-        .update({
-          email_verified: true,
-          email_verification_token: null,
-          email_verification_expires: null,
-          updated_at: new Date()
-        })
-        .returning('*');
+      const updatedUser = await this.update(user.id, {
+        email_verified: true,
+        email_verification_token: null,
+        email_verification_expires: null,
+      });
       
       console.log('✅ UserModel: Email verified successfully:', updatedUser.email);
       return updatedUser;
@@ -194,13 +256,10 @@ class UserModel {
       const resetExpires = new Date(Date.now() + 3600000); // 1 hour
       
       // Update user with reset token
-      await db(this.tableName)
-        .where({ id: user.id })
-        .update({
-          password_reset_token: resetToken,
-          password_reset_expires: resetExpires,
-          updated_at: new Date()
-        });
+      await this.update(user.id, {
+        password_reset_token: resetToken,
+        password_reset_expires: resetExpires,
+      });
       
       console.log('✅ UserModel: Password reset token generated for:', user.email);
       return { 
@@ -229,15 +288,11 @@ class UserModel {
       }
       
       // Update user password
-      const [updatedUser] = await db(this.tableName)
-        .where({ id: user.id })
-        .update({
-          password_hash: newPasswordHash,
-          password_reset_token: null,
-          password_reset_expires: null,
-          updated_at: new Date()
-        })
-        .returning('*');
+      const updatedUser = await this.update(user.id, {
+        password_hash: newPasswordHash,
+        password_reset_token: null,
+        password_reset_expires: null,
+      });
       
       console.log('✅ UserModel: Password reset successfully for:', updatedUser.email);
       return updatedUser;
@@ -251,112 +306,34 @@ class UserModel {
     try {
       console.log('📋 UserModel: Updating profile for user:', userId);
       
-      // Check which columns exist in the database
-      const tableInfo = await db.raw(`
-        SELECT column_name 
-        FROM information_schema.columns 
-        WHERE table_name = 'users' AND table_schema = 'public'
-      `);
-      
-      const existingColumns = tableInfo.rows.map(row => row.column_name);
-      console.log('📋 UserModel: Existing columns:', existingColumns);
-      
-      // Prepare update data only for existing columns
+      // Prepare update data
       const updateData = {
         updated_at: new Date()
       };
       
-      // Only add columns that exist in the database
-      if (existingColumns.includes('first_name') && profileData.firstName) {
-        updateData.first_name = profileData.firstName;
-      }
-      if (existingColumns.includes('last_name') && profileData.lastName) {
-        updateData.last_name = profileData.lastName;
-      }
-      if (existingColumns.includes('email') && profileData.email) {
-        updateData.email = profileData.email;
-      }
-      if (existingColumns.includes('phone_number') && profileData.phoneNumber) {
-        updateData.phone_number = profileData.phoneNumber;
-      }
-      if (existingColumns.includes('date_of_birth') && profileData.dateOfBirth) {
-        updateData.date_of_birth = new Date(profileData.dateOfBirth);
-      }
-      if (existingColumns.includes('gender') && profileData.gender) {
-        updateData.gender = profileData.gender;
-      }
-      if (existingColumns.includes('race') && profileData.race) {
-        updateData.race = profileData.race;
-      }
-      if (existingColumns.includes('ethnicity') && profileData.ethnicity) {
-        updateData.ethnicity = profileData.ethnicity;
-      }
-      if (existingColumns.includes('disability') && profileData.disability) {
-        updateData.disability = profileData.disability;
-      }
-      if (existingColumns.includes('preferred_language') && profileData.preferredLanguage) {
-        updateData.preferred_language = profileData.preferredLanguage;
-      }
-      if (existingColumns.includes('country') && profileData.country) {
-        updateData.country = profileData.country;
-      }
-      if (existingColumns.includes('timezone') && profileData.timezone) {
-        updateData.timezone = profileData.timezone;
-      }
-      if (existingColumns.includes('health_goals') && profileData.healthGoals) {
-        updateData.health_goals = JSON.stringify(profileData.healthGoals);
-      }
-      if (existingColumns.includes('fitness_level') && profileData.fitnessLevel) {
-        updateData.fitness_level = profileData.fitnessLevel;
-      }
-      if (existingColumns.includes('medical_conditions') && profileData.medicalConditions) {
-        updateData.medical_conditions = profileData.medicalConditions;
-      }
-      if (existingColumns.includes('profile_visibility') && profileData.profileVisibility) {
-        updateData.profile_visibility = profileData.profileVisibility;
-      }
-      if (existingColumns.includes('data_sharing') && profileData.dataSharing) {
-        updateData.data_sharing = JSON.stringify(profileData.dataSharing);
-      }
-      if (existingColumns.includes('profile_updated_at')) {
-        updateData.profile_updated_at = new Date();
-      }
+      // Add fields if provided
+      if (profileData.firstName) updateData.first_name = profileData.firstName;
+      if (profileData.lastName) updateData.last_name = profileData.lastName;
+      if (profileData.email) updateData.email = profileData.email;
+      if (profileData.phoneNumber) updateData.phone_number = profileData.phoneNumber;
+      if (profileData.dateOfBirth) updateData.date_of_birth = new Date(profileData.dateOfBirth);
+      if (profileData.gender) updateData.gender = profileData.gender;
+      if (profileData.race) updateData.race = profileData.race;
+      if (profileData.ethnicity) updateData.ethnicity = profileData.ethnicity;
+      if (profileData.disability) updateData.disability = profileData.disability;
+      if (profileData.preferredLanguage) updateData.preferred_language = profileData.preferredLanguage;
+      if (profileData.country) updateData.country = profileData.country;
+      if (profileData.timezone) updateData.timezone = profileData.timezone;
+      if (profileData.healthGoals) updateData.health_goals = JSON.stringify(profileData.healthGoals);
+      if (profileData.fitnessLevel) updateData.fitness_level = profileData.fitnessLevel;
+      if (profileData.medicalConditions) updateData.medical_conditions = profileData.medicalConditions;
+      if (profileData.profileVisibility) updateData.profile_visibility = profileData.profileVisibility;
+      if (profileData.dataSharing) updateData.data_sharing = JSON.stringify(profileData.dataSharing);
+      if (profileData.profileUpdatedAt) updateData.profile_updated_at = new Date();
       
       console.log('📋 UserModel: Update data:', updateData);
       
-      const [updatedUser] = await db(this.tableName)
-        .where({ id: userId })
-        .update(updateData)
-        .returning('*');
-      
-      // Handle username update in user_profiles table
-      if (profileData.username) {
-        console.log('📋 UserModel: Updating username in user_profiles table:', profileData.username);
-        
-        // Check if user_profiles record exists
-        const existingProfile = await db('user_profiles')
-          .where({ user_id: userId })
-          .first();
-        
-        if (existingProfile) {
-          // Update existing profile
-          await db('user_profiles')
-            .where({ user_id: userId })
-            .update({
-              username: profileData.username,
-              updated_at: new Date()
-            });
-        } else {
-          // Create new profile record
-          await db('user_profiles').insert({
-            user_id: userId,
-            username: profileData.username,
-            display_name: `${profileData.firstName || ''} ${profileData.lastName || ''}`.trim() || 'User',
-            created_at: new Date(),
-            updated_at: new Date()
-          });
-        }
-      }
+      const updatedUser = await this.update(userId, updateData);
       
       console.log('✅ UserModel: Profile updated successfully');
       return updatedUser;
@@ -370,19 +347,11 @@ class UserModel {
     try {
       console.log('📋 UserModel: Getting profile for user:', userId);
       
-      const user = await db(this.tableName)
-        .where({ id: userId, deleted_at: null })
-        .first();
-      
+      const user = await this.findById(userId);
       if (!user) {
         console.log('❌ UserModel: User not found:', userId);
         return null;
       }
-      
-      // Get username from user_profiles table
-      const userProfile = await db('user_profiles')
-        .where({ user_id: userId })
-        .first();
       
       // Parse JSON fields
       const profile = {
@@ -390,7 +359,7 @@ class UserModel {
         email: user.email,
         firstName: user.first_name || '',
         lastName: user.last_name || '',
-        username: userProfile?.username || '',
+        username: user.username || '',
         phoneNumber: user.phone_number || '',
         dateOfBirth: user.date_of_birth,
         gender: user.gender || '',

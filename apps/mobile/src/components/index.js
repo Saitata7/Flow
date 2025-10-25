@@ -4,7 +4,7 @@
 
 // Common components
 export { default as Button } from './common/Button';
-export { default as Card } from './common/Card';
+export { default as CardComponent } from './common/CardComponent';
 export { default as Icon } from './common/Icon';
 export { default as Toast } from './common/Toast';
 export { default as SafeAreaWrapper } from './common/SafeAreaWrapper';

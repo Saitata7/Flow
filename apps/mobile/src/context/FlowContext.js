@@ -604,38 +604,50 @@ export const FlowsProvider = ({ children }) => {
         
         // If authenticated and sync enabled, try immediate API call first, then queue as fallback
         if (isAuthenticated && syncService.canSync() && newFlow.storagePreference === 'cloud') {
-          logger.log('FlowsContext: Attempting immediate API call for cloud flow creation');
+          logger.log('🌐 FlowsContext: Attempting immediate API call for cloud flow creation:', newFlow.title);
+          logger.log('🌐 FlowsContext: Flow data:', {
+            id: newFlow.id,
+            title: newFlow.title,
+            storagePreference: newFlow.storagePreference,
+            trackingType: newFlow.trackingType
+          });
           try {
             const apiResult = await jwtApiService.createFlow(newFlow);
+            logger.log('🌐 FlowsContext: API response:', apiResult);
             if (apiResult.success) {
-              logger.log('FlowsContext: Cloud flow created successfully on backend:', apiResult.data);
+              logger.log('✅ FlowsContext: Cloud flow created successfully on backend:', apiResult.data);
               // Update local flow with backend data if needed
               if (apiResult.data && apiResult.data.id !== newFlow.id) {
                 const updatedFlows = newFlows.map(f => f.id === newFlow.id ? { ...f, id: apiResult.data.id } : f);
                 await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
                 setFlows(updatedFlows);
-                logger.log('FlowsContext: Updated flows with backend ID');
+                logger.log('✅ FlowsContext: Updated flows with backend ID:', apiResult.data.id);
               }
             } else {
-              logger.log('FlowsContext: API call failed, adding to sync queue:', apiResult.error);
+              logger.log('❌ FlowsContext: API call failed, adding to sync queue:', apiResult.error);
               await syncService.addToSyncQueue({
                 type: 'CREATE_FLOW',
                 data: newFlow,
                 flowId: newFlow.id,
               });
+              logger.log('🔄 FlowsContext: Added to sync queue for retry');
             }
           } catch (apiError) {
-            logger.log('FlowsContext: API call failed with error, adding to sync queue:', apiError);
+            logger.log('❌ FlowsContext: API call failed with error, adding to sync queue:', apiError.message);
             await syncService.addToSyncQueue({
               type: 'CREATE_FLOW',
               data: newFlow,
               flowId: newFlow.id,
             });
+            logger.log('🔄 FlowsContext: Added to sync queue for retry due to error');
           }
         } else if (newFlow.storagePreference === 'local') {
           logger.log('FlowsContext: Local-only flow created, no cloud sync needed');
         } else {
           logger.log('FlowsContext: Not authenticated or sync not available, flow saved locally only');
+          if (newFlow.storagePreference === 'cloud') {
+            logger.log('⚠️ FlowsContext: Cloud flow created locally - user needs to login to sync to database');
+          }
         }
         
         // Verify the save worked

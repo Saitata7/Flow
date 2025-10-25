@@ -2,72 +2,112 @@
 // Minimal JWT User Model that works with the actual database schema
 // Based on the actual columns that exist: id, email, display_name, created_at
 
-const knex = require('knex');
-
-// Knex configuration for Cloud Run
-const knexConfig = {
-  client: 'pg',
-  connection: {
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    host: process.env.DB_HOST,
-    port: 5432,
-    ssl: false,
-  },
-  pool: {
-    min: 2,
-    max: 10,
-  },
-};
-
-const db = knex(knexConfig);
+const { query } = require('./config');
 
 class MinimalJWTUserModel {
   static tableName = 'users';
 
   static async create(data) {
-    const [user] = await db(this.tableName).insert(data).returning('*');
-    return user;
+    try {
+      const columns = Object.keys(data);
+      const values = Object.values(data);
+      const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
+      
+      const queryText = `
+        INSERT INTO ${this.tableName} (${columns.join(', ')}) 
+        VALUES (${placeholders}) 
+        RETURNING *
+      `;
+      
+      const result = await query(queryText, values);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
   }
 
   static async findById(id) {
-    return db(this.tableName).where({ id }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE id = $1`,
+        [id]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by ID:', error);
+      throw error;
+    }
   }
 
   static async findByEmail(email) {
-    return db(this.tableName).where({ email }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE email = $1`,
+        [email]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by email:', error);
+      throw error;
+    }
   }
 
   static async findByUsername(username) {
-    // For now, we'll store username in display_name or create a separate table
-    return db(this.tableName).where({ display_name: username }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE display_name = $1`,
+        [username]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding user by username:', error);
+      throw error;
+    }
   }
 
   static async update(id, data) {
-    // Only update fields that exist in the database
-    const updateData = {
-      updated_at: new Date()
-    };
-    
-    // Dynamically add fields if they exist
-    if (data.display_name !== undefined) updateData.display_name = data.display_name;
-    if (data.email_verified !== undefined) updateData.email_verified = data.email_verified;
-    if (data.status !== undefined) updateData.status = data.status;
-    
-    const [user] = await db(this.tableName)
-      .where({ id })
-      .update(updateData)
-      .returning('*');
-    return user;
+    try {
+      const columns = Object.keys(data);
+      const values = Object.values(data);
+      const setClause = columns.map((col, index) => `${col} = $${index + 2}`).join(', ');
+      
+      const queryText = `
+        UPDATE ${this.tableName} 
+        SET ${setClause}, updated_at = NOW() 
+        WHERE id = $1 
+        RETURNING *
+      `;
+      
+      const result = await query(queryText, [id, ...values]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
   }
 
   static async delete(id) {
-    return db(this.tableName).where({ id }).del();
+    try {
+      const result = await query(
+        `DELETE FROM ${this.tableName} WHERE id = $1`,
+        [id]
+      );
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
   }
 
   static async findAll() {
-    return db(this.tableName).select('*');
+    try {
+      const result = await query(`SELECT * FROM ${this.tableName}`);
+      return result.rows;
+    } catch (error) {
+      console.error('Error finding all users:', error);
+      throw error;
+    }
   }
 
   // JWT Authentication Methods
@@ -100,27 +140,31 @@ class MinimalJWTUserModel {
       
       console.log('📋 MinimalJWTUserModel: User data to insert:', newUserData);
       
-      const [user] = await db(this.tableName).insert(newUserData).returning('*');
+      const user = await this.create(newUserData);
       console.log('✅ MinimalJWTUserModel: User created successfully:', user.id);
       
       // Store JWT-specific data in a separate table or use a simple approach
       // For now, we'll store password hash in a separate jwt_users table
       if (userData.passwordHash) {
         try {
-          await db('jwt_users').insert({
-            user_id: user.id,
-            password_hash: userData.passwordHash,
-            username: userData.username || '',
-            first_name: userData.firstName || '',
-            last_name: userData.lastName || '',
-            phone_number: userData.phoneNumber || '',
-            date_of_birth: userData.dateOfBirth || null,
-            gender: userData.gender || '',
-            email_verification_token: userData.emailVerificationToken,
-            email_verification_expires: userData.emailVerificationExpires,
-            created_at: new Date(),
-            updated_at: new Date(),
-          });
+          await query(`
+            INSERT INTO jwt_users (
+              user_id, password_hash, username, first_name, last_name, 
+              phone_number, date_of_birth, gender, email_verification_token, 
+              email_verification_expires, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+          `, [
+            user.id,
+            userData.passwordHash,
+            userData.username || '',
+            userData.firstName || '',
+            userData.lastName || '',
+            userData.phoneNumber || '',
+            userData.dateOfBirth || null,
+            userData.gender || '',
+            userData.emailVerificationToken,
+            userData.emailVerificationExpires
+          ]);
           console.log('✅ MinimalJWTUserModel: JWT user data stored successfully');
         } catch (error) {
           console.log('⚠️ MinimalJWTUserModel: JWT users table does not exist, skipping password storage');
@@ -139,10 +183,12 @@ class MinimalJWTUserModel {
       console.log('📋 MinimalJWTUserModel: Verifying email with token:', token);
       
       // Find user by email verification token in jwt_users table
-      const jwtUser = await db('jwt_users')
-        .where({ email_verification_token: token })
-        .first();
+      const result = await query(
+        `SELECT * FROM jwt_users WHERE email_verification_token = $1`,
+        [token]
+      );
       
+      const jwtUser = result.rows[0];
       if (!jwtUser) {
         throw new Error('Invalid verification token');
       }
@@ -152,22 +198,19 @@ class MinimalJWTUserModel {
         throw new Error('Verification token has expired');
       }
       
-      // Update user as verified (we'll add email_verified column if needed)
-      const [updatedUser] = await db(this.tableName)
-        .where({ id: jwtUser.user_id })
-        .update({
-          updated_at: new Date()
-        })
-        .returning('*');
+      // Update user as verified
+      const updatedUser = await this.update(jwtUser.user_id, {
+        updated_at: new Date()
+      });
       
       // Clear verification token
-      await db('jwt_users')
-        .where({ user_id: jwtUser.user_id })
-        .update({
-          email_verification_token: null,
-          email_verification_expires: null,
-          updated_at: new Date()
-        });
+      await query(`
+        UPDATE jwt_users 
+        SET email_verification_token = NULL, 
+            email_verification_expires = NULL, 
+            updated_at = NOW() 
+        WHERE user_id = $1
+      `, [jwtUser.user_id]);
       
       console.log('✅ MinimalJWTUserModel: Email verified successfully:', updatedUser.email);
       return updatedUser;
@@ -188,7 +231,12 @@ class MinimalJWTUserModel {
       }
       
       // Check if user has JWT data
-      const jwtUser = await db('jwt_users').where({ user_id: user.id }).first();
+      const jwtResult = await query(
+        `SELECT * FROM jwt_users WHERE user_id = $1`,
+        [user.id]
+      );
+      
+      const jwtUser = jwtResult.rows[0];
       if (!jwtUser) {
         return { success: true, message: 'If the email exists, a reset link has been sent' };
       }
@@ -198,13 +246,13 @@ class MinimalJWTUserModel {
       const resetExpires = new Date(Date.now() + 3600000); // 1 hour
       
       // Update jwt_users with reset token
-      await db('jwt_users')
-        .where({ user_id: user.id })
-        .update({
-          password_reset_token: resetToken,
-          password_reset_expires: resetExpires,
-          updated_at: new Date()
-        });
+      await query(`
+        UPDATE jwt_users 
+        SET password_reset_token = $1, 
+            password_reset_expires = $2, 
+            updated_at = NOW() 
+        WHERE user_id = $3
+      `, [resetToken, resetExpires, user.id]);
       
       console.log('✅ MinimalJWTUserModel: Password reset token generated for:', user.email);
       return { 
@@ -223,10 +271,12 @@ class MinimalJWTUserModel {
       console.log('📋 MinimalJWTUserModel: Resetting password with token');
       
       // Find user by password reset token in jwt_users table
-      const jwtUser = await db('jwt_users')
-        .where({ password_reset_token: token })
-        .first();
+      const result = await query(
+        `SELECT * FROM jwt_users WHERE password_reset_token = $1`,
+        [token]
+      );
       
+      const jwtUser = result.rows[0];
       if (!jwtUser) {
         throw new Error('Invalid reset token');
       }
@@ -237,14 +287,14 @@ class MinimalJWTUserModel {
       }
       
       // Update user password
-      await db('jwt_users')
-        .where({ user_id: jwtUser.user_id })
-        .update({
-          password_hash: newPasswordHash,
-          password_reset_token: null,
-          password_reset_expires: null,
-          updated_at: new Date()
-        });
+      await query(`
+        UPDATE jwt_users 
+        SET password_hash = $1, 
+            password_reset_token = NULL, 
+            password_reset_expires = NULL, 
+            updated_at = NOW() 
+        WHERE user_id = $2
+      `, [newPasswordHash, jwtUser.user_id]);
       
       const user = await this.findById(jwtUser.user_id);
       
@@ -278,24 +328,29 @@ class MinimalJWTUserModel {
       
       console.log('📋 MinimalJWTUserModel: Update data:', updateData);
       
-      const [updatedUser] = await db(this.tableName)
-        .where({ id: userId })
-        .update(updateData)
-        .returning('*');
+      const updatedUser = await this.update(userId, updateData);
       
       // Update JWT user data if it exists
       try {
-        await db('jwt_users')
-          .where({ user_id: userId })
-          .update({
-            username: profileData.username || '',
-            first_name: profileData.firstName || '',
-            last_name: profileData.lastName || '',
-            phone_number: profileData.phoneNumber || '',
-            date_of_birth: profileData.dateOfBirth || null,
-            gender: profileData.gender || '',
-            updated_at: new Date()
-          });
+        await query(`
+          UPDATE jwt_users 
+          SET username = $1, 
+              first_name = $2, 
+              last_name = $3, 
+              phone_number = $4, 
+              date_of_birth = $5, 
+              gender = $6, 
+              updated_at = NOW() 
+          WHERE user_id = $7
+        `, [
+          profileData.username || '',
+          profileData.firstName || '',
+          profileData.lastName || '',
+          profileData.phoneNumber || '',
+          profileData.dateOfBirth || null,
+          profileData.gender || '',
+          userId
+        ]);
         console.log('✅ MinimalJWTUserModel: JWT user data updated');
       } catch (error) {
         console.log('⚠️ MinimalJWTUserModel: JWT users table does not exist, skipping JWT data update');
@@ -313,10 +368,7 @@ class MinimalJWTUserModel {
     try {
       console.log('📋 MinimalJWTUserModel: Getting profile for user:', userId);
       
-      const user = await db(this.tableName)
-        .where({ id: userId })
-        .first();
-      
+      const user = await this.findById(userId);
       if (!user) {
         console.log('❌ MinimalJWTUserModel: User not found:', userId);
         return null;
@@ -325,7 +377,12 @@ class MinimalJWTUserModel {
       // Get JWT user data if it exists
       let jwtData = {};
       try {
-        const jwtUser = await db('jwt_users').where({ user_id: userId }).first();
+        const jwtResult = await query(
+          `SELECT * FROM jwt_users WHERE user_id = $1`,
+          [userId]
+        );
+        
+        const jwtUser = jwtResult.rows[0];
         if (jwtUser) {
           jwtData = {
             username: jwtUser.username || '',
@@ -367,8 +424,11 @@ class MinimalJWTUserModel {
   // Helper method to get password hash from jwt_users table
   static async getPasswordHash(user) {
     try {
-      const jwtUser = await db('jwt_users').where({ user_id: user.id }).first();
-      return jwtUser ? jwtUser.password_hash : null;
+      const result = await query(
+        `SELECT password_hash FROM jwt_users WHERE user_id = $1`,
+        [user.id]
+      );
+      return result.rows[0]?.password_hash || null;
     } catch {
       return null;
     }
@@ -377,8 +437,11 @@ class MinimalJWTUserModel {
   // Helper method to check if user is JWT user
   static async isJWTUser(user) {
     try {
-      const jwtUser = await db('jwt_users').where({ user_id: user.id }).first();
-      return !!jwtUser;
+      const result = await query(
+        `SELECT id FROM jwt_users WHERE user_id = $1`,
+        [user.id]
+      );
+      return result.rows.length > 0;
     } catch {
       return false;
     }

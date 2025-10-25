@@ -20,7 +20,7 @@ import { ThemeContext } from '../../context/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { validateNumericInput } from '../../utils/validation';
-import Card from '../../components/common/Card';
+import CardComponent from '../../components/common/CardComponent';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 import { colors, typography, layout } from '../../../styles';
@@ -317,8 +317,8 @@ const EditFlowScreen = ({ route, navigation }) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          {/* Title Card */}
-          <Card variant="elevated" padding="md" margin="none">
+          {/* Title CardComponent */}
+          <CardComponent variant="elevated" padding="md" margin="none">
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Flow Title</Text>
             <View style={styles.titleInputContainer}>
               <TextInput
@@ -347,10 +347,10 @@ const EditFlowScreen = ({ route, navigation }) => {
                 <Text style={[styles.errorText, { color: themeColors.error }]}>{titleError}</Text>
               )}
             </View>
-          </Card>
+          </CardComponent>
 
-          {/* Description Card */}
-          <Card variant="elevated" padding="md" margin="none">
+          {/* Description CardComponent */}
+          <CardComponent variant="elevated" padding="md" margin="none">
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Description</Text>
             <TextInput
               style={[
@@ -371,10 +371,10 @@ const EditFlowScreen = ({ route, navigation }) => {
               accessibilityLabel="Flow description input"
               accessibilityHint="Enter an optional description for your flow"
             />
-          </Card>
+          </CardComponent>
 
-          {/* Storage Preference Card */}
-          <Card variant="elevated" padding="md" margin="none">
+          {/* Storage Preference CardComponent */}
+          <CardComponent variant="elevated" padding="md" margin="none">
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Storage Preference</Text>
             <Text style={[styles.storageSubtitle, { color: themeColors.secondaryText }]}>
               Current: {storagePreference === 'local' ? 'Local Only' : 'Cloud Sync'}
@@ -508,9 +508,9 @@ const EditFlowScreen = ({ route, navigation }) => {
                 </Text>
               </View>
             )}
-          </Card>
+          </CardComponent>
 
-          {/* Tracking Type Card */}
+          {/* Tracking Type CardComponent */}
           <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Tracking Type</Text>
             <View style={styles.trackingTypeContainer}>
@@ -756,7 +756,7 @@ const EditFlowScreen = ({ route, navigation }) => {
             </View>
           )}
 
-          {/* Frequency Card */}
+          {/* Frequency CardComponent */}
           <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Frequency</Text>
             <View style={styles.frequencyContainer}>
@@ -799,7 +799,7 @@ const EditFlowScreen = ({ route, navigation }) => {
             </View>
           </View>
 
-          {/* Days Selection Card */}
+          {/* Days Selection CardComponent */}
           {frequency === 'Daily' && (
             <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
               <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Schedule</Text>
@@ -879,7 +879,7 @@ const EditFlowScreen = ({ route, navigation }) => {
             </View>
           )}
 
-          {/* Reminder Time Card */}
+          {/* Reminder Time CardComponent */}
           <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Reminder</Text>
             <View style={styles.toggleRow}>
@@ -964,7 +964,7 @@ const EditFlowScreen = ({ route, navigation }) => {
             )}
           </View>
 
-          {/* Cheat Mode Card */}
+          {/* Cheat Mode CardComponent */}
           <View style={[styles.card, { backgroundColor: themeColors.cardBackground }]}>
             <Text style={[styles.cardTitle, { color: themeColors.primaryText }]}>Cheat Mode</Text>
             <View style={styles.toggleRow}>

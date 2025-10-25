@@ -11,7 +11,7 @@ import { ThemeContext } from '../../context/ThemeContext';
 import { colors, layout, typography } from '../../../styles';
 import { LineChart, PieChart, BarChart } from 'react-native-chart-kit';
 import Svg, { Circle, Path } from 'react-native-svg';
-import Card from '../common/Card';
+import CardComponent from '../common/CardComponent';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -235,8 +235,8 @@ const FlowStatsDetail = ({ route, navigation }) => {
   };
 
   // Render metric card (same style as main stats page)
-  const MetricCard = ({ title, value, subtitle, icon, color }) => (
-    <View style={styles.metricCard}>
+  const MetricCardComponent = ({ title, value, subtitle, icon, color }) => (
+    <View style={styles.metricCardComponent}>
       <LinearGradient
         colors={[color + '20', color + '10']}
         style={styles.metricGradient}
@@ -309,7 +309,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
     const bestDay = data.reduce((best, day) => day.intensity > best.intensity ? day : best, data[0]);
 
     return (
-      <Card variant="default" padding="lg" margin="xs">
+      <CardComponent variant="default" padding="lg" margin="xs">
         <View style={styles.heatMapHeader}>
           <View style={styles.heatMapTitleContainer}>
             <Ionicons name="calendar" size={24} color={themeColors.primaryOrange} />
@@ -434,7 +434,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
             </Text>
           </View>
         </View>
-      </Card>
+      </CardComponent>
     );
   };
 
@@ -1028,7 +1028,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
         {/* Secondary Metrics */}
         <View style={styles.metricsGrid}>
           {analytics.secondaryMetrics.map((metric, index) => (
-            <MetricCard
+            <MetricCardComponent
               key={index}
               title={metric.title}
               value={metric.value}
@@ -1281,11 +1281,11 @@ const FlowStatsDetail = ({ route, navigation }) => {
 
         {/* Type-Specific Stats */}
         {flow.trackingType === 'Quantitative' && analytics.quantitativeStats && (
-          <Card variant="default" padding="lg" margin="xs">
+          <CardComponent variant="default" padding="lg" margin="xs">
             <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Quantitative Analysis</Text>
             <View style={styles.metricsGrid}>
               {analytics.quantitativeStats.map((stat, index) => (
-                <MetricCard
+                <MetricCardComponent
                   key={index}
                   title={stat.title}
                   value={stat.value}
@@ -1294,15 +1294,15 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 />
               ))}
             </View>
-          </Card>
+          </CardComponent>
         )}
 
         {flow.trackingType === 'Time-based' && analytics.timeBasedStats && (
-          <Card variant="default" padding="lg" margin="xs">
+          <CardComponent variant="default" padding="lg" margin="xs">
             <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Time Analysis</Text>
             <View style={styles.metricsGrid}>
               {analytics.timeBasedStats.map((stat, index) => (
-                <MetricCard
+                <MetricCardComponent
                   key={index}
                   title={stat.title}
                   value={stat.value}
@@ -1311,11 +1311,11 @@ const FlowStatsDetail = ({ route, navigation }) => {
                 />
               ))}
             </View>
-          </Card>
+          </CardComponent>
         )}
 
         {/* Notes Tracking */}
-        <Card variant="default" padding="lg" margin="xs">
+        <CardComponent variant="default" padding="lg" margin="xs">
           <View style={styles.sectionHeader}>
             <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Notes & Reflections</Text>
             <TouchableOpacity
@@ -1353,10 +1353,10 @@ const FlowStatsDetail = ({ route, navigation }) => {
               );
             })()}
           </View>
-        </Card>
+        </CardComponent>
 
         {/* Emotional Tracking */}
-        <Card variant="default" padding="lg" margin="xs">
+        <CardComponent variant="default" padding="lg" margin="xs">
           <View style={styles.sectionHeader}>
             <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Emotional Tracking</Text>
             <TouchableOpacity
@@ -1406,11 +1406,11 @@ const FlowStatsDetail = ({ route, navigation }) => {
               });
             })()}
           </View>
-        </Card>
+        </CardComponent>
 
 
         {/* Insights */}
-        <Card variant="default" padding="lg" margin="md">
+        <CardComponent variant="default" padding="lg" margin="md">
           <Text style={[styles.insightsTitle, { color: themeColors.primaryText }]}>Insights</Text>
           <View style={styles.insightsList}>
             {(() => {
@@ -1477,7 +1477,7 @@ const FlowStatsDetail = ({ route, navigation }) => {
               return insights;
             })()}
           </View>
-        </Card>
+        </CardComponent>
 
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
@@ -1815,7 +1815,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: layout.spacing.xs,
   },
-  metricCard: {
+  metricCardComponent: {
     width: '48%',
     marginBottom: layout.spacing.sm,
   },
@@ -2080,14 +2080,14 @@ const styles = StyleSheet.create({
     marginTop: layout.spacing.xs,
     textAlign: 'center',
   },
-  emotionCardHorizontal: {
+  emotionCardComponentHorizontal: {
     width: '48%',
     backgroundColor: 'rgba(0,0,0,0.03)',
     borderRadius: layout.radii.base,
     marginBottom: layout.spacing.sm,
     padding: layout.spacing.sm,
   },
-  emotionCardContentHorizontal: {
+  emotionCardComponentContentHorizontal: {
     alignItems: 'center',
   },
   emotionLabelHorizontal: {
@@ -2107,18 +2107,18 @@ const styles = StyleSheet.create({
     marginTop: layout.spacing.xs,
     textAlign: 'center',
   },
-  emotionCardVertical: {
+  emotionCardComponentVertical: {
     backgroundColor: 'rgba(0,0,0,0.03)',
     borderRadius: layout.radii.base,
     marginBottom: layout.spacing.sm,
     padding: layout.spacing.md,
   },
-  emotionCardContent: {
+  emotionCardComponentContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  emotionCardHeader: {
+  emotionCardComponentHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
@@ -2128,7 +2128,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: layout.spacing.sm,
   },
-  emotionCardStats: {
+  emotionCardComponentStats: {
     alignItems: 'flex-end',
   },
   emotionCountVertical: {

@@ -15,7 +15,7 @@ class JWTAPIService {
       console.log('🌐 JWT API Service initialized with base URL:', this.baseURL);
     } catch (error) {
       console.error('❌ Error initializing JWT API Service:', error);
-      this.baseURL = 'https://flow-api-firebase-891963913698.us-central1.run.app';
+      this.baseURL = 'https://flow-api-c57f3te5va-uc.a.run.app';
     }
   }
 
@@ -54,7 +54,7 @@ class JWTAPIService {
   }
 
   async waitForAuthReady() {
-    // For JWT auth, we don't need to wait for Firebase initialization
+    // For JWT auth, we don't need to wait for external auth initialization
     return true;
   }
 

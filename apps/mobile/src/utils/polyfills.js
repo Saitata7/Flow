@@ -1,16 +1,16 @@
 // src/utils/polyfills.js
-// Firebase Web SDK polyfills for React Native
+// General polyfills for React Native
 
 import 'react-native-get-random-values';
 import { Buffer } from '@craftzdog/react-native-buffer';
 import CryptoJS from 'crypto-js';
 
-// Polyfill global objects that Firebase Web SDK expects
+// Polyfill global objects
 if (typeof global.Buffer === 'undefined') {
   global.Buffer = Buffer;
 }
 
-// Polyfill crypto for Firebase
+// Polyfill crypto
 if (typeof global.crypto === 'undefined') {
   global.crypto = {
     getRandomValues: (arr) => {
@@ -32,7 +32,7 @@ if (typeof global.crypto === 'undefined') {
   };
 }
 
-// Polyfill TextEncoder/TextDecoder for Firebase
+// Polyfill TextEncoder/TextDecoder
 if (typeof global.TextEncoder === 'undefined') {
   global.TextEncoder = require('text-encoding').TextEncoder;
 }

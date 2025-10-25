@@ -92,12 +92,10 @@ gcloud run deploy ${SERVICE_NAME} \
     --execution-environment gen2 \
     --cpu-throttling \
     --set-env-vars NODE_ENV=production \
-    --set-env-vars PORT=8080 \
     --set-env-vars HOST=0.0.0.0 \
     --set-env-vars LOG_LEVEL=info \
     --set-env-vars NODE_OPTIONS=--max-old-space-size=512 \
-    --set-env-vars AUTH_PROVIDER=firebase \
-    --set-env-vars CORS_ORIGIN=https://flow.app,https://app.flow.com,https://flow-mobile.app
+    --set-env-vars AUTH_PROVIDER=jwt
 
 # Get service URL
 SERVICE_URL=$(gcloud run services describe ${SERVICE_NAME} --region=${REGION} --format='value(status.url)')

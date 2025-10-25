@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { validateNumericInput } from '../../utils/validation';
 import jwtApiService from '../../services/jwtApiService';
-import Card from '../../components/common/Card';
+import CardComponent from '../../components/common/CardComponent';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 import { colors, typography, layout } from '../../../styles';
@@ -54,7 +54,7 @@ const predefinedUnits = [
 export default function AddFlow({ navigation }) {
   const flowsContext = useContext(FlowsContext);
   const { addFlow, flows } = flowsContext || {};
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const route = useRoute();
   const { flowToEdit } = route.params || {};
   const insets = useSafeAreaInsets();
@@ -93,6 +93,37 @@ export default function AddFlow({ navigation }) {
 
   // v2 schema fields
   const [planId, setPlanId] = useState(null);
+
+  // Function to reset form to default values
+  const resetForm = useCallback(() => {
+    console.log('AddFlow: Resetting form to default values');
+    setTitle('');
+    setDescription('');
+    setTrackingType('Binary');
+    setFrequency('Daily');
+    setEveryDay(true);
+    setSelectedDays([]);
+    setReminderTimeEnabled(false);
+    setReminderTime(null);
+    setShowTimePicker(false);
+    setReminderLevel('1');
+    setUnitText('');
+    setSelectedUnit('');
+    setShowUnitDropdown(false);
+    setHours(0);
+    setMinutes(0);
+    setSeconds(0);
+    setGoal(0);
+    setHoursInput('00');
+    setMinutesInput('00');
+    setSecondsInput('00');
+    setGoalInput('0');
+    setPlanId(null);
+    
+    // Reset validation state
+    setTitleError('');
+    setIsCheckingTitle(false);
+  }, []);
 
   useEffect(() => {
     if (flowToEdit) {
@@ -273,37 +304,6 @@ export default function AddFlow({ navigation }) {
       ]
     );
   };
-
-  // Function to reset form to default values
-  const resetForm = useCallback(() => {
-    console.log('AddFlow: Resetting form to default values');
-    setTitle('');
-    setDescription('');
-    setTrackingType('Binary');
-    setFrequency('Daily');
-    setEveryDay(true);
-    setSelectedDays([]);
-    setReminderTimeEnabled(false);
-    setReminderTime(null);
-    setShowTimePicker(false);
-    setReminderLevel('1');
-    setUnitText('');
-    setSelectedUnit('');
-    setShowUnitDropdown(false);
-    setHours(0);
-    setMinutes(0);
-    setSeconds(0);
-    setGoal(0);
-    setHoursInput('00');
-    setMinutesInput('00');
-    setSecondsInput('00');
-    setGoalInput('0');
-    setPlanId(null);
-    
-    // Reset validation state
-    setTitleError('');
-    setIsCheckingTitle(false);
-  }, []);
 
   const handleUnitSelection = (unit) => {
     if (unit === 'other') {
@@ -498,517 +498,580 @@ export default function AddFlow({ navigation }) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-          {/* Title Card */}
-          <Card variant="elevated" padding="md" margin="none">
-            <Text style={styles.cardTitle}>Flow Title</Text>
-            <View style={styles.titleInputContainer}>
-              <TextInput
-                style={[
-                  styles.modernInput,
-                  titleError && styles.inputError,
-                  isCheckingTitle && styles.inputChecking
-                ]}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="e.g., Read for 30 minutes"
-                placeholderTextColor={colors.light.tertiaryText}
-                maxLength={10}
-                accessibilityLabel="Flow title input"
-                accessibilityHint="Enter a unique name for your flow (max 10 characters)"
-              />
-              {isCheckingTitle && (
-                <Text style={styles.checkingText}>Checking availability...</Text>
-              )}
-              {titleError && (
-                <Text style={styles.errorText}>{titleError}</Text>
-              )}
+          
+          {/* General Settings Section */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="settings-outline" size={20} color={colors.light.primaryOrange} />
+              <Text style={styles.sectionTitle}>General Settings</Text>
             </View>
-          </Card>
-
-          {/* Description Card */}
-          <Card variant="elevated" padding="md" margin="none">
-            <Text style={styles.cardTitle}>Description</Text>
-            <TextInput
-              style={[styles.modernInput, styles.textArea]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Optional description about your flow..."
-              placeholderTextColor={colors.light.tertiaryText}
-              multiline
-              numberOfLines={3}
-              accessibilityLabel="Flow description input"
-              accessibilityHint="Enter an optional description for your flow"
-            />
-          </Card>
-
-          {/* Storage Preference Card */}
-          <Card variant="elevated" padding="md" margin="none">
-            <Text style={styles.cardTitle}>Storage Preference</Text>
-            <Text style={styles.storageSubtitle}>Choose how your flow data is stored</Text>
             
-            <View style={styles.storageOptionsContainer}>
-              {/* Local Storage Option */}
-              <TouchableOpacity
-                style={[
-                  styles.storageOption,
-                  storagePreference === 'local' && styles.storageOptionSelected
-                ]}
-                onPress={() => setStoragePreference('local')}
-                accessibilityLabel="Local storage option"
-                accessibilityHint="Store flow data locally on device only"
-                accessibilityRole="button"
-              >
-                <View style={styles.storageOptionHeader}>
-                  <Ionicons 
-                    name="phone-portrait-outline" 
-                    size={24} 
-                    color={storagePreference === 'local' ? colors.light.primaryOrange : colors.light.secondaryText} 
-                  />
-                  <Text style={[
-                    styles.storageOptionTitle,
-                    storagePreference === 'local' && styles.storageOptionTitleSelected
-                  ]}>
-                    Local Only
-                  </Text>
-                </View>
-                <Text style={[
-                  styles.storageOptionDescription,
-                  storagePreference === 'local' && styles.storageOptionDescriptionSelected
-                ]}>
-                  • Stored on your device only
-                </Text>
-                <Text style={[
-                  styles.storageOptionDescription,
-                  storagePreference === 'local' && styles.storageOptionDescriptionSelected
-                ]}>
-                  • Works offline
-                </Text>
-                <Text style={[
-                  styles.storageOptionDescription,
-                  storagePreference === 'local' && styles.storageOptionDescriptionSelected
-                ]}>
-                  • Can be upgraded to cloud later
-                </Text>
-                <Text style={[
-                  styles.storageOptionDescription,
-                  storagePreference === 'local' && styles.storageOptionDescriptionSelected
-                ]}>
-                  • Data lost if device is reset
-                </Text>
-              </TouchableOpacity>
-
-              {/* Cloud Storage Option */}
-              <TouchableOpacity
-                style={[
-                  styles.storageOption,
-                  storagePreference === 'cloud' && styles.storageOptionSelected
-                ]}
-                onPress={() => {
-                  setStoragePreference('cloud');
-                  setShowStorageWarning(true);
-                }}
-                accessibilityLabel="Cloud storage option"
-                accessibilityHint="Store flow data in cloud database - cannot be reverted"
-                accessibilityRole="button"
-              >
-                <View style={styles.storageOptionHeader}>
-                  <Ionicons 
-                    name="cloud-outline" 
-                    size={24} 
-                    color={storagePreference === 'cloud' ? colors.light.primaryOrange : colors.light.secondaryText} 
-                  />
-                  <Text style={[
-                    styles.storageOptionTitle,
-                    storagePreference === 'cloud' && styles.storageOptionTitleSelected
-                  ]}>
-                    Cloud Sync
-                  </Text>
-                </View>
-                <Text style={[
-                  styles.storageOptionDescription,
-                  storagePreference === 'cloud' && styles.storageOptionDescriptionSelected
-                ]}>
-                  • Synced across all devices
-                </Text>
-                <Text style={[
-                  styles.storageOptionDescription,
-                  storagePreference === 'cloud' && styles.storageOptionDescriptionSelected
-                ]}>
-                  • Backed up automatically
-                </Text>
-                <Text style={[
-                  styles.storageOptionDescription,
-                  storagePreference === 'cloud' && styles.storageOptionDescriptionSelected
-                ]}>
-                  • Requires internet connection
-                </Text>
-                <Text style={[
-                  styles.storageOptionWarning,
-                  storagePreference === 'cloud' && styles.storageOptionWarningSelected
-                ]}>
-                  ⚠️ Cannot be reverted to local
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Cloud Storage Warning */}
-            {showStorageWarning && storagePreference === 'cloud' && (
-              <View style={styles.warningContainer}>
-                <Ionicons name="warning-outline" size={20} color={colors.light.warning} />
-                <Text style={styles.warningText}>
-                  Cloud storage cannot be reverted to local. If you want local-only storage, create a new flow instead.
-                </Text>
+            {/* Habit Name */}
+            <CardComponent variant="elevated" padding="md" margin="none">
+              <View style={styles.inputHeader}>
+                <Ionicons name="create-outline" size={18} color={colors.light.primaryOrange} />
+                <Text style={styles.inputLabel}>Habit Name</Text>
               </View>
-            )}
-          </Card>
-
-          {/* Tracking Type Card */}
-          <Card variant="elevated" padding="md" margin="none">
-            <Text style={styles.cardTitle}>Tracking Type</Text>
-            <View style={styles.trackingTypeContainer}>
-              <TouchableOpacity
-                style={[styles.trackingTypeButton, trackingType === 'Binary' && styles.trackingTypeButtonSelected]}
-                onPress={() => setTrackingType('Binary')}
-                accessibilityLabel="Binary tracking type"
-                accessibilityHint="Select binary yes/no tracking for your flow"
-                accessibilityRole="button"
-              >
-                <Text style={styles.trackingTypeIcon}>+</Text>
-                <Text style={[styles.trackingTypeText, trackingType === 'Binary' && styles.trackingTypeTextSelected]}>
-                  Binary
-                </Text>
-                <Text style={styles.trackingTypeSubtext}>Yes/No tracking</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.trackingTypeButton, trackingType === 'Quantitative' && styles.trackingTypeButtonSelected]}
-                onPress={() => setTrackingType('Quantitative')}
-                accessibilityLabel="Quantitative tracking type"
-                accessibilityHint="Select quantitative number tracking for your flow"
-                accessibilityRole="button"
-              >
-                <Text style={styles.trackingTypeIcon}>📊</Text>
-                <Text style={[styles.trackingTypeText, trackingType === 'Quantitative' && styles.trackingTypeTextSelected]}>
-                  Quantitative
-                </Text>
-                <Text style={styles.trackingTypeSubtext}>Numbers tracking</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.trackingTypeButton, trackingType === 'Time-based' && styles.trackingTypeButtonSelected]}
-                onPress={() => setTrackingType('Time-based')}
-                accessibilityLabel="Time-based tracking type"
-                accessibilityHint="Select time-based duration tracking for your flow"
-                accessibilityRole="button"
-              >
-                <Text style={styles.trackingTypeIcon}>⏱️</Text>
-                <Text style={[styles.trackingTypeText, trackingType === 'Time-based' && styles.trackingTypeTextSelected]}>
-                  Time-based
-                </Text>
-                <Text style={styles.trackingTypeSubtext}>Duration tracking</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-
-          {/* Quantitative Settings */}
-          {trackingType === 'Quantitative' && (
-            <Card variant="elevated" padding="md" margin="none" style={{ overflow: 'visible' }}>
-              <Text style={styles.cardTitle}>Quantitative Settings</Text>
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Unit</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    value={unitText}
-                    onChangeText={setUnitText}
-                    placeholder="e.g., pages, minutes, cups"
-                    placeholderTextColor={colors.light.tertiaryText}
-                    accessibilityLabel="Unit input"
-                    accessibilityHint="Enter the unit for your quantitative tracking"
-                  />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Goal (Optional)</Text>
-                  <TextInput
-                    style={styles.modernInput}
-                    value={goalInput}
-                    onChangeText={(text) => {
-                      const cleanText = text.replace(/[^0-9]/g, '');
-                      setGoalInput(cleanText);
-                    }}
-                    onBlur={() => {
-                      const validation = validateNumericInput(goalInput, 0, 9999, 'Goal');
-                      if (validation.valid) {
-                        const num = parseInt(goalInput) || 0;
-                        setGoal(num);
-                        setGoalInput(num.toString());
-                      } else {
-                        Alert.alert('Invalid Input', validation.error);
-                        setGoalInput('0');
-                        setGoal(0);
-                      }
-                    }}
-                    keyboardType="numeric"
-                    placeholder="e.g., 8"
-                    placeholderTextColor="#999"
-                  />
-                </View>
-              </View>
-            </Card>
-          )}
-
-          {/* Time-based Settings */}
-          {trackingType === 'Time-based' && (
-            <Card variant="elevated" padding="md" margin="none">
-              <Text style={styles.cardTitle}>Time Duration (Goal)</Text>
-              <TimePicker
-                initialHours={hours}
-                initialMinutes={minutes}
-                onTimeChange={handleDurationChange}
-                style={styles.timePickerContainer}
-              />
-            </Card>
-          )}
-
-          {/* Frequency Card */}
-          <Card variant="elevated" padding="md" margin="sm">
-            <Text style={styles.cardTitle}>Frequency</Text>
-            <View style={styles.frequencyContainer}>
-              <TouchableOpacity
-                style={[styles.frequencyButton, frequency === 'Daily' && styles.frequencyButtonSelected]}
-                onPress={() => setFrequency('Daily')}
-                accessibilityLabel="Daily frequency"
-                accessibilityHint="Set flow to occur daily"
-                accessibilityRole="button"
-              >
-                <Text style={[styles.frequencyText, frequency === 'Daily' && styles.frequencyTextSelected]}>
-                  Daily
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.frequencyButton, frequency === 'Monthly' && styles.frequencyButtonSelected]}
-                onPress={() => setFrequency('Monthly')}
-                accessibilityLabel="Monthly frequency"
-                accessibilityHint="Set flow to occur monthly"
-                accessibilityRole="button"
-              >
-                <Text style={[styles.frequencyText, frequency === 'Monthly' && styles.frequencyTextSelected]}>
-                  Monthly
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
-
-          {/* Days Selection Card */}
-          {frequency === 'Daily' && (
-            <Card variant="elevated" padding="md" margin="none">
-              <Text style={styles.cardTitle}>Schedule</Text>
-              <View style={styles.toggleRow}>
-                <Text style={styles.toggleLabel}>Every Day</Text>
-                <Switch
-                  style={styles.toggleSwitch}
-                  value={everyDay}
-                  onValueChange={setEveryDay}
-                  trackColor={{ false: colors.light.border, true: colors.light.primaryOrange }}
-                  thumbColor={colors.light.cardBackground}
-                  accessibilityLabel="Every day toggle"
-                  accessibilityHint="Toggles whether the flow occurs every day"
+              <View style={styles.titleInputContainer}>
+                <TextInput
+                  style={[
+                    styles.modernInput,
+                    titleError && styles.inputError,
+                    isCheckingTitle && styles.inputChecking
+                  ]}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="e.g., Read for 30 minutes"
+                  placeholderTextColor={colors.light.tertiaryText}
+                  maxLength={10}
+                  accessibilityLabel="Flow title input"
+                  accessibilityHint="Enter a unique name for your flow (max 10 characters)"
                 />
+                {isCheckingTitle && (
+                  <Text style={styles.checkingText}>Checking availability...</Text>
+                )}
+                {titleError && (
+                  <Text style={styles.errorText}>{titleError}</Text>
+                )}
               </View>
-              {!everyDay && (
-                <View style={styles.daysContainer}>
-                  <Text style={styles.inputLabel}>Days of Week</Text>
-                  <View style={styles.daysGrid}>
-                    {daysOfWeek.map((day) => (
-                      <TouchableOpacity
-                        key={day}
-                        onPress={() => toggleDay(day)}
-                        style={[
-                          styles.dayButton,
-                          selectedDays.includes(day) && styles.dayButtonSelected,
-                        ]}
-                        accessibilityLabel={`${day} day selection`}
-                        accessibilityHint={`Toggle ${day} for flow schedule`}
-                        accessibilityRole="button"
-                      >
-                        <Text
-                          style={[
-                            styles.dayButtonText,
-                            selectedDays.includes(day) && styles.dayButtonTextSelected,
-                          ]}
-                        >
-                          {day}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
-            </Card>
-          )}
+            </CardComponent>
 
-          {frequency === 'Monthly' && (
-            <Card variant="elevated" padding="md" margin="none">
-              <Text style={styles.cardTitle}>Days of Month</Text>
-              <View style={styles.monthDaysGrid}>
-                {daysInMonth.map((day) => (
-                  <TouchableOpacity
-                    key={day}
-                    onPress={() => toggleDay(day)}
-                    style={[
-                      styles.dayButton,
-                      selectedDays.includes(day) && styles.dayButtonSelected,
-                    ]}
-                    accessibilityLabel={`Day ${day} selection`}
-                    accessibilityHint={`Toggle day ${day} for monthly flow schedule`}
-                    accessibilityRole="button"
-                  >
-                    <Text
-                      style={[
-                        styles.dayButtonText,
-                        selectedDays.includes(day) && styles.dayButtonTextSelected,
-                      ]}
-                    >
-                      {day}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+            {/* Description */}
+            <CardComponent variant="elevated" padding="md" margin="none">
+              <View style={styles.inputHeader}>
+                <Ionicons name="document-text-outline" size={18} color={colors.light.primaryOrange} />
+                <Text style={styles.inputLabel}>Description</Text>
               </View>
-            </Card>
-          )}
-
-          {/* Reminder Time Card */}
-          <Card variant="elevated" padding="md" margin="sm">
-            <Text style={styles.cardTitle}>Reminder</Text>
-            <View style={styles.toggleRow}>
-              <Text style={styles.toggleLabel}>Enable Reminder</Text>
-              <Switch
-                style={styles.toggleSwitch}
-                value={reminderTimeEnabled}
-                onValueChange={setReminderTimeEnabled}
-                trackColor={{ false: colors.light.border, true: colors.light.primaryOrange }}
-                thumbColor={colors.light.cardBackground}
-                accessibilityLabel="Enable reminder toggle"
-                accessibilityHint="Toggles reminder notifications for this flow"
+              <TextInput
+                style={[styles.modernInput, styles.textArea]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Optional description about your flow..."
+                placeholderTextColor={colors.light.tertiaryText}
+                multiline
+                numberOfLines={3}
+                accessibilityLabel="Flow description input"
+                accessibilityHint="Enter an optional description for your flow"
               />
-            </View>
-            {reminderTimeEnabled && (
-              <>
+            </CardComponent>
+
+            {/* Tracking Type */}
+            <CardComponent variant="elevated" padding="md" margin="none">
+              <View style={styles.inputHeader}>
+                <Ionicons name="analytics-outline" size={18} color={colors.light.primaryOrange} />
+                <Text style={styles.inputLabel}>Tracking Type</Text>
+              </View>
+              <View style={styles.trackingTypeContainer}>
                 <TouchableOpacity
-                  style={styles.timePickerButton}
-                  onPress={() => setShowTimePicker(true)}
-                  accessibilityLabel="Set reminder time"
-                  accessibilityHint="Opens time picker to set reminder time"
+                  style={[styles.trackingTypeButton, trackingType === 'Binary' && styles.trackingTypeButtonSelected]}
+                  onPress={() => setTrackingType('Binary')}
+                  accessibilityLabel="Binary tracking type"
+                  accessibilityHint="Select binary yes/no tracking for your flow"
                   accessibilityRole="button"
                 >
-                  <Text style={styles.timePickerText}>
-                    {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
+                  <Text style={styles.trackingTypeIcon}>✓</Text>
+                  <Text style={[styles.trackingTypeText, trackingType === 'Binary' && styles.trackingTypeTextSelected]}>
+                    Binary
                   </Text>
+                  <Text style={styles.trackingTypeSubtext}>Yes/No tracking</Text>
                 </TouchableOpacity>
                 
-                {/* Reminder Level Section */}
-                <View style={styles.reminderLevelSection}>
-                  <Text style={styles.reminderLevelLabel}>Reminder Level</Text>
-                  <Text style={styles.reminderLevelDescription}>
-                    Choose the intensity of your reminder
+                <TouchableOpacity
+                  style={[styles.trackingTypeButton, trackingType === 'Quantitative' && styles.trackingTypeButtonSelected]}
+                  onPress={() => setTrackingType('Quantitative')}
+                  accessibilityLabel="Quantitative tracking type"
+                  accessibilityHint="Select quantitative number tracking for your flow"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.trackingTypeIcon}>📊</Text>
+                  <Text style={[styles.trackingTypeText, trackingType === 'Quantitative' && styles.trackingTypeTextSelected]}>
+                    Quantitative
                   </Text>
-                  <View style={styles.reminderLevelButtons}>
-                    {[
-                      { 
-                        level: '1', 
-                        label: 'Gentle Reminder', 
-                        description: '🌱 Soft notification with gentle chime',
-                        details: 'Light vibration, easy to dismiss'
-                      },
-                      { 
-                        level: '2', 
-                        label: 'Moderate Push', 
-                        description: '🔔 Standard notification with sound',
-                        details: 'Medium vibration, persistent until completed'
-                      },
-                      { 
-                        level: '3', 
-                        label: 'Urgent Alarm', 
-                        description: '🚨 Loud alarm with custom music',
-                        details: 'Strong vibration, requires user interaction'
-                      }
-                    ].map(({ level, label, description, details }) => (
-                      <TouchableOpacity
-                        key={level}
-                        style={[
-                          styles.reminderLevelButton,
-                          reminderLevel === level && styles.reminderLevelButtonSelected
-                        ]}
-                        onPress={() => setReminderLevel(level)}
-                        accessibilityLabel={`Set reminder level to ${label}`}
-                        accessibilityHint={`Sets reminder intensity to ${description}`}
-                      >
-                        <Text style={[
-                          styles.reminderLevelButtonText,
-                          reminderLevel === level && styles.reminderLevelButtonTextSelected
-                        ]}>
-                          {label}
+                  <Text style={styles.trackingTypeSubtext}>Numbers tracking</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.trackingTypeButton, trackingType === 'Time-based' && styles.trackingTypeButtonSelected]}
+                  onPress={() => setTrackingType('Time-based')}
+                  accessibilityLabel="Time-based tracking type"
+                  accessibilityHint="Select time-based duration tracking for your flow"
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.trackingTypeIcon}>⏱️</Text>
+                  <Text style={[styles.trackingTypeText, trackingType === 'Time-based' && styles.trackingTypeTextSelected]}>
+                    Time-based
+                  </Text>
+                  <Text style={styles.trackingTypeSubtext}>Duration tracking</Text>
+                </TouchableOpacity>
+              </View>
+            </CardComponent>
+
+            {/* Frequency */}
+            <CardComponent variant="elevated" padding="md" margin="none">
+              <View style={styles.inputHeader}>
+                <Ionicons name="calendar-outline" size={18} color={colors.light.primaryOrange} />
+                <Text style={styles.inputLabel}>Frequency</Text>
+              </View>
+              <View style={styles.frequencyContainer}>
+                <TouchableOpacity
+                  style={[styles.frequencyButton, frequency === 'Daily' && styles.frequencyButtonSelected]}
+                  onPress={() => setFrequency('Daily')}
+                  accessibilityLabel="Daily frequency"
+                  accessibilityHint="Set flow to occur daily"
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.frequencyText, frequency === 'Daily' && styles.frequencyTextSelected]}>
+                    Daily
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.frequencyButton, frequency === 'Monthly' && styles.frequencyButtonSelected]}
+                  onPress={() => setFrequency('Monthly')}
+                  accessibilityLabel="Monthly frequency"
+                  accessibilityHint="Set flow to occur monthly"
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.frequencyText, frequency === 'Monthly' && styles.frequencyTextSelected]}>
+                    Monthly
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </CardComponent>
+          </View>
+
+          {/* Flow Settings Section */}
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="cog-outline" size={20} color={colors.light.primaryOrange} />
+              <Text style={styles.sectionTitle}>Flow Settings</Text>
+            </View>
+
+            {/* Storage Preference */}
+            <CardComponent variant="elevated" padding="md" margin="none">
+              <View style={styles.inputHeader}>
+                <Ionicons name="cloud-outline" size={18} color={colors.light.primaryOrange} />
+                <Text style={styles.inputLabel}>Storage Preference</Text>
+              </View>
+              <Text style={styles.storageDescription}>
+                Choose how your flow data is stored and synced
+              </Text>
+              
+              <View style={styles.storageOptionsContainer}>
+                {/* Local Storage Option */}
+                <TouchableOpacity
+                  style={[
+                    styles.storageOption,
+                    storagePreference === 'local' && styles.storageOptionSelected
+                  ]}
+                  onPress={() => setStoragePreference('local')}
+                  accessibilityLabel="Local storage option"
+                  accessibilityHint="Store flow data locally on device only"
+                  accessibilityRole="button"
+                >
+                  <View style={styles.storageOptionHeader}>
+                    <Ionicons 
+                      name="phone-portrait-outline" 
+                      size={24} 
+                      color={storagePreference === 'local' ? colors.light.primaryOrange : colors.light.secondaryText} 
+                    />
+                    <Text style={[
+                      styles.storageOptionTitle,
+                      storagePreference === 'local' && styles.storageOptionTitleSelected
+                    ]}>
+                      Local Only
+                    </Text>
+                  </View>
+                  <View style={styles.storageOptionFeatures}>
+                    <Text style={[
+                      styles.storageOptionFeature,
+                      storagePreference === 'local' && styles.storageOptionFeatureSelected
+                    ]}>
+                      ✓ Stored on your device only
+                    </Text>
+                    <Text style={[
+                      styles.storageOptionFeature,
+                      storagePreference === 'local' && styles.storageOptionFeatureSelected
+                    ]}>
+                      ✓ Works offline
+                    </Text>
+                    <Text style={[
+                      styles.storageOptionFeature,
+                      storagePreference === 'local' && styles.storageOptionFeatureSelected
+                    ]}>
+                      ✓ Can be upgraded to cloud later
+                    </Text>
+                    <Text style={[
+                      styles.storageOptionFeature,
+                      storagePreference === 'local' && styles.storageOptionFeatureSelected
+                    ]}>
+                      ⚠️ Data lost if device is reset
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Cloud Storage Option */}
+                <TouchableOpacity
+                  style={[
+                    styles.storageOption,
+                    storagePreference === 'cloud' && styles.storageOptionSelected
+                  ]}
+                  onPress={() => {
+                    setStoragePreference('cloud');
+                    setShowStorageWarning(true);
+                  }}
+                  accessibilityLabel="Cloud storage option"
+                  accessibilityHint="Store flow data in cloud database - cannot be reverted"
+                  accessibilityRole="button"
+                >
+                  <View style={styles.storageOptionHeader}>
+                    <Ionicons 
+                      name="cloud-outline" 
+                      size={24} 
+                      color={storagePreference === 'cloud' ? colors.light.primaryOrange : colors.light.secondaryText} 
+                    />
+                    <Text style={[
+                      styles.storageOptionTitle,
+                      storagePreference === 'cloud' && styles.storageOptionTitleSelected
+                    ]}>
+                      Cloud Sync
+                    </Text>
+                  </View>
+                  <View style={styles.storageOptionFeatures}>
+                    <Text style={[
+                      styles.storageOptionFeature,
+                      storagePreference === 'cloud' && styles.storageOptionFeatureSelected
+                    ]}>
+                      ✓ Synced across all devices
+                    </Text>
+                    <Text style={[
+                      styles.storageOptionFeature,
+                      storagePreference === 'cloud' && styles.storageOptionFeatureSelected
+                    ]}>
+                      ✓ Backed up automatically
+                    </Text>
+                    <Text style={[
+                      styles.storageOptionFeature,
+                      storagePreference === 'cloud' && styles.storageOptionFeatureSelected
+                    ]}>
+                      ✓ Requires internet connection
+                    </Text>
+                    <Text style={[
+                      styles.storageOptionWarning,
+                      storagePreference === 'cloud' && styles.storageOptionWarningSelected
+                    ]}>
+                      ⚠️ Cannot be reverted to local
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+                    {/* Cloud Storage Warning */}
+                    {showStorageWarning && storagePreference === 'cloud' && (
+                      <View style={styles.warningContainer}>
+                        <Ionicons name="warning-outline" size={20} color={colors.light.warning} />
+                        <Text style={styles.warningText}>
+                          Cloud storage cannot be reverted to local. If you want local-only storage, create a new flow instead.
                         </Text>
-                        <Text style={[
-                          styles.reminderLevelButtonDescription,
-                          reminderLevel === level && styles.reminderLevelButtonDescriptionSelected
-                        ]}>
-                          {description}
+                      </View>
+                    )}
+
+                    {/* Authentication Warning for Cloud Storage */}
+                    {storagePreference === 'cloud' && !isAuthenticated && (
+                      <View style={styles.warningContainer}>
+                        <Ionicons name="lock-closed-outline" size={20} color={colors.light.error} />
+                        <Text style={styles.warningText}>
+                          ⚠️ You need to login to use cloud storage. This flow will be saved locally until you authenticate.
                         </Text>
-                        <Text style={[
-                          styles.reminderLevelButtonDetails,
-                          reminderLevel === level && styles.reminderLevelButtonDetailsSelected
-                        ]}>
-                          {details}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                      </View>
+                    )}
+            </CardComponent>
+
+
+            {/* Quantitative Settings */}
+            {trackingType === 'Quantitative' && (
+              <CardComponent variant="elevated" padding="md" margin="none">
+                <View style={styles.inputHeader}>
+                  <Ionicons name="calculator-outline" size={18} color={colors.light.primaryOrange} />
+                  <Text style={styles.inputLabel}>Quantitative Settings</Text>
+                </View>
+                <View style={styles.inputRow}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputSubLabel}>Unit</Text>
+                    <TextInput
+                      style={styles.modernInput}
+                      value={unitText}
+                      onChangeText={setUnitText}
+                      placeholder="e.g., pages, minutes, cups"
+                      placeholderTextColor={colors.light.tertiaryText}
+                      accessibilityLabel="Unit input"
+                      accessibilityHint="Enter the unit for your quantitative tracking"
+                    />
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputSubLabel}>Goal (Optional)</Text>
+                    <TextInput
+                      style={styles.modernInput}
+                      value={goalInput}
+                      onChangeText={(text) => {
+                        const cleanText = text.replace(/[^0-9]/g, '');
+                        setGoalInput(cleanText);
+                      }}
+                      onBlur={() => {
+                        const validation = validateNumericInput(goalInput, 0, 9999, 'Goal');
+                        if (validation.valid) {
+                          const num = parseInt(goalInput) || 0;
+                          setGoal(num);
+                          setGoalInput(num.toString());
+                        } else {
+                          Alert.alert('Invalid Input', validation.error);
+                          setGoalInput('0');
+                          setGoal(0);
+                        }
+                      }}
+                      keyboardType="numeric"
+                      placeholder="e.g., 8"
+                      placeholderTextColor={colors.light.tertiaryText}
+                    />
                   </View>
                 </View>
-                
-                {/* Custom Sound Selection for Level 3 */}
-                {reminderLevel === '3' && (
-                  <View style={styles.customSoundSection}>
-                    <Text style={styles.customSoundLabel}>Alarm Sound</Text>
-                    <Text style={styles.customSoundDescription}>
-                      Choose your alarm sound for urgent reminders
-                    </Text>
-                    <View style={styles.soundOptions}>
-                      {[
-                        { id: 'default', name: 'Default Alarm', description: 'Built-in alarm sound' },
-                        { id: 'gentle', name: 'Gentle Chime', description: 'Soft chime sound' },
-                        { id: 'classic', name: 'Classic Bell', description: 'Traditional bell sound' },
-                        { id: 'modern', name: 'Modern Beep', description: 'Digital beep sound' },
-                      ].map((sound) => (
+              </CardComponent>
+            )}
+
+            {/* Time-based Settings */}
+            {trackingType === 'Time-based' && (
+              <CardComponent variant="elevated" padding="md" margin="none">
+                <View style={styles.inputHeader}>
+                  <Ionicons name="time-outline" size={18} color={colors.light.primaryOrange} />
+                  <Text style={styles.inputLabel}>Time Duration (Goal)</Text>
+                </View>
+                <TimePicker
+                  initialHours={hours}
+                  initialMinutes={minutes}
+                  onTimeChange={handleDurationChange}
+                  style={styles.timePickerContainer}
+                />
+              </CardComponent>
+            )}
+
+            {/* Schedule Settings */}
+            {frequency === 'Daily' && (
+              <CardComponent variant="elevated" padding="md" margin="none">
+                <View style={styles.inputHeader}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.light.primaryOrange} />
+                  <Text style={styles.inputLabel}>Schedule</Text>
+                </View>
+                <View style={styles.toggleRow}>
+                  <Text style={styles.toggleLabel}>Every Day</Text>
+                  <Switch
+                    style={styles.toggleSwitch}
+                    value={everyDay}
+                    onValueChange={setEveryDay}
+                    trackColor={{ false: colors.light.border, true: colors.light.primaryOrange }}
+                    thumbColor={colors.light.cardBackground}
+                    accessibilityLabel="Every day toggle"
+                    accessibilityHint="Toggles whether the flow occurs every day"
+                  />
+                </View>
+                {!everyDay && (
+                  <View style={styles.daysContainer}>
+                    <Text style={styles.inputSubLabel}>Days of Week</Text>
+                    <View style={styles.daysGrid}>
+                      {daysOfWeek.map((day) => (
                         <TouchableOpacity
-                          key={sound.id}
+                          key={day}
+                          onPress={() => toggleDay(day)}
                           style={[
-                            styles.soundOption,
-                            customSound === sound.id && styles.soundOptionSelected
+                            styles.dayButton,
+                            selectedDays.includes(day) && styles.dayButtonSelected,
                           ]}
-                          onPress={() => setCustomSound(sound.id)}
+                          accessibilityLabel={`${day} day selection`}
+                          accessibilityHint={`Toggle ${day} for flow schedule`}
+                          accessibilityRole="button"
                         >
-                          <Text style={[
-                            styles.soundOptionName,
-                            customSound === sound.id && styles.soundOptionNameSelected
-                          ]}>
-                            {sound.name}
-                          </Text>
-                          <Text style={[
-                            styles.soundOptionDescription,
-                            customSound === sound.id && styles.soundOptionDescriptionSelected
-                          ]}>
-                            {sound.description}
+                          <Text
+                            style={[
+                              styles.dayButtonText,
+                              selectedDays.includes(day) && styles.dayButtonTextSelected,
+                            ]}
+                          >
+                            {day}
                           </Text>
                         </TouchableOpacity>
                       ))}
                     </View>
                   </View>
                 )}
-              </>
+              </CardComponent>
             )}
-          </Card>
 
+            {frequency === 'Monthly' && (
+              <CardComponent variant="elevated" padding="md" margin="none">
+                <View style={styles.inputHeader}>
+                  <Ionicons name="calendar-outline" size={18} color={colors.light.primaryOrange} />
+                  <Text style={styles.inputLabel}>Days of Month</Text>
+                </View>
+                <View style={styles.monthDaysGrid}>
+                  {daysInMonth.map((day) => (
+                    <TouchableOpacity
+                      key={day}
+                      onPress={() => toggleDay(day)}
+                      style={[
+                        styles.dayButton,
+                        selectedDays.includes(day) && styles.dayButtonSelected,
+                      ]}
+                      accessibilityLabel={`Day ${day} selection`}
+                      accessibilityHint={`Toggle day ${day} for monthly flow schedule`}
+                      accessibilityRole="button"
+                    >
+                      <Text
+                        style={[
+                          styles.dayButtonText,
+                          selectedDays.includes(day) && styles.dayButtonTextSelected,
+                        ]}
+                      >
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </CardComponent>
+            )}
+
+            {/* Reminder Settings */}
+            <CardComponent variant="elevated" padding="md" margin="none">
+              <View style={styles.inputHeader}>
+                <Ionicons name="notifications-outline" size={18} color={colors.light.primaryOrange} />
+                <Text style={styles.inputLabel}>Reminder</Text>
+              </View>
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>Enable Reminder</Text>
+                <Switch
+                  style={styles.toggleSwitch}
+                  value={reminderTimeEnabled}
+                  onValueChange={setReminderTimeEnabled}
+                  trackColor={{ false: colors.light.border, true: colors.light.primaryOrange }}
+                  thumbColor={colors.light.cardBackground}
+                  accessibilityLabel="Enable reminder toggle"
+                  accessibilityHint="Toggles reminder notifications for this flow"
+                />
+              </View>
+              {reminderTimeEnabled && (
+                <>
+                  <TouchableOpacity
+                    style={styles.timePickerButton}
+                    onPress={() => setShowTimePicker(true)}
+                    accessibilityLabel="Set reminder time"
+                    accessibilityHint="Opens time picker to set reminder time"
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.timePickerText}>
+                      {reminderTime ? reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Set Time'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {/* Reminder Level Section */}
+                  <View style={styles.reminderLevelSection}>
+                    <Text style={styles.reminderLevelLabel}>Reminder Level</Text>
+                    <Text style={styles.reminderLevelDescription}>
+                      Choose the intensity of your reminder
+                    </Text>
+                    <View style={styles.reminderLevelButtons}>
+                      {[
+                        { 
+                          level: '1', 
+                          label: 'Gentle Reminder', 
+                          description: '🌱 Soft notification with gentle chime',
+                          details: 'Light vibration, easy to dismiss'
+                        },
+                        { 
+                          level: '2', 
+                          label: 'Moderate Push', 
+                          description: '🔔 Standard notification with sound',
+                          details: 'Medium vibration, persistent until completed'
+                        },
+                        { 
+                          level: '3', 
+                          label: 'Urgent Alarm', 
+                          description: '🚨 Loud alarm with custom music',
+                          details: 'Strong vibration, requires user interaction'
+                        }
+                      ].map(({ level, label, description, details }) => (
+                        <TouchableOpacity
+                          key={level}
+                          style={[
+                            styles.reminderLevelButton,
+                            reminderLevel === level && styles.reminderLevelButtonSelected
+                          ]}
+                          onPress={() => setReminderLevel(level)}
+                          accessibilityLabel={`Set reminder level to ${label}`}
+                          accessibilityHint={`Sets reminder intensity to ${description}`}
+                        >
+                          <Text style={[
+                            styles.reminderLevelButtonText,
+                            reminderLevel === level && styles.reminderLevelButtonTextSelected
+                          ]}>
+                            {label}
+                          </Text>
+                          <Text style={[
+                            styles.reminderLevelButtonDescription,
+                            reminderLevel === level && styles.reminderLevelButtonDescriptionSelected
+                          ]}>
+                            {description}
+                          </Text>
+                          <Text style={[
+                            styles.reminderLevelButtonDetails,
+                            reminderLevel === level && styles.reminderLevelButtonDetailsSelected
+                          ]}>
+                            {details}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  
+                  {/* Custom Sound Selection for Level 3 */}
+                  {reminderLevel === '3' && (
+                    <View style={styles.customSoundSection}>
+                      <Text style={styles.customSoundLabel}>Alarm Sound</Text>
+                      <Text style={styles.customSoundDescription}>
+                        Choose your alarm sound for urgent reminders
+                      </Text>
+                      <View style={styles.soundOptions}>
+                        {[
+                          { id: 'default', name: 'Default Alarm', description: 'Built-in alarm sound' },
+                          { id: 'gentle', name: 'Gentle Chime', description: 'Soft chime sound' },
+                          { id: 'classic', name: 'Classic Bell', description: 'Traditional bell sound' },
+                          { id: 'modern', name: 'Modern Beep', description: 'Digital beep sound' },
+                        ].map((sound) => (
+                          <TouchableOpacity
+                            key={sound.id}
+                            style={[
+                              styles.soundOption,
+                              customSound === sound.id && styles.soundOptionSelected
+                            ]}
+                            onPress={() => setCustomSound(sound.id)}
+                          >
+                            <Text style={[
+                              styles.soundOptionName,
+                              customSound === sound.id && styles.soundOptionNameSelected
+                            ]}>
+                              {sound.name}
+                            </Text>
+                            <Text style={[
+                              styles.soundOptionDescription,
+                              customSound === sound.id && styles.soundOptionDescriptionSelected
+                            ]}>
+                              {sound.description}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
+            </CardComponent>
+          </View>
 
           {showTimePicker && (
             <DateTimePicker
@@ -1024,7 +1087,7 @@ export default function AddFlow({ navigation }) {
             />
           )}
 
-          {/* Save Button - After reminder section */}
+          {/* Save Button */}
           <View style={styles.saveButtonContainer}>
             <Button
               variant="primary"
@@ -1059,7 +1122,7 @@ const styles = StyleSheet.create({
     paddingTop: layout.spacing.md,
     paddingBottom: layout.spacing.md,
     backgroundColor: colors.light.background,
-    minHeight: 60, // Ensure consistent header height
+    minHeight: 60,
   },
   backButton: {
     width: layout?.components?.button?.primary?.iconSize || 20,
@@ -1085,34 +1148,53 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: layout.spacing.md,
-    paddingTop: 0, // Remove top padding to eliminate unwanted space above first card
+    paddingTop: 0,
     paddingBottom: layout.spacing.md,
-    gap: layout.spacing.xs, // Minimal spacing between cards (4px)
+    gap: layout.spacing.sm,
   },
-  cardTitle: {
+  
+  // New Section Styles
+  sectionContainer: {
+    marginBottom: layout.spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: layout.spacing.md,
+    paddingHorizontal: layout.spacing.xs,
+  },
+  sectionTitle: {
     ...typography.styles.title3,
     color: colors.light.primaryText,
-    marginBottom: layout.spacing.xs, // Reduced from sm (8px) to xs (4px)
+    marginLeft: layout.spacing.sm,
+    fontWeight: typography.weights.bold,
   },
-  modernInput: {
-    borderWidth: 1,
-    borderColor: colors.light.border,
-    borderRadius: layout.radii.squircle,
-    paddingHorizontal: layout.spacing.md,
-    paddingVertical: layout.spacing.sm,
-    fontSize: typography.styles.body.fontSize,
+  
+  // Input Header Styles
+  inputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: layout.spacing.sm,
+  },
+  inputLabel: {
+    ...typography.styles.body,
+    fontWeight: typography.weights.semibold,
     color: colors.light.primaryText,
-    backgroundColor: colors.light.cardBackground,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    marginLeft: layout.spacing.xs,
   },
-  textArea: {
-    height: 80,
-    textAlignVertical: 'top',
+  inputSubLabel: {
+    ...typography.styles.caption1,
+    fontWeight: typography.weights.medium,
+    color: colors.light.secondaryText,
+    marginBottom: layout.spacing.xs,
   },
-  storageSubtitle: {
+  
+  // Storage Styles
+  storageDescription: {
     ...typography.styles.caption1,
     color: colors.light.secondaryText,
     marginBottom: layout.spacing.md,
+    textAlign: 'center',
   },
   storageOptionsContainer: {
     flexDirection: 'row',
@@ -1144,12 +1226,14 @@ const styles = StyleSheet.create({
   storageOptionTitleSelected: {
     color: colors.light.primaryOrange,
   },
-  storageOptionDescription: {
+  storageOptionFeatures: {
+    gap: layout.spacing.xs,
+  },
+  storageOptionFeature: {
     ...typography.styles.caption1,
     color: colors.light.secondaryText,
-    marginBottom: layout.spacing.xs,
   },
-  storageOptionDescriptionSelected: {
+  storageOptionFeatureSelected: {
     color: colors.light.primaryText,
   },
   storageOptionWarning: {
@@ -1161,257 +1245,29 @@ const styles = StyleSheet.create({
   storageOptionWarningSelected: {
     color: colors.light.warning,
   },
-  warningContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: layout.spacing.md,
-    padding: layout.spacing.sm,
-    backgroundColor: colors.light.warning + '20',
-    borderRadius: layout.radii.squircle,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.light.warning,
+  
+  // Card Title (legacy)
+  cardTitle: {
+    ...typography.styles.title3,
+    color: colors.light.primaryText,
+    marginBottom: layout.spacing.xs,
   },
-  warningText: {
-    ...typography.styles.caption1,
-    color: colors.light.warning,
-    marginLeft: layout.spacing.xs,
-    flex: 1,
-    lineHeight: 18,
-  },
-  trackingTypeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  trackingTypeButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  trackingTypeButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
-  trackingTypeIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  trackingTypeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-    marginBottom: 4,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  trackingTypeTextSelected: {
-    color: '#92400E',
-  },
-  trackingTypeSubtext: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  inputGroup: {
-    flex: 1,
-    marginHorizontal: 4,
-    zIndex: 1,
-    overflow: 'visible',
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  timeInputRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timeInputGroup: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  frequencyContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  frequencyButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    alignItems: 'center',
-  },
-  frequencyButtonSelected: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
-  frequencyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  frequencyTextSelected: {
-    color: '#92400E',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  toggleLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  toggleSwitch: {
-    transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
-  },
-  daysContainer: {
-    marginTop: 16,
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  dayButton: {
-    width: '14%',
-    aspectRatio: 1,
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  dayButtonSelected: {
-    backgroundColor: '#F59E0B',
-    borderColor: '#F59E0B',
-  },
-  dayButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  dayButtonTextSelected: {
-    color: '#FFFFFF',
-  },
-  monthDaysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  timePickerButton: {
+  
+  // Input Styles
+  modernInput: {
     borderWidth: 1,
     borderColor: colors.light.border,
     borderRadius: layout.radii.squircle,
     paddingHorizontal: layout.spacing.md,
     paddingVertical: layout.spacing.sm,
-    backgroundColor: colors.light.cardBackground,
-    marginTop: layout.spacing.sm,
-  },
-  timePickerText: {
     fontSize: typography.styles.body.fontSize,
     color: colors.light.primaryText,
+    backgroundColor: colors.light.cardBackground,
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  saveButtonContainer: {
-    paddingHorizontal: layout.spacing.md,
-    paddingTop: layout.spacing.lg,
-    paddingBottom: layout.spacing.xl,
-    marginTop: layout.spacing.md,
-  },
-  saveButtonGradient: {
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  saveButton: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveButtonText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  dropdownButton: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  dropdownButtonText: {
-    fontSize: 16,
-    color: '#333',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  placeholderText: {
-    color: '#999',
-  },
-  dropdownArrow: {
-    fontSize: 12,
-    color: '#666',
-  },
-  dropdownList: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    marginTop: 4,
-    maxHeight: 200,
-    zIndex: 9999,
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-  },
-  dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  dropdownItemText: {
-    fontSize: 16,
-    color: '#333',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
-  },
-  timePickerContainer: {
-    marginTop: 8,
+  textArea: {
+    height: 80,
+    textAlignVertical: 'top',
   },
   titleInputContainer: {
     position: 'relative',
@@ -1437,12 +1293,166 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
   },
-  saveButtonDisabled: {
-    opacity: 0.6,
+  
+  // Tracking Type Styles
+  trackingTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: layout.spacing.xs,
   },
-  saveButtonTextDisabled: {
-    color: '#9CA3AF',
+  trackingTypeButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.sm,
+    borderRadius: layout.radii.squircle,
+    backgroundColor: colors.light.cardBackground,
+    borderWidth: 2,
+    borderColor: colors.light.border,
   },
+  trackingTypeButtonSelected: {
+    backgroundColor: colors.light.primaryOrange + '20',
+    borderColor: colors.light.primaryOrange,
+  },
+  trackingTypeIcon: {
+    fontSize: 24,
+    marginBottom: layout.spacing.xs,
+  },
+  trackingTypeText: {
+    fontSize: typography.styles.caption1.fontSize,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.secondaryText,
+    marginBottom: layout.spacing.xs,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+    textAlign: 'center',
+  },
+  trackingTypeTextSelected: {
+    color: colors.light.primaryOrange,
+  },
+  trackingTypeSubtext: {
+    fontSize: typography.styles.caption2.fontSize,
+    color: colors.light.tertiaryText,
+    textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  
+  // Frequency Styles
+  frequencyContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: layout.spacing.sm,
+  },
+  frequencyButton: {
+    flex: 1,
+    paddingVertical: layout.spacing.md,
+    paddingHorizontal: layout.spacing.md,
+    borderRadius: layout.radii.squircle,
+    backgroundColor: colors.light.cardBackground,
+    borderWidth: 2,
+    borderColor: colors.light.border,
+    alignItems: 'center',
+  },
+  frequencyButtonSelected: {
+    backgroundColor: colors.light.primaryOrange + '20',
+    borderColor: colors.light.primaryOrange,
+  },
+  frequencyText: {
+    fontSize: typography.styles.body.fontSize,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.secondaryText,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  frequencyTextSelected: {
+    color: colors.light.primaryOrange,
+  },
+  
+  // Input Row Styles
+  inputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: layout.spacing.sm,
+  },
+  inputGroup: {
+    flex: 1,
+  },
+  
+  // Toggle Styles
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: layout.spacing.md,
+  },
+  toggleLabel: {
+    ...typography.styles.body,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.primaryText,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  toggleSwitch: {
+    transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
+  },
+  
+  // Days Styles
+  daysContainer: {
+    marginTop: layout.spacing.md,
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: layout.spacing.xs,
+  },
+  dayButton: {
+    width: '14%',
+    aspectRatio: 1,
+    borderRadius: layout.radii.squircle,
+    backgroundColor: colors.light.cardBackground,
+    borderWidth: 1,
+    borderColor: colors.light.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayButtonSelected: {
+    backgroundColor: colors.light.primaryOrange,
+    borderColor: colors.light.primaryOrange,
+  },
+  dayButtonText: {
+    fontSize: typography.styles.caption1.fontSize,
+    fontWeight: typography.weights.semibold,
+    color: colors.light.secondaryText,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  dayButtonTextSelected: {
+    color: colors.light.cardBackground,
+  },
+  monthDaysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: layout.spacing.xs,
+  },
+  
+  // Time Picker Styles
+  timePickerButton: {
+    borderWidth: 1,
+    borderColor: colors.light.border,
+    borderRadius: layout.radii.squircle,
+    paddingHorizontal: layout.spacing.md,
+    paddingVertical: layout.spacing.sm,
+    backgroundColor: colors.light.cardBackground,
+    marginTop: layout.spacing.sm,
+  },
+  timePickerText: {
+    fontSize: typography.styles.body.fontSize,
+    color: colors.light.primaryText,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+  },
+  timePickerContainer: {
+    marginTop: layout.spacing.sm,
+  },
+  
+  // Reminder Level Styles
   reminderLevelSection: {
     marginTop: layout.spacing.md,
     paddingTop: layout.spacing.md,
@@ -1507,36 +1517,38 @@ const styles = StyleSheet.create({
     color: colors.light.primaryOrange,
     opacity: 1,
   },
+  
+  // Custom Sound Styles
   customSoundSection: {
-    marginTop: 20,
-    padding: 16,
+    marginTop: layout.spacing.lg,
+    padding: layout.spacing.md,
     backgroundColor: colors.light.cardBackground,
-    borderRadius: 12,
+    borderRadius: layout.radii.squircle,
     borderWidth: 1,
     borderColor: colors.light.border,
   },
   customSoundLabel: {
     fontSize: typography.styles.body.fontSize,
-    fontWeight: '600',
+    fontWeight: typography.weights.semibold,
     color: colors.light.primaryText,
-    marginBottom: 4,
+    marginBottom: layout.spacing.xs,
   },
   customSoundDescription: {
-    fontSize: typography.styles.caption.fontSize,
+    fontSize: typography.styles.caption1.fontSize,
     color: colors.light.secondaryText,
-    marginBottom: 12,
+    marginBottom: layout.spacing.sm,
   },
   soundOptions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: layout.spacing.sm,
   },
   soundOption: {
     flex: 1,
     minWidth: '45%',
-    padding: 12,
+    padding: layout.spacing.sm,
     backgroundColor: colors.light.background,
-    borderRadius: 8,
+    borderRadius: layout.radii.squircle,
     borderWidth: 1,
     borderColor: colors.light.border,
     alignItems: 'center',
@@ -1546,21 +1558,48 @@ const styles = StyleSheet.create({
     borderColor: colors.light.primaryOrange,
   },
   soundOptionName: {
-    fontSize: typography.styles.caption.fontSize,
-    fontWeight: '500',
+    fontSize: typography.styles.caption1.fontSize,
+    fontWeight: typography.weights.medium,
     color: colors.light.primaryText,
     marginBottom: 2,
   },
   soundOptionNameSelected: {
-    color: '#fff',
+    color: colors.light.cardBackground,
   },
   soundOptionDescription: {
-    fontSize: 11,
+    fontSize: typography.styles.caption2.fontSize,
     color: colors.light.secondaryText,
     textAlign: 'center',
   },
   soundOptionDescriptionSelected: {
-    color: '#fff',
+    color: colors.light.cardBackground,
     opacity: 0.9,
+  },
+  
+  // Warning Styles
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: layout.spacing.md,
+    padding: layout.spacing.sm,
+    backgroundColor: colors.light.warning + '20',
+    borderRadius: layout.radii.squircle,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.light.warning,
+  },
+  warningText: {
+    ...typography.styles.caption1,
+    color: colors.light.warning,
+    marginLeft: layout.spacing.xs,
+    flex: 1,
+    lineHeight: 18,
+  },
+  
+  // Save Button Styles
+  saveButtonContainer: {
+    paddingHorizontal: layout.spacing.md,
+    paddingTop: layout.spacing.lg,
+    paddingBottom: layout.spacing.xl,
+    marginTop: layout.spacing.md,
   },
 });

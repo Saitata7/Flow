@@ -16,7 +16,7 @@ import { FlowsContext } from '../../context/FlowContext';
 import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import Card from '../../components/common/Card';
+import CardComponent from '../../components/common/CardComponent';
 import Button from '../../components/common/Button';
 import AnalyticsDashboard from '../../components/analytics/AnalyticsDashboard';
 import { colors, typography, layout } from '../../../styles';
@@ -140,10 +140,10 @@ const ModernStats = ({ navigation }) => {
   };
 
   // Render metric card
-  const MetricCard = ({ title, value, subtitle, icon, color, trend }) => (
+  const MetricCardComponent = ({ title, value, subtitle, icon, color, trend }) => (
     <Animated.View
       style={[
-        styles.metricCard,
+        styles.metricCardComponent,
         {
           opacity: animatedValue,
           transform: [
@@ -183,19 +183,19 @@ const ModernStats = ({ navigation }) => {
   );
 
   // Render flow performance card
-  const FlowPerformanceCard = ({ flow }) => (
+  const FlowPerformanceCardComponent = ({ flow }) => (
     <TouchableOpacity
-      style={[styles.flowCard, { backgroundColor: themeColors.cardBackground }]}
+      style={[styles.flowCardComponent, { backgroundColor: themeColors.cardBackground }]}
       onPress={() => navigation.navigate('FlowStatsDetail', { flowId: flow.id })}
     >
-      <View style={styles.flowCardHeader}>
-        <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+      <View style={styles.flowCardComponentHeader}>
+        <Text style={[styles.flowCardComponentTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
         <View style={[styles.performanceBadge, { backgroundColor: flow.performance >= 80 ? colors.light.success : flow.performance >= 60 ? colors.light.warning : colors.light.error }]}>
           <Text style={styles.performanceText}>{flow.performance?.toFixed(0) || '0'}%</Text>
         </View>
       </View>
       
-      <View style={styles.flowCardBody}>
+      <View style={styles.flowCardComponentBody}>
         <View style={styles.flowStats}>
           <View style={styles.flowStat}>
             <Text style={[styles.flowStatValue, { color: themeColors.primaryText }]}>{flow.completed}</Text>
@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: layout.spacing.lg,
   },
-  metricCard: {
+  metricCardComponent: {
     width: '48%',
     marginBottom: layout.spacing.md,
   },
@@ -372,19 +372,19 @@ const styles = StyleSheet.create({
   flowsContainer: {
     marginBottom: layout.spacing.lg,
   },
-  flowCard: {
+  flowCardComponent: {
     padding: layout.spacing.md,
     borderRadius: layout.radii.large,
     marginBottom: layout.spacing.sm,
     ...layout.elevation.low,
   },
-  flowCardHeader: {
+  flowCardComponentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: layout.spacing.sm,
   },
-  flowCardTitle: {
+  flowCardComponentTitle: {
     ...typography.styles.title3,
     fontWeight: '600',
     flex: 1,
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  flowCardBody: {
+  flowCardComponentBody: {
     marginTop: layout.spacing.sm,
   },
   flowStats: {

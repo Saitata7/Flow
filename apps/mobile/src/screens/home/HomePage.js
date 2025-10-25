@@ -36,7 +36,7 @@ import {
   commonStyles,
   useAppTheme,
 } from '../../../styles';
-import { Button, Card, Icon } from '../../components';
+import { Button, CardComponent, Icon } from '../../components';
 import FlowGrid from '../../components/home/FlowGrid';
 
 export default function HomePage({ navigation }) {
@@ -192,7 +192,7 @@ export default function HomePage({ navigation }) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.light.background }]}>
         <View style={styles.authPromptContainer}>
-          <View style={styles.authPromptCard}>
+          <View style={styles.authPromptCardComponent}>
             <Ionicons name="person-circle-outline" size={80} color={colors.light.primaryOrange} />
             <Text style={styles.authPromptTitle}>Welcome to Flow</Text>
             <Text style={styles.authPromptSubtitle}>
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: layout.spacing.lg,
   },
-  authPromptCard: {
+  authPromptCardComponent: {
     backgroundColor: colors.light.cardBackground,
     borderRadius: layout.radii.squircle,
     padding: layout.spacing.xl,

@@ -15,7 +15,7 @@ import { FlowsContext } from '../../context/FlowContext';
 import { ActivityContext } from '../../context/ActivityContext';
 import { ThemeContext } from '../../context/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
-import Card from '../../components/common/Card';
+import CardComponent from '../../components/common/CardComponent';
 import Button from '../../components/common/Button';
 import { colors, typography, layout } from '../../../styles';
 
@@ -269,10 +269,10 @@ const StatsScreen = ({ navigation }) => {
   }
 
   // Render metric card
-  const MetricCard = ({ title, value, subtitle, icon, color }) => {
+  const MetricCardComponent = ({ title, value, subtitle, icon, color }) => {
     const safeColor = color || '#007AFF'; // Fallback color
     return (
-      <View style={styles.metricCard}>
+      <View style={styles.metricCardComponent}>
         <LinearGradient
           colors={[safeColor + '20', safeColor + '10']}
           style={styles.metricGradient}
@@ -291,19 +291,19 @@ const StatsScreen = ({ navigation }) => {
   };
 
   // Render flow performance card
-  const FlowPerformanceCard = ({ flow }) => (
+  const FlowPerformanceCardComponent = ({ flow }) => (
     <TouchableOpacity
-      style={[styles.flowCard, { backgroundColor: themeColors.cardBackground }]}
+      style={[styles.flowCardComponent, { backgroundColor: themeColors.cardBackground }]}
       activeOpacity={0.8}
       onPress={() => navigation.navigate('FlowStatsDetail', { flowId: flow.id })}
       accessibilityLabel={`${flow.name} performance: ${flow.performance?.toFixed(0) || '0'}%`}
       accessibilityHint={`View detailed statistics for ${flow.name}`}
     >
-      <View style={styles.flowCardHeader}>
+      <View style={styles.flowCardComponentHeader}>
         <View style={styles.flowTitleRow}>
           <View style={styles.flowNameContainer}>
             <View style={styles.titleRow}>
-              <Text style={[styles.flowCardTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
+              <Text style={[styles.flowCardComponentTitle, { color: themeColors.primaryText }]}>{flow.name}</Text>
               {flow.currentStreak > 3 && (
                 <View style={styles.streakContainer}>
                   <Ionicons name="flame" size={16} color="#F59E0B" />
@@ -319,7 +319,7 @@ const StatsScreen = ({ navigation }) => {
         </View>
       </View>
 
-      <View style={styles.flowCardBody}>
+      <View style={styles.flowCardComponentBody}>
         <View style={styles.progressBar}>
           <View
             style={[
@@ -590,14 +590,14 @@ const StatsScreen = ({ navigation }) => {
         {/* Analytics */}
         <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Analytics</Text>
         <View style={styles.metricsGrid}>
-          <MetricCard
+          <MetricCardComponent
             title="Success Rate"
             value={`${stats.overall.successRate?.toFixed(1) || '0.0'}%`}
             subtitle={`${stats.overall.successMetrics?.totalSuccessfulDays || stats.overall.totalCompleted}/${stats.overall.totalScheduled} successful`}
             icon="checkmark-circle"
             color={themeColors.success || '#4CAF50'}
           />
-          <MetricCard
+          <MetricCardComponent
             title="Total Points"
             value={stats.overall.totalPoints.toLocaleString()}
             subtitle="This period"
@@ -639,7 +639,7 @@ const StatsScreen = ({ navigation }) => {
           ))}
         </View>
         
-        <Card variant="default" padding="sm" margin="sm" backgroundColor={themeColors.cardBackground}>
+        <CardComponent variant="default" padding="sm" margin="sm" backgroundColor={themeColors.cardBackground}>
           <View style={styles.chartHeader}>
             <Text style={[styles.chartSubtitle, { color: themeColors.secondaryText }]}>
               Your daily completion rate over the last {selectedTimeframe === 'weekly' ? '7 days' : selectedTimeframe === 'monthly' ? '30 days' : '52 weeks'}
@@ -685,12 +685,12 @@ const StatsScreen = ({ navigation }) => {
               </Text>
             </View>
           </View>
-        </Card>
+        </CardComponent>
 
         {/* Flow Performance */}
         <View style={styles.sectionWrapper}>
           <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Flow Performance ({stats.flowPerformance ? stats.flowPerformance.length : 0})</Text>
-          <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
+          <CardComponent variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
             {!stats.flowPerformance || stats.flowPerformance.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>📊</Text>
@@ -699,17 +699,17 @@ const StatsScreen = ({ navigation }) => {
             ) : (
               <View style={styles.flowsList}>
                 {(stats.flowPerformance || []).map((flow, index) => (
-                  <FlowPerformanceCard key={index} flow={flow} />
+                  <FlowPerformanceCardComponent key={index} flow={flow} />
                 ))}
               </View>
             )}
-          </Card>
+          </CardComponent>
         </View>
 
         {/* Achievements */}
         <View style={styles.sectionWrapper}>
           <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Achievements</Text>
-          <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
+          <CardComponent variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
             {!stats.achievements || stats.achievements.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyIcon, { color: themeColors.secondaryText }]}>🏆</Text>
@@ -721,7 +721,7 @@ const StatsScreen = ({ navigation }) => {
             ) : (
               <View style={styles.achievementGrid}>
                 {(stats.achievements || []).map((achievement, index) => (
-                  <View key={index} style={[styles.achievementCard, { backgroundColor: achievement.color + '20' }]}>
+                  <View key={index} style={[styles.achievementCardComponent, { backgroundColor: achievement.color + '20' }]}>
                     <Text style={styles.achievementIcon}>{achievement.icon}</Text>
                     <Text style={[styles.achievementTitle, { color: themeColors.primaryText }]}>{achievement.title}</Text>
                     <Text style={[styles.achievementDescription, { color: themeColors.secondaryText }]}>
@@ -734,12 +734,12 @@ const StatsScreen = ({ navigation }) => {
                 ))}
               </View>
             )}
-          </Card>
+          </CardComponent>
         </View>
 
         {/* Success Rate Breakdown */}
         <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Success Rate Breakdown</Text>
-        <Card variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
+        <CardComponent variant="default" padding="md" margin="none" backgroundColor={themeColors.cardBackground}>
             <View style={styles.successBreakdown}>
               <View style={styles.successRow}>
                 <Text style={[styles.successLabel, { color: themeColors.primaryText }]}>Overall Success Rate</Text>
@@ -772,11 +772,11 @@ const StatsScreen = ({ navigation }) => {
                 </Text>
               </View>
             </View>
-          </Card>
+          </CardComponent>
 
         {/* Overall Insights */}
         <Text style={[styles.sectionTitle, { color: themeColors.primaryText }]}>Overall Insights</Text>
-        <Card variant="default" padding="xs" margin="xs" backgroundColor={themeColors.cardBackground}>
+        <CardComponent variant="default" padding="xs" margin="xs" backgroundColor={themeColors.cardBackground}>
             <View style={styles.insightsContainer}>
               {stats.overall.successRate >= 80 && (
                 <View style={styles.insightItem}>
@@ -811,7 +811,7 @@ const StatsScreen = ({ navigation }) => {
                 </View>
               )}
             </View>
-          </Card>
+          </CardComponent>
       </ScrollView>
     </SafeAreaWrapper>
   );
@@ -879,7 +879,7 @@ const styles = StyleSheet.create({
   sectionWrapper: {
     marginBottom: layout.spacing.md,
   },
-  metricCard: {
+  metricCardComponent: {
     width: '48%',
     marginBottom: layout.spacing.sm,
   },
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  achievementCard: {
+  achievementCardComponent: {
     width: '48%',
     padding: layout.spacing.sm,
     borderRadius: layout.radii.base,
@@ -1069,12 +1069,12 @@ const styles = StyleSheet.create({
   flowsList: {
     // Container for flow cards list
   },
-  flowCard: {
+  flowCardComponent: {
     padding: layout.spacing.sm,
     borderRadius: layout.radii.base,
     marginBottom: layout.spacing.sm,
   },
-  flowCardHeader: {
+  flowCardComponentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
@@ -1105,7 +1105,7 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontSize: 12,
   },
-  flowCardTitle: {
+  flowCardComponentTitle: {
     ...typography.styles.body,
     fontWeight: '600',
     fontSize: 16,
@@ -1120,7 +1120,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  flowCardBody: {
+  flowCardComponentBody: {
     marginTop: 0,
   },
   flowTypeRow: {

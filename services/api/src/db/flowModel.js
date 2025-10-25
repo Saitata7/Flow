@@ -1,6 +1,6 @@
 // db/flowModel.js
 // Simple Flow model for JWT-only mode
-const db = require('./config').db;
+const { query } = require('./config');
 
 class FlowModel {
   static tableName = 'flows';
@@ -9,8 +9,11 @@ class FlowModel {
   // Settings management methods
   static async getUserSettings(userId) {
     try {
-      const settings = await db(this.settingsTableName).where({ user_id: userId }).first();
-      return settings ? settings.settings_data : null;
+      const result = await query(
+        `SELECT settings_data FROM ${this.settingsTableName} WHERE user_id = $1`,
+        [userId]
+      );
+      return result.rows[0]?.settings_data || null;
     } catch (error) {
       console.error('Error getting user settings:', error);
       return null;
@@ -19,22 +22,21 @@ class FlowModel {
 
   static async updateUserSettings(userId, settingsData) {
     try {
-      const existingSettings = await db(this.settingsTableName).where({ user_id: userId }).first();
+      const existingSettings = await query(
+        `SELECT id FROM ${this.settingsTableName} WHERE user_id = $1`,
+        [userId]
+      );
       
-      if (existingSettings) {
-        await db(this.settingsTableName)
-          .where({ user_id: userId })
-          .update({ 
-            settings_data: settingsData,
-            updated_at: new Date()
-          });
+      if (existingSettings.rows.length > 0) {
+        await query(
+          `UPDATE ${this.settingsTableName} SET settings_data = $1, updated_at = NOW() WHERE user_id = $2`,
+          [JSON.stringify(settingsData), userId]
+        );
       } else {
-        await db(this.settingsTableName).insert({
-          user_id: userId,
-          settings_data: settingsData,
-          created_at: new Date(),
-          updated_at: new Date()
-        });
+        await query(
+          `INSERT INTO ${this.settingsTableName} (user_id, settings_data, created_at, updated_at) VALUES ($1, $2, NOW(), NOW())`,
+          [userId, JSON.stringify(settingsData)]
+        );
       }
       
       return true;
@@ -46,28 +48,83 @@ class FlowModel {
 
   // Basic flow methods
   static async create(data) {
-    const [flow] = await db(this.tableName).insert(data).returning('*');
-    return flow;
+    try {
+      const columns = Object.keys(data);
+      const values = Object.values(data);
+      const placeholders = values.map((_, index) => `$${index + 1}`).join(', ');
+      
+      const queryText = `
+        INSERT INTO ${this.tableName} (${columns.join(', ')}) 
+        VALUES (${placeholders}) 
+        RETURNING *
+      `;
+      
+      const result = await query(queryText, values);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Error creating flow:', error);
+      throw error;
+    }
   }
 
   static async findById(id) {
-    return db(this.tableName).where({ id, deleted_at: null }).first();
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE id = $1 AND deleted_at IS NULL`,
+        [id]
+      );
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error finding flow by ID:', error);
+      throw error;
+    }
   }
 
   static async findByUserId(userId) {
-    return db(this.tableName).where({ owner_id: userId, deleted_at: null });
+    try {
+      const result = await query(
+        `SELECT * FROM ${this.tableName} WHERE owner_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`,
+        [userId]
+      );
+      return result.rows;
+    } catch (error) {
+      console.error('Error finding flows by user ID:', error);
+      throw error;
+    }
   }
 
   static async update(id, data) {
-    const [flow] = await db(this.tableName)
-      .where({ id })
-      .update({ ...data, updated_at: new Date() })
-      .returning('*');
-    return flow;
+    try {
+      const columns = Object.keys(data);
+      const values = Object.values(data);
+      const setClause = columns.map((col, index) => `${col} = $${index + 2}`).join(', ');
+      
+      const queryText = `
+        UPDATE ${this.tableName} 
+        SET ${setClause}, updated_at = NOW() 
+        WHERE id = $1 
+        RETURNING *
+      `;
+      
+      const result = await query(queryText, [id, ...values]);
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error updating flow:', error);
+      throw error;
+    }
   }
 
   static async delete(id) {
-    return db(this.tableName).where({ id }).update({ deleted_at: new Date() });
+    try {
+      const result = await query(
+        `UPDATE ${this.tableName} SET deleted_at = NOW() WHERE id = $1`,
+        [id]
+      );
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error('Error deleting flow:', error);
+      throw error;
+    }
   }
 }
 
