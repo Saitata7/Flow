@@ -267,16 +267,18 @@ const sessionAuthRoutes = async fastify => {
         throw new UnauthorizedError('Invalid email or password');
       }
       
-      // Check if user is JWT user
-      const isJWTUser = await UserModel.isJWTUser(user);
-      if (!isJWTUser) {
-        throw new UnauthorizedError('Account not set up for password login. Please use social login or reset your password.');
+      // For session-based auth, check if user has password set
+      // Try to get password hash - if not exists, check for basic authentication
+      let passwordHash = null;
+      try {
+        passwordHash = await UserModel.getPasswordHash(user);
+      } catch (error) {
+        console.log('⚠️ Password hash check failed:', error.message);
       }
       
-      // Get password hash from jwt_users table
-      const passwordHash = await UserModel.getPasswordHash(user);
+      // If user doesn't have password, throw error
       if (!passwordHash) {
-        throw new UnauthorizedError('Account not set up for password login. Please use social login or reset your password.');
+        throw new UnauthorizedError('Account not set up for password login. Please register an account.');
       }
       
       // Check password
