@@ -422,6 +422,23 @@ export default function AddFlow({ navigation }) {
     };
 
     try {
+      // If user selected cloud storage but is not authenticated, prevent save
+      if (storagePreference === 'cloud' && !isAuthenticated) {
+        console.log('AddFlow: Cloud storage selected but user not authenticated');
+        Alert.alert(
+          'Login Required', 
+          'Cloud storage requires authentication. Please login first.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Login', 
+              onPress: () => navigation.navigate('Login')
+            }
+          ]
+        );
+        return;
+      }
+      
       // Use sync-aware flow creation for cloud flows, fallback to addFlow for local flows
       const flowCreationFunction = newFlow.storagePreference === 'cloud' && createFlowOfflineFirst ? createFlowOfflineFirst : addFlow;
       
@@ -431,7 +448,31 @@ export default function AddFlow({ navigation }) {
       }
       
       console.log('AddFlow: About to call', newFlow.storagePreference === 'cloud' ? 'createFlowOfflineFirst' : 'addFlow', 'with:', newFlow);
-      await flowCreationFunction(newFlow);
+      
+      // Attempt to create the flow
+      const createdFlow = await flowCreationFunction(newFlow);
+      
+      // If cloud storage, verify it was synced to database
+      if (storagePreference === 'cloud') {
+        // Check if flow has a permanent ID (not temp)
+        const isTemp = createdFlow?.id?.startsWith('temp_');
+        
+        if (isTemp) {
+          console.log('AddFlow: Cloud flow saved locally but not synced to database');
+          Alert.alert(
+            'Sync Failed',
+            'Your flow was saved locally but couldn\'t sync to the cloud. Please check your internet connection and try again.',
+            [
+              { text: 'Retry', onPress: () => handleSave() },
+              { text: 'OK', style: 'cancel' }
+            ]
+          );
+          return;
+        }
+        
+        console.log('AddFlow: Cloud flow synced successfully with ID:', createdFlow.id);
+      }
+      
       console.log('AddFlow: Flow creation completed successfully');
       
       // Reset form after successful creation
@@ -445,6 +486,41 @@ export default function AddFlow({ navigation }) {
       console.log('AddFlow: Error message:', e.message);
       console.log('AddFlow: Error type:', typeof e);
       console.log('AddFlow: Error stack:', e.stack);
+      
+      // Check if it's a cloud sync error
+      if (storagePreference === 'cloud' && e.message) {
+        if (e.message.includes('session') || e.message.includes('Session') || e.message.includes('expired')) {
+          console.log('AddFlow: Session expired during cloud sync');
+          Alert.alert(
+            'Session Expired',
+            'Your session has expired. Please login again to save to cloud.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Login', onPress: () => navigation.navigate('Login') }
+            ]
+          );
+          return;
+        }
+        
+        if (e.message.includes('network') || e.message.includes('Network') || e.message.includes('internet')) {
+          console.log('AddFlow: Network error during cloud sync');
+          Alert.alert(
+            'Network Error',
+            'Could not connect to cloud database. Please check your internet connection and try again.',
+            [
+              { text: 'Retry', onPress: () => handleSave() },
+              { text: 'Save Locally Instead', 
+                onPress: () => {
+                  setStoragePreference('local');
+                  handleSave();
+                }
+              },
+              { text: 'Cancel', style: 'cancel' }
+            ]
+          );
+          return;
+        }
+      }
       
       // Check if it's a duplicate title error
       if (e.message && e.message.includes('already exists')) {
@@ -460,12 +536,33 @@ export default function AddFlow({ navigation }) {
             }
           ]
         );
-        return; // Important: return here to prevent further execution
-      } else {
-        console.log('AddFlow: Showing generic error alert');
-        Alert.alert('Error', 'Failed to save flow. Please try again.');
-        return; // Important: return here to prevent further execution
+        return;
       }
+      
+      // Generic error for cloud flows
+      if (storagePreference === 'cloud') {
+        console.log('AddFlow: Showing cloud-specific error alert');
+        Alert.alert(
+          'Cloud Sync Failed',
+          'Failed to save flow to cloud database. Please check your connection or try saving locally.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Save Locally Instead', 
+              onPress: () => {
+                setStoragePreference('local');
+                handleSave();
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Generic error for local flows
+      console.log('AddFlow: Showing generic error alert');
+      Alert.alert('Error', 'Failed to save flow. Please try again.');
+      return;
     }
   };
 
