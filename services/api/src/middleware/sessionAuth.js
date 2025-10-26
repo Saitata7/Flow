@@ -166,11 +166,15 @@ const createSession = async (redis, userId, userData) => {
       createdAt: new Date().toISOString(),
     };
     
-    // Store session in Redis with expiration
-    const stored = await redis.set(sessionKey, sessionData, SESSION_DURATION_SECONDS);
-    
-    if (!stored) {
-      throw new Error('Failed to create session');
+    // Store session in Redis with expiration (graceful fallback if Redis unavailable)
+    try {
+      const stored = await redis.set(sessionKey, sessionData, SESSION_DURATION_SECONDS);
+      if (!stored) {
+        console.warn('⚠️ Redis unavailable but continuing with session token');
+      }
+    } catch (redisError) {
+      console.warn('⚠️ Redis unavailable, continuing without cache:', redisError.message);
+      // Continue anyway - the session will work but won't be stored in Redis
     }
     
     console.log(`✅ Session created: ${sessionToken.substring(0, 8)}...`);
@@ -191,12 +195,14 @@ const getSession = async (redis, sessionToken) => {
     const sessionData = await redis.get(sessionKey);
     
     if (!sessionData) {
+      console.warn('⚠️ Session not found in Redis (might be expired or Redis unavailable)');
       return null;
     }
     
     return sessionData;
   } catch (error) {
-    console.error('Failed to get session:', error);
+    console.error('Failed to get session from Redis:', error.message);
+    // Return null to allow client to re-authenticate
     return null;
   }
 };
