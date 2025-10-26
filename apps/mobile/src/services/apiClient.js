@@ -14,22 +14,7 @@ const api = axios.create({
   },
 });
 
-// Track if we're currently refreshing to prevent multiple refresh attempts
-let isRefreshing = false;
-let failedQueue = [];
-
-// Process failed requests after token refresh
-const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  
-  failedQueue = [];
-};
+// Session-based auth doesn't need refresh logic
 
 // Request interceptor to attach session token
 api.interceptors.request.use(async (config) => {
@@ -91,56 +76,34 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle 401 errors with automatic token refresh
+    // Handle 401 errors - only clear session if explicitly expired
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        // If already refreshing, queue this request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        }).catch(err => {
-          return Promise.reject(err);
-        });
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        console.log('🔄 Session expired, clearing session...');
+      // Check if the error message explicitly mentions session expiration
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || error.message || '';
+      const isSessionExpired = errorMessage.toLowerCase().includes('session') || 
+                               errorMessage.toLowerCase().includes('expired') ||
+                               errorMessage.toLowerCase().includes('expire');
+      
+      if (isSessionExpired) {
+        console.log('🔄 Session explicitly expired on server, clearing session...');
         
-        // Clear stored session token
-        await clearSessionToken();
+        // Clear stored session token only when server explicitly says session expired
+        try {
+          await clearSessionToken();
+        } catch (clearError) {
+          console.error('❌ Failed to clear session token:', clearError);
+        }
         
-        // Process queued requests with error
-        processQueue(new Error('Session expired'), null);
-        
-        // Return error indicating user needs to login
         return Promise.reject({
           message: 'Your session has expired. Please log in again.',
           code: 'SESSION_EXPIRED',
           status: 401,
           action: 'LOGIN_REQUIRED'
         });
-        
-      } catch (refreshError) {
-        console.error('❌ Session clear failed:', refreshError);
-        processQueue(refreshError, null);
-        
-        // Clear stored session token on failure
-        await clearSessionToken();
-        
-        // If clear fails, user needs to login again
-        return Promise.reject({
-          message: 'Your session has expired. Please log in again.',
-          code: 'SESSION_CLEAR_FAILED',
-          status: 401,
-          action: 'LOGIN_REQUIRED'
-        });
-      } finally {
-        isRefreshing = false;
+      } else {
+        // 401 but not explicitly about session - don't clear token, just pass through
+        console.log('⚠️ 401 error but not session-related:', errorMessage);
+        return Promise.reject(error);
       }
     } else if (error.response?.status >= 500) {
       console.error('⚠️ Server error:', error.response.statusText);
