@@ -1,7 +1,7 @@
-// Auth middleware - re-exports from jwtAuth for compatibility
-const { authenticateToken, requireRole } = require('./jwtAuth');
+// Auth middleware - re-exports from sessionAuth for compatibility
+const { authenticateSession, requireRole } = require('./sessionAuth');
 
 module.exports = {
-  requireAuth: authenticateToken,
+  requireAuth: authenticateSession,
   requireRole
 };

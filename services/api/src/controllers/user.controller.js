@@ -4,7 +4,6 @@
 
 const { UserModel } = require('../db/models');
 const { BadRequestError, NotFoundError, UnauthorizedError } = require('../middleware/errorHandler');
-const { verifyJWTToken } = require('../middleware/auth');
 
 /**
  * Get current user information

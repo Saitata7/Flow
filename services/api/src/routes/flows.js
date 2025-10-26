@@ -9,7 +9,7 @@ const {
   getFlowStats,
 } = require('../controllers/flows.controller');
 
-const { authenticateToken } = require('../middleware/jwtAuth');
+const { authenticateSession } = require('../middleware/sessionAuth');
 const { validateFlowData } = require('../middleware/errorHandler');
 
 const flowsRoutes = async fastify => {
@@ -71,7 +71,7 @@ const flowsRoutes = async fastify => {
   fastify.post(
     '/',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
     },
     createFlow
   );
@@ -99,11 +99,40 @@ const flowsRoutes = async fastify => {
     }
   });
 
+  // Test endpoint to create flow without authentication (for testing)
+  fastify.post('/test-create', async (request, reply) => {
+    const { FlowModel } = require('../db/models');
+    try {
+      const flowData = {
+        ...request.body,
+        owner_id: 'd8043270-9c85-420b-a143-e93e34715a99', // saitata7@gmail.com user ID
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Test create endpoint - creating flow:', flowData);
+      const flow = await FlowModel.create(flowData);
+      console.log('Test create endpoint - flow created:', flow);
+
+      return reply.send({
+        success: true,
+        data: flow,
+        message: 'Test flow created successfully',
+      });
+    } catch (error) {
+      console.error('Test create endpoint error:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
+
   // Get user's flows
   fastify.get(
     '/',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
     },
     getUserFlows
   );
@@ -112,7 +141,7 @@ const flowsRoutes = async fastify => {
   fastify.get(
     '/:id',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Get a specific flow by ID',
         tags: ['flows'],
@@ -142,7 +171,7 @@ const flowsRoutes = async fastify => {
   fastify.put(
     '/:id',
     {
-      preHandler: [authenticateToken, validateFlowData],
+      preHandler: [authenticateSession, validateFlowData],
       schema: {
         description: 'Update a specific flow by ID',
         tags: ['flows'],
@@ -203,7 +232,7 @@ const flowsRoutes = async fastify => {
   fastify.patch(
     '/:id/archive',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Archive a specific flow by ID',
         tags: ['flows'],
@@ -233,7 +262,7 @@ const flowsRoutes = async fastify => {
   fastify.delete(
     '/:id',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Delete a specific flow by ID',
         tags: ['flows'],
@@ -263,7 +292,7 @@ const flowsRoutes = async fastify => {
   fastify.get(
     '/search',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Search flows by title or description',
         tags: ['flows'],
@@ -307,7 +336,7 @@ const flowsRoutes = async fastify => {
   fastify.get(
     '/:id/stats',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Get statistics for a specific flow',
         tags: ['flows'],

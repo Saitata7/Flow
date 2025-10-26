@@ -53,7 +53,7 @@ const predefinedUnits = [
 
 export default function AddFlow({ navigation }) {
   const flowsContext = useContext(FlowsContext);
-  const { addFlow, flows } = flowsContext || {};
+  const { addFlow, createFlowOfflineFirst, flows } = flowsContext || {};
   const { user, isAuthenticated } = useAuth();
   const route = useRoute();
   const { flowToEdit } = route.params || {};
@@ -395,7 +395,7 @@ export default function AddFlow({ navigation }) {
     
     console.log('AddFlow: All validations passed, proceeding to create flow');
 
-    // Create as a flow
+    // Create as a flow with proper storage preference
     const newFlow = {
       id: flowToEdit?.id || Date.now().toString(),
       title: title.trim(), // Trim whitespace from title
@@ -415,20 +415,24 @@ export default function AddFlow({ navigation }) {
       planId,
       ownerId: user?.id || 'user123',
       schemaVersion: 2,
-      storagePreference, // Add storage preference
+      // Ensure storagePreference is properly set based on authentication and user selection
+      storagePreference: storagePreference || (isAuthenticated ? 'cloud' : 'local'),
       createdAt: flowToEdit?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
     try {
-      if (!addFlow) {
+      // Use sync-aware flow creation for cloud flows, fallback to addFlow for local flows
+      const flowCreationFunction = newFlow.storagePreference === 'cloud' && createFlowOfflineFirst ? createFlowOfflineFirst : addFlow;
+      
+      if (!flowCreationFunction) {
         Alert.alert('Error', 'Flow context not available. Please restart the app.');
         return;
       }
       
-      console.log('AddFlow: About to call addFlow with:', newFlow);
-      await addFlow(newFlow);
-      console.log('AddFlow: addFlow completed successfully');
+      console.log('AddFlow: About to call', newFlow.storagePreference === 'cloud' ? 'createFlowOfflineFirst' : 'addFlow', 'with:', newFlow);
+      await flowCreationFunction(newFlow);
+      console.log('AddFlow: Flow creation completed successfully');
       
       // Reset form after successful creation
       resetForm();

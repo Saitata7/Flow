@@ -1,5 +1,6 @@
 // context/ActivityContext.js
-import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { InteractionManager } from 'react-native';
 import moment from 'moment';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FlowsContext } from './FlowContext';
@@ -30,6 +31,11 @@ export const ActivityProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(null);
+  
+  // Performance monitoring refs
+  const renderCountRef = useRef(0);
+  const lastFlowsRef = useRef([]);
+  const calculationTimeoutRef = useRef(null);
 
   // Initialize the service
   useEffect(() => {
@@ -50,10 +56,11 @@ export const ActivityProvider = ({ children }) => {
     initializeService();
   }, []);
 
-  // Optimized stats calculation
+  // Optimized stats calculation with performance monitoring
   const getAllStats = useCallback(async (options = {}) => {
     try {
-      console.log('📊 ActivityContext: getAllStats called with options:', options);
+      renderCountRef.current += 1;
+      console.log(`📊 ActivityContext getAllStats render #${renderCountRef.current}`);
       
       const {
         includeArchived = false,
@@ -71,14 +78,43 @@ export const ActivityProvider = ({ children }) => {
         return optimizedStatsService.getDefaultStats();
       }
 
-      // Use the optimized stats service
-      const stats = await optimizedStatsService.getStats(flows, {
-        timeframe,
-        includeArchived,
-        includeDeleted,
-        currentMonth,
-        forceRefresh
+      // Check if flows actually changed to avoid unnecessary calculations
+      const flowsChanged = JSON.stringify(flows) !== JSON.stringify(lastFlowsRef.current);
+      if (!flowsChanged && !forceRefresh) {
+        console.log('📊 ActivityContext: Flows unchanged, returning cached stats');
+        return await optimizedStatsService.getCachedStats();
+      }
+
+      // Clear any pending calculation timeout
+      if (calculationTimeoutRef.current) {
+        clearTimeout(calculationTimeoutRef.current);
+      }
+
+      // Use InteractionManager for heavy calculations
+      const stats = await InteractionManager.runAfterInteractions(async () => {
+        const startTime = performance.now();
+        
+        const result = await optimizedStatsService.getStats(flows, {
+          timeframe,
+          includeArchived,
+          includeDeleted,
+          currentMonth,
+          forceRefresh
+        });
+        
+        const endTime = performance.now();
+        const calculationTime = endTime - startTime;
+        
+        if (calculationTime > 100) {
+          console.warn(`⚠️ Slow stats calculation: ${calculationTime.toFixed(2)}ms`);
+        }
+        
+        return result;
       });
+
+      // Update refs
+      lastFlowsRef.current = flows;
+      setLastRefresh(new Date());
 
       console.log('📊 ActivityContext: Stats calculated successfully:', {
         totalFlows: stats.overall.totalFlows,

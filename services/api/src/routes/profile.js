@@ -3,11 +3,11 @@
 // Handles comprehensive user profile data including demographics and privacy settings
 
 const profileController = require('../controllers/profile.controller');
-const { authenticateToken } = require('../middleware/jwtAuth');
+const { authenticateSession } = require('../middleware/sessionAuth');
 
 const profileRoutes = async (fastify, options) => {
-  // Apply JWT authentication middleware to all profile routes
-  fastify.addHook('preHandler', authenticateToken);
+  // Apply session authentication middleware to all profile routes
+  fastify.addHook('preHandler', authenticateSession);
 
   /**
    * @swagger

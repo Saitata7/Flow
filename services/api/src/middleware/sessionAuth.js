@@ -1,0 +1,410 @@
+// middleware/sessionAuth.js
+// Session-based Authentication Middleware using Redis
+// Simple, secure, and reliable for early app versions (v0.1-v1.2)
+
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const { UnauthorizedError, ForbiddenError, ValidationError } = require('./errorHandler');
+
+// Session configuration
+const SESSION_DURATION_SECONDS = 7 * 24 * 60 * 60; // 7 days
+const BCRYPT_ROUNDS = 12;
+
+// Password validation rules
+const PASSWORD_RULES = {
+  minLength: 8,
+  maxLength: 128,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireNumbers: true,
+  requireSpecialChars: true,
+  specialChars: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+};
+
+// Email validation regex
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+/**
+ * Generate a secure random session token
+ */
+const generateSessionToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+/**
+ * Validate password strength
+ */
+const validatePassword = (password) => {
+  const errors = [];
+  
+  if (!password || typeof password !== 'string') {
+    errors.push('Password is required');
+    return { isValid: false, errors };
+  }
+  
+  if (password.length < PASSWORD_RULES.minLength) {
+    errors.push(`Password must be at least ${PASSWORD_RULES.minLength} characters long`);
+  }
+  
+  if (password.length > PASSWORD_RULES.maxLength) {
+    errors.push(`Password must be no more than ${PASSWORD_RULES.maxLength} characters long`);
+  }
+  
+  if (PASSWORD_RULES.requireUppercase && !/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  
+  if (PASSWORD_RULES.requireLowercase && !/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  
+  if (PASSWORD_RULES.requireNumbers && !/\d/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  
+  if (PASSWORD_RULES.requireSpecialChars) {
+    const specialCharRegex = new RegExp(`[${PASSWORD_RULES.specialChars.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}]`);
+    if (!specialCharRegex.test(password)) {
+      errors.push(`Password must contain at least one special character: ${PASSWORD_RULES.specialChars}`);
+    }
+  }
+  
+  // Check for common weak passwords
+  const commonPasswords = ['password', '123456', 'password123', 'admin', 'qwerty', 'letmein'];
+  if (commonPasswords.includes(password.toLowerCase())) {
+    errors.push('Password is too common. Please choose a more secure password');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+/**
+ * Validate email format
+ */
+const validateEmail = (email) => {
+  if (!email || typeof email !== 'string') {
+    return { isValid: false, error: 'Email is required' };
+  }
+  
+  if (!EMAIL_REGEX.test(email)) {
+    return { isValid: false, error: 'Invalid email format' };
+  }
+  
+  if (email.length > 254) {
+    return { isValid: false, error: 'Email is too long' };
+  }
+  
+  return { isValid: true };
+};
+
+/**
+ * Hash password using bcrypt
+ */
+const hashPassword = async (password) => {
+  try {
+    const salt = await bcrypt.genSalt(BCRYPT_ROUNDS);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    return hashedPassword;
+  } catch (error) {
+    console.error('Password hashing error:', error);
+    throw new Error('Failed to hash password');
+  }
+};
+
+/**
+ * Compare password with hash
+ */
+const comparePassword = async (password, hash) => {
+  try {
+    return await bcrypt.compare(password, hash);
+  } catch (error) {
+    console.error('Password comparison error:', error);
+    throw new Error('Failed to compare password');
+  }
+};
+
+/**
+ * Generate email verification token
+ */
+const generateEmailVerificationToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+/**
+ * Generate password reset token
+ */
+const generatePasswordResetToken = () => {
+  return crypto.randomBytes(32).toString('hex');
+};
+
+/**
+ * Get Redis client from Fastify instance
+ */
+const getRedis = (request) => {
+  return request.server.redis;
+};
+
+/**
+ * Create a new session and store it in Redis
+ */
+const createSession = async (redis, userId, userData) => {
+  try {
+    const sessionToken = generateSessionToken();
+    const sessionKey = `session:${sessionToken}`;
+    
+    const sessionData = {
+      userId,
+      email: userData.email,
+      emailVerified: userData.emailVerified || false,
+      role: userData.role || 'user',
+      firstName: userData.firstName || userData.first_name,
+      lastName: userData.lastName || userData.last_name,
+      username: userData.username,
+      createdAt: new Date().toISOString(),
+    };
+    
+    // Store session in Redis with expiration
+    const stored = await redis.set(sessionKey, sessionData, SESSION_DURATION_SECONDS);
+    
+    if (!stored) {
+      throw new Error('Failed to create session');
+    }
+    
+    console.log(`✅ Session created: ${sessionToken.substring(0, 8)}...`);
+    
+    return sessionToken;
+  } catch (error) {
+    console.error('Failed to create session:', error);
+    throw new Error('Failed to create session');
+  }
+};
+
+/**
+ * Get session data from Redis
+ */
+const getSession = async (redis, sessionToken) => {
+  try {
+    const sessionKey = `session:${sessionToken}`;
+    const sessionData = await redis.get(sessionKey);
+    
+    if (!sessionData) {
+      return null;
+    }
+    
+    return sessionData;
+  } catch (error) {
+    console.error('Failed to get session:', error);
+    return null;
+  }
+};
+
+/**
+ * Delete session from Redis
+ */
+const deleteSession = async (redis, sessionToken) => {
+  try {
+    const sessionKey = `session:${sessionToken}`;
+    await redis.del(sessionKey);
+    console.log(`✅ Session deleted: ${sessionToken.substring(0, 8)}...`);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete session:', error);
+    return false;
+  }
+};
+
+/**
+ * Extract session token from request headers
+ */
+const extractSessionToken = (request) => {
+  const authHeader = request.headers.authorization || request.headers['x-session-token'];
+  
+  if (!authHeader) {
+    return null;
+  }
+  
+  // Support both "Bearer <token>" and plain token formats
+  const parts = authHeader.split(' ');
+  if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
+    return parts[1];
+  } else if (parts.length === 1) {
+    return authHeader;
+  }
+  
+  return null;
+};
+
+/**
+ * Authentication middleware - verifies session token
+ */
+const authenticateSession = async (request, reply) => {
+  try {
+    // Get Redis client
+    const redis = getRedis(request);
+    
+    if (!redis) {
+      console.warn('⚠️ Redis not available, falling back to basic auth');
+      throw new UnauthorizedError('Authentication service unavailable');
+    }
+    
+    // Extract session token
+    const sessionToken = extractSessionToken(request);
+    
+    if (!sessionToken) {
+      throw new UnauthorizedError('Session token required');
+    }
+    
+    // Get session from Redis
+    const session = await getSession(redis, sessionToken);
+    
+    if (!session) {
+      throw new UnauthorizedError('Invalid or expired session');
+    }
+    
+    // Attach user info to request
+    request.user = {
+      id: session.userId,
+      email: session.email,
+      emailVerified: session.emailVerified,
+      role: session.role,
+      firstName: session.firstName,
+      lastName: session.lastName,
+      username: session.username,
+      sessionToken: sessionToken // For logout functionality
+    };
+    
+    console.log(`✅ User authenticated: ${request.user.email}`);
+    
+  } catch (error) {
+    console.error('❌ Authentication failed:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Optional authentication middleware (for public endpoints)
+ */
+const optionalSessionAuth = async (request, reply) => {
+  try {
+    const redis = getRedis(request);
+    const sessionToken = extractSessionToken(request);
+    
+    if (sessionToken && redis) {
+      const session = await getSession(redis, sessionToken);
+      if (session) {
+        request.user = {
+          id: session.userId,
+          email: session.email,
+          emailVerified: session.emailVerified,
+          role: session.role,
+          firstName: session.firstName,
+          lastName: session.lastName,
+          username: session.username,
+          sessionToken: sessionToken
+        };
+      }
+    }
+  } catch (error) {
+    // Silently ignore auth errors for optional auth
+    console.log('Optional session auth failed:', error.message);
+  }
+};
+
+/**
+ * Require email verification middleware
+ */
+const requireEmailVerification = async (request, reply) => {
+  if (!request.user) {
+    throw new UnauthorizedError('Authentication required');
+  }
+  
+  if (!request.user.emailVerified) {
+    throw new ForbiddenError('Email verification required');
+  }
+};
+
+/**
+ * Role-based authorization middleware
+ */
+const requireRole = (allowedRoles) => {
+  return async (request, reply) => {
+    if (!request.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
+    
+    if (!allowedRoles.includes(request.user.role)) {
+      throw new ForbiddenError(`Access denied. Required roles: ${allowedRoles.join(', ')}`);
+    }
+  };
+};
+
+/**
+ * Rate limiting per user
+ */
+const userRateLimit = (maxRequests = 100, windowMs = 60000) => {
+  const userRequests = new Map();
+  
+  return async (request, reply) => {
+    if (!request.user) {
+      return; // Skip rate limiting for anonymous users
+    }
+    
+    const userId = request.user.id;
+    const now = Date.now();
+    const windowStart = now - windowMs;
+    
+    // Clean old requests
+    if (userRequests.has(userId)) {
+      const requests = userRequests.get(userId);
+      const validRequests = requests.filter(timestamp => timestamp > windowStart);
+      userRequests.set(userId, validRequests);
+    }
+    
+    // Check current request count
+    const currentRequests = userRequests.get(userId) || [];
+    
+    if (currentRequests.length >= maxRequests) {
+      throw new ForbiddenError('Rate limit exceeded');
+    }
+    
+    // Add current request
+    currentRequests.push(now);
+    userRequests.set(userId, currentRequests);
+  };
+};
+
+module.exports = {
+  // Validation functions
+  validatePassword,
+  validateEmail,
+  
+  // Password functions
+  hashPassword,
+  comparePassword,
+  
+  // Token functions
+  generateSessionToken,
+  generateEmailVerificationToken,
+  generatePasswordResetToken,
+  
+  // Session functions
+  createSession,
+  getSession,
+  deleteSession,
+  extractSessionToken,
+  
+  // Middleware functions
+  authenticateSession,
+  optionalSessionAuth,
+  requireEmailVerification,
+  requireRole,
+  userRateLimit,
+  
+  // Configuration
+  PASSWORD_RULES,
+  SESSION_DURATION_SECONDS
+};
+

@@ -1,6 +1,7 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, addDays } from 'date-fns';
+import { InteractionManager, AppState } from 'react-native';
 import jwtApiService from '../services/jwtApiService';
 import syncService from '../services/syncService';
 import notificationService from '../services/notificationService';
@@ -19,20 +20,63 @@ export const FlowsProvider = ({ children }) => {
   const [lastSyncTime, setLastSyncTime] = useState(null);
   const { user, isAuthenticated } = useAuth();
 
-  logger.log('FlowsProvider: Initializing with', flows.length, 'flows');
-  logger.log('FlowsProvider: Current flows:', flows.map(f => ({ id: f.id, title: f.title })));
+  // Performance optimization refs
+  const renderCountRef = useRef(0);
+  const lastFlowsRef = useRef([]);
+  const syncTimeoutRef = useRef(null);
+  
+  // Memoized flows to prevent unnecessary re-renders
+  const memoizedFlows = useMemo(() => {
+    renderCountRef.current += 1;
+    logger.log(`🔄 FlowContext render #${renderCountRef.current} with ${flows.length} flows`);
+    
+    // Only update if flows actually changed
+    const flowsChanged = JSON.stringify(flows) !== JSON.stringify(lastFlowsRef.current);
+    if (flowsChanged) {
+      lastFlowsRef.current = flows;
+      logger.log('📊 Flows changed, updating memoized flows');
+    }
+    
+    return flows;
+  }, [flows]);
 
+  // Performance monitoring
+  useEffect(() => {
+    const startTime = performance.now();
+    return () => {
+      const endTime = performance.now();
+      const renderTime = endTime - startTime;
+      if (renderTime > 100) {
+        logger.warn(`⚠️ Slow FlowContext render: ${renderTime.toFixed(2)}ms`);
+      }
+    };
+  });
+
+  // Optimized status generation with memoization
   const generateStatusDates = useCallback((trackingType, unitText, hours, minutes, seconds, goal) => {
+    // Use InteractionManager for heavy calculations
+    return InteractionManager.runAfterInteractions(() => {
     const status = {};
-    for (let i = 0; i < 7; i++) {
-      const dateKey = format(addDays(new Date(), i), 'yyyy-MM-dd');
-      status[dateKey] = {
-        symbol: null, // Don't default to skipped
+      const today = new Date();
+      
+      // Pre-calculate date keys for better performance
+      const dateKeys = Array.from({ length: 7 }, (_, i) => 
+        format(addDays(today, i), 'yyyy-MM-dd')
+      );
+      
+      // Create base status object
+      const baseStatus = {
+        symbol: null,
         emotion: null,
         note: null,
         timestamp: null,
-        quantitative: trackingType === 'Quantitative' ? { unitText, goal, count: 0 } : null,
-        timebased: trackingType === 'Time-based' ? {
+      };
+      
+      // Add tracking-specific data
+      if (trackingType === 'Quantitative') {
+        baseStatus.quantitative = { unitText, goal, count: 0 };
+      } else if (trackingType === 'Time-based') {
+        baseStatus.timebased = {
           hours,
           minutes,
           seconds,
@@ -43,10 +87,16 @@ export const FlowsProvider = ({ children }) => {
           endTime: null,
           totalDuration: 0,
           pausesCount: 0
-        } : null
-      };
-    }
+        };
+      }
+      
+      // Populate status for all dates
+      dateKeys.forEach(dateKey => {
+        status[dateKey] = { ...baseStatus };
+      });
+      
     return status;
+    });
   }, []);
 
   // Schedule notifications for active flows
@@ -341,7 +391,7 @@ export const FlowsProvider = ({ children }) => {
     logger.log('=== SYNC WITH BACKEND END ===');
   }, [isAuthenticated]);
 
-  // Enhanced offline-first flow operations
+  // Enhanced offline-first flow operations with performance optimization
   const createFlowOfflineFirst = useCallback(async (flowData) => {
     try {
       logger.log('FlowsContext: Creating flow offline-first...');
@@ -355,8 +405,11 @@ export const FlowsProvider = ({ children }) => {
         updatedAt: new Date().toISOString(),
         _isLocal: true, // Mark as local until synced
         _needsSync: true,
+        _syncStatus: 'pending', // Track sync status
       };
 
+      // Use InteractionManager for heavy operations
+      await InteractionManager.runAfterInteractions(async () => {
       // Save to local storage immediately
       const updatedFlows = [...flows, newFlow];
       await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
@@ -364,15 +417,41 @@ export const FlowsProvider = ({ children }) => {
       
       logger.log('FlowsContext: Flow created locally:', newFlow.title);
 
-      // Queue for sync if online
-      if (isAuthenticated && jwtApiService.canSync()) {
+        // Handle sync based on storage preference and auth status
+        if (flowData.storagePreference === 'cloud') {
+          if (isAuthenticated && await jwtApiService.canSync()) {
+            try {
+              // Try immediate cloud sync
+              const cloudFlow = await jwtApiService.createFlow(newFlow);
+              if (cloudFlow.success) {
+                // Update local flow with cloud data
+                const updatedFlow = { ...newFlow, ...cloudFlow.data, _isLocal: false, _needsSync: false, _syncStatus: 'synced' };
+                const syncedFlows = flows.map(f => f.id === tempId ? updatedFlow : f);
+                await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(syncedFlows));
+                setFlows(syncedFlows);
+                logger.log('✅ Flow synced to cloud immediately:', newFlow.title);
+              }
+            } catch (syncError) {
+              logger.warn('⚠️ Immediate sync failed, queuing for later:', syncError.message);
         await jwtApiService.addToSyncQueue({
           type: 'create_flow',
           data: newFlow,
           flowId: tempId,
         });
-        logger.log('FlowsContext: Flow queued for sync');
-      }
+            }
+          } else {
+            logger.warn('⚠️ Cloud flow created locally - user needs to login to sync');
+            // Queue for sync when user logs in
+            await jwtApiService.addToSyncQueue({
+              type: 'create_flow',
+              data: newFlow,
+              flowId: tempId,
+            });
+          }
+        } else {
+          logger.log('📱 Local flow created (no sync needed):', newFlow.title);
+        }
+      });
 
       return newFlow;
     } catch (error) {
@@ -433,6 +512,176 @@ export const FlowsProvider = ({ children }) => {
     await syncWithBackend();
   }, [syncWithBackend]);
 
+  // Sync queue management functions
+  const SYNC_QUEUE_KEY = 'sync_queue';
+  
+  const enqueueSync = useCallback(async (flow) => {
+    try {
+      const queue = JSON.parse(await AsyncStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+      const syncItem = {
+        ...flow,
+        retryAt: new Date().toISOString(),
+        retryCount: 0,
+        maxRetries: 3
+      };
+      queue.push(syncItem);
+      await AsyncStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+      logger.log('🔄 [SYNC] Flow queued for retry:', flow.title);
+    } catch (error) {
+      logger.error('❌ [SYNC] Failed to enqueue sync:', error);
+    }
+  }, []);
+
+  const processSyncQueue = useCallback(async () => {
+    try {
+      const queue = JSON.parse(await AsyncStorage.getItem(SYNC_QUEUE_KEY) || '[]');
+      if (queue.length === 0) {
+        logger.log('🔄 [SYNC] No items in sync queue');
+        return;
+      }
+
+      logger.log(`🔄 [SYNC] Processing ${queue.length} items in sync queue`);
+      
+      const updatedQueue = [];
+      
+      for (const item of queue) {
+        try {
+          // Check if item has exceeded max retries
+          if (item.retryCount >= item.maxRetries) {
+            logger.warn(`⚠️ [SYNC] Item exceeded max retries, removing from queue:`, item.title);
+            continue;
+          }
+
+          // Check if enough time has passed since last retry
+          const retryAt = new Date(item.retryAt);
+          const now = new Date();
+          if (now < retryAt) {
+            updatedQueue.push(item);
+            continue;
+          }
+
+          logger.log(`🔄 [SYNC] Attempting to sync flow: ${item.title}`);
+          
+          const result = await jwtApiService.createFlow(item);
+          if (result.success) {
+            logger.log(`✅ [SYNC] Flow synced successfully: ${item.title}`);
+            
+            // Update local flow with cloud data
+            const updatedFlows = flows.map(f => 
+              f.id === item.id ? { ...f, ...result.data, _isLocal: false, _needsSync: false, _syncStatus: 'synced' } : f
+            );
+            await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
+            setFlows(updatedFlows);
+          } else {
+            throw new Error(result.error || 'Sync failed');
+          }
+        } catch (error) {
+          logger.warn(`⚠️ [SYNC] Sync failed for ${item.title}:`, error.message);
+          
+          // Handle 401 errors by refreshing auth
+          if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+            logger.log('🔄 [SYNC] 401 error detected, refreshing auth token');
+            try {
+              await jwtApiService.refreshToken();
+              // Retry immediately after token refresh
+              const result = await jwtApiService.createFlow(item);
+              if (result.success) {
+                logger.log(`✅ [SYNC] Flow synced after token refresh: ${item.title}`);
+                continue;
+              }
+            } catch (refreshError) {
+              logger.error('❌ [SYNC] Token refresh failed:', refreshError.message);
+            }
+          }
+          
+          // Increment retry count and schedule next retry
+          const updatedItem = {
+            ...item,
+            retryCount: (item.retryCount || 0) + 1,
+            retryAt: new Date(Date.now() + Math.pow(2, item.retryCount || 0) * 60000).toISOString() // Exponential backoff
+          };
+          updatedQueue.push(updatedItem);
+        }
+      }
+      
+      await AsyncStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(updatedQueue));
+      logger.log(`🔄 [SYNC] Sync queue processing completed. ${updatedQueue.length} items remaining`);
+    } catch (error) {
+      logger.error('❌ [SYNC] Error processing sync queue:', error);
+    }
+  }, [flows]);
+
+  const clearSyncQueue = useCallback(async () => {
+    try {
+      await AsyncStorage.removeItem(SYNC_QUEUE_KEY);
+      logger.log('🔄 [SYNC] Sync queue cleared');
+    } catch (error) {
+      logger.error('❌ [SYNC] Failed to clear sync queue:', error);
+    }
+  }, []);
+
+  // Migrate local flows to cloud when user logs in
+  const migrateLocalFlowsToCloud = useCallback(async () => {
+    try {
+      if (!isAuthenticated) {
+        logger.log('📱 User not authenticated, skipping local-to-cloud migration');
+        return;
+      }
+
+      logger.log('🔄 Starting local-to-cloud migration...');
+      
+      const localFlows = flows.filter(flow => 
+        flow._isLocal && 
+        flow.storagePreference === 'cloud' && 
+        flow._needsSync
+      );
+
+      if (localFlows.length === 0) {
+        logger.log('📱 No local flows to migrate');
+        return;
+      }
+
+      logger.log(`🔄 Migrating ${localFlows.length} local flows to cloud...`);
+
+      const migrationPromises = localFlows.map(async (flow) => {
+        try {
+          const cloudFlow = await jwtApiService.createFlow(flow);
+          if (cloudFlow.success) {
+            // Update local flow with cloud data
+            const updatedFlow = { 
+              ...flow, 
+              ...cloudFlow.data, 
+              _isLocal: false, 
+              _needsSync: false, 
+              _syncStatus: 'synced' 
+            };
+            
+            logger.log(`✅ Migrated flow to cloud: ${flow.title}`);
+            return updatedFlow;
+          }
+        } catch (error) {
+          logger.warn(`⚠️ Failed to migrate flow ${flow.title}:`, error.message);
+          return flow; // Keep original flow if migration fails
+        }
+      });
+
+      const migratedFlows = await Promise.all(migrationPromises);
+      
+      // Update flows with migrated data
+      const updatedFlows = flows.map(flow => {
+        const migratedFlow = migratedFlows.find(mf => mf.id === flow.id);
+        return migratedFlow || flow;
+      });
+
+      await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
+      setFlows(updatedFlows);
+      
+      logger.log('✅ Local-to-cloud migration completed');
+    } catch (error) {
+      logger.error('❌ Local-to-cloud migration failed:', error);
+    }
+  }, [flows, isAuthenticated]);
+
   // Force complete refresh - clear all caches and sync
   const forceCompleteRefresh = useCallback(async () => {
     try {
@@ -477,6 +726,41 @@ export const FlowsProvider = ({ children }) => {
     }
     logger.log('=== FLOWS CONTEXT MOUNT EFFECT END ===');
   }, [isAuthenticated]); // Depend on isAuthenticated
+
+  // Effect to migrate local flows to cloud when user logs in
+  useEffect(() => {
+    if (isAuthenticated && flows.length > 0) {
+      // Use InteractionManager to avoid blocking UI
+      InteractionManager.runAfterInteractions(() => {
+        migrateLocalFlowsToCloud();
+      });
+    }
+  }, [isAuthenticated, flows.length, migrateLocalFlowsToCloud]);
+
+  // Effect to process sync queue when user logs in
+  useEffect(() => {
+    if (isAuthenticated) {
+      logger.log('🔄 [SYNC] User authenticated, processing sync queue');
+      InteractionManager.runAfterInteractions(() => {
+        processSyncQueue();
+      });
+    }
+  }, [isAuthenticated, processSyncQueue]);
+
+  // Effect to process sync queue on app focus (network reconnection)
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'active' && isAuthenticated) {
+        logger.log('🔄 [SYNC] App became active, processing sync queue');
+        InteractionManager.runAfterInteractions(() => {
+          processSyncQueue();
+        });
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
+  }, [isAuthenticated, processSyncQueue]);
 
 
   useEffect(() => {
@@ -602,52 +886,40 @@ export const FlowsProvider = ({ children }) => {
         await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(newFlows));
         setFlows(newFlows);
         
-        // If authenticated and sync enabled, try immediate API call first, then queue as fallback
-        if (isAuthenticated && syncService.canSync() && newFlow.storagePreference === 'cloud') {
-          logger.log('🌐 FlowsContext: Attempting immediate API call for cloud flow creation:', newFlow.title);
-          logger.log('🌐 FlowsContext: Flow data:', {
-            id: newFlow.id,
-            title: newFlow.title,
-            storagePreference: newFlow.storagePreference,
-            trackingType: newFlow.trackingType
-          });
+        // Enhanced cloud sync logic with retry queue
+        if (newFlow.storagePreference === 'cloud') {
+          if (isAuthenticated && await jwtApiService.canSync()) {
+            logger.log('🔄 [SYNC] Attempting immediate cloud sync for:', newFlow.title);
           try {
             const apiResult = await jwtApiService.createFlow(newFlow);
-            logger.log('🌐 FlowsContext: API response:', apiResult);
             if (apiResult.success) {
-              logger.log('✅ FlowsContext: Cloud flow created successfully on backend:', apiResult.data);
-              // Update local flow with backend data if needed
-              if (apiResult.data && apiResult.data.id !== newFlow.id) {
-                const updatedFlows = newFlows.map(f => f.id === newFlow.id ? { ...f, id: apiResult.data.id } : f);
-                await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
-                setFlows(updatedFlows);
-                logger.log('✅ FlowsContext: Updated flows with backend ID:', apiResult.data.id);
-              }
+                logger.log('✅ [SYNC] Cloud flow created successfully:', newFlow.title);
+                
+                // Update local flow with cloud data
+                const syncedFlow = { 
+                  ...newFlow, 
+                  ...apiResult.data, 
+                  _isLocal: false, 
+                  _needsSync: false, 
+                  _syncStatus: 'synced' 
+                };
+                
+                const syncedFlows = newFlows.map(f => f.id === newFlow.id ? syncedFlow : f);
+                await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(syncedFlows));
+                setFlows(syncedFlows);
             } else {
-              logger.log('❌ FlowsContext: API call failed, adding to sync queue:', apiResult.error);
-              await syncService.addToSyncQueue({
-                type: 'CREATE_FLOW',
-                data: newFlow,
-                flowId: newFlow.id,
-              });
-              logger.log('🔄 FlowsContext: Added to sync queue for retry');
+                throw new Error(apiResult.error || 'API call failed');
+              }
+            } catch (syncError) {
+              logger.warn('⚠️ [SYNC] Immediate sync failed, queuing for retry:', syncError.message);
+              await enqueueSync(newFlow);
             }
-          } catch (apiError) {
-            logger.log('❌ FlowsContext: API call failed with error, adding to sync queue:', apiError.message);
-            await syncService.addToSyncQueue({
-              type: 'CREATE_FLOW',
-              data: newFlow,
-              flowId: newFlow.id,
-            });
-            logger.log('🔄 FlowsContext: Added to sync queue for retry due to error');
-          }
-        } else if (newFlow.storagePreference === 'local') {
-          logger.log('FlowsContext: Local-only flow created, no cloud sync needed');
         } else {
-          logger.log('FlowsContext: Not authenticated or sync not available, flow saved locally only');
-          if (newFlow.storagePreference === 'cloud') {
-            logger.log('⚠️ FlowsContext: Cloud flow created locally - user needs to login to sync to database');
+            logger.log('🔄 [SYNC] Cloud flow created locally - queuing for sync when authenticated');
+            await enqueueSync(newFlow);
           }
+        } else {
+          logger.log('📱 [SYNC] Local flow created (no sync needed):', newFlow.title);
         }
         
         // Verify the save worked
@@ -1021,9 +1293,9 @@ export const FlowsProvider = ({ children }) => {
     };
   }, [flows]);
 
-  const contextValue = {
-    // Data
-    flows,
+  const contextValue = useMemo(() => ({
+    // Data (using memoized flows for performance)
+    flows: memoizedFlows,
     activeFlows: getActiveFlows(),
     archivedFlows: getArchivedFlows(),
     deletedFlows: getDeletedFlows(),
@@ -1051,6 +1323,12 @@ export const FlowsProvider = ({ children }) => {
     createFlowOfflineFirst,
     updateFlowOfflineFirst,
     
+    // Migration and sync functions
+    migrateLocalFlowsToCloud,
+    processSyncQueue,
+    enqueueSync,
+    clearSyncQueue,
+    
     // Debug functions
     debugFlowStatus,
     loadData,
@@ -1068,7 +1346,36 @@ export const FlowsProvider = ({ children }) => {
     getActiveFlows,
     getArchivedFlows,
     getDeletedFlows
-  };
+  }), [
+    memoizedFlows,
+    isLoading,
+    syncStatus,
+    lastSyncTime,
+    addFlow,
+    updateFlow,
+    updateFlowStatus,
+    deleteFlow,
+    restoreFlow,
+    updateCount,
+    updateTimeBased,
+    setFlows,
+    createFlowOfflineFirst,
+    updateFlowOfflineFirst,
+    migrateLocalFlowsToCloud,
+    processSyncQueue,
+    enqueueSync,
+    clearSyncQueue,
+    debugFlowStatus,
+    loadData,
+    triggerSync,
+    forceSync,
+    forceCompleteRefresh,
+    getActiveFlows,
+    getArchivedFlows,
+    getDeletedFlows,
+    getFlowsByPlan,
+    getFlowsByTag
+  ]);
 
   logger.log('FlowsProvider: Providing context value:', {
     flowsCount: flows.length,

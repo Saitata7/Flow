@@ -11,18 +11,18 @@ const API_CONFIG = {
   // Development URLs - Use environment variables
   development: {
     // For Android emulator
-    android: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-c57f3te5va-uc.a.run.app',
+    android: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
     // For iOS simulator
-    ios: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-c57f3te5va-uc.a.run.app',
+    ios: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
     // For physical device
-    device: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-c57f3te5va-uc.a.run.app',
+    device: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
   },
   
   // Production URL - GCP Cloud Run
   production: {
-    android: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-c57f3te5va-uc.a.run.app',
-    ios: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-c57f3te5va-uc.a.run.app',
-    device: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-c57f3te5va-uc.a.run.app',
+    android: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
+    ios: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
+    device: process.env.EXPO_PUBLIC_API_URL || 'https://flow-api-891963913698.us-central1.run.app',
   }
 };
 
@@ -69,10 +69,10 @@ const getApiBaseUrl = () => {
     
     // Fallback to default URL
     console.log('🔍 API Config: Using fallback URL');
-    return 'https://flow-api-c57f3te5va-uc.a.run.app';
+    return 'https://flow-api-891963913698.us-central1.run.app';
   } catch (error) {
     console.error('❌ Error getting API base URL:', error);
-    return 'https://flow-api-c57f3te5va-uc.a.run.app';
+    return 'https://flow-api-891963913698.us-central1.run.app';
   }
 };
 

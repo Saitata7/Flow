@@ -18,7 +18,7 @@ const {
   hasCompletedPrivacySetup,
 } = require('../controllers/settings.controller');
 
-const { authenticateToken } = require('../middleware/jwtAuth');
+const { authenticateSession } = require('../middleware/sessionAuth');
 
 const settingsRoutes = async fastify => {
   /**
@@ -52,7 +52,7 @@ const settingsRoutes = async fastify => {
   fastify.get(
     '/',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Get user settings',
         tags: ['settings'],
@@ -116,7 +116,7 @@ const settingsRoutes = async fastify => {
   fastify.put(
     '/',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Update user settings',
         tags: ['settings'],
@@ -147,7 +147,7 @@ const settingsRoutes = async fastify => {
   fastify.put(
     '/:key',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Update a specific setting',
         tags: ['settings'],
@@ -188,7 +188,7 @@ const settingsRoutes = async fastify => {
   fastify.put(
     '/privacy/:key',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Update a privacy setting',
         tags: ['settings'],
@@ -229,7 +229,7 @@ const settingsRoutes = async fastify => {
   fastify.delete(
     '/',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Reset settings to defaults',
         tags: ['settings'],
@@ -252,7 +252,7 @@ const settingsRoutes = async fastify => {
   fastify.delete(
     '/privacy',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Reset privacy settings',
         tags: ['settings'],
@@ -275,7 +275,7 @@ const settingsRoutes = async fastify => {
   fastify.post(
     '/sync',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Sync settings with backend',
         tags: ['settings'],
@@ -302,7 +302,7 @@ const settingsRoutes = async fastify => {
   fastify.get(
     '/export',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Export settings for backup',
         tags: ['settings'],
@@ -328,7 +328,7 @@ const settingsRoutes = async fastify => {
   fastify.post(
     '/import',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Import settings from backup',
         tags: ['settings'],
@@ -371,7 +371,7 @@ const settingsRoutes = async fastify => {
   fastify.post(
     '/privacy/setup',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Complete privacy setup with user choices',
         tags: ['settings'],
@@ -408,7 +408,7 @@ const settingsRoutes = async fastify => {
   fastify.get(
     '/privacy/summary',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Get privacy summary',
         tags: ['settings'],
@@ -434,7 +434,7 @@ const settingsRoutes = async fastify => {
   fastify.get(
     '/privacy/data-sharing-level',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Get data sharing level',
         tags: ['settings'],
@@ -462,7 +462,7 @@ const settingsRoutes = async fastify => {
   fastify.get(
     '/privacy/setup-status',
     {
-      preHandler: [authenticateToken],
+      preHandler: [authenticateSession],
       schema: {
         description: 'Check if privacy setup is completed',
         tags: ['settings'],
