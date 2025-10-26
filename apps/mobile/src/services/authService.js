@@ -5,7 +5,7 @@
  */
 
 import api from './apiClient';
-import { storeJWTToken, clearJWTToken, getStoredJWTToken } from '../utils/jwtAuth';
+import { storeSessionToken, clearSessionToken, getStoredSessionToken } from '../utils/sessionAuth';
 import { handleAuthError, isAuthError, getAuthErrorMessage } from '../utils/authErrorHandler';
 
 class AuthService {
@@ -27,26 +27,27 @@ class AuthService {
       
       const response = await api.post('/v1/auth/login', {
         email,
-        name: email.split('@')[0] // Use email prefix as default name, ignore password
+        password
       });
 
       if (response.data.success) {
-        const { token, user } = response.data.data;
+        const { session, user } = response.data.data;
+        const sessionToken = session.sessionToken;
         
-        // Store token securely
-        await storeJWTToken(token);
+        // Store session token securely
+        await storeSessionToken(sessionToken, session.expiresIn);
         
         // Update service state
-        this.currentToken = token;
+        this.currentToken = sessionToken;
         this.currentUser = user;
         this.isAuthenticated = true;
         
-        console.log('✅ Login successful for:', user.name);
+        console.log('✅ Login successful for:', user.email);
         
         return {
           success: true,
           user,
-          token,
+          sessionToken,
           message: 'Login successful'
         };
       } else {
@@ -76,8 +77,15 @@ class AuthService {
     try {
       console.log('🔐 Logging out user');
       
-      // Clear stored token
-      await clearJWTToken();
+      // Call logout endpoint to invalidate session
+      try {
+        await api.post('/v1/auth/logout');
+      } catch (error) {
+        console.warn('⚠️ Logout endpoint failed, clearing local session:', error.message);
+      }
+      
+      // Clear stored session token
+      await clearSessionToken();
       
       // Update service state
       this.currentToken = null;

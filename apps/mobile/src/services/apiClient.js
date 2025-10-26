@@ -1,6 +1,6 @@
 // src/services/apiClient.js
 import axios from 'axios';
-import { generateJWTToken, getStoredJWTToken, storeJWTToken, clearJWTToken, verifyJWTToken } from '../utils/jwtAuth';
+import { getStoredSessionToken, clearSessionToken } from '../utils/sessionAuth';
 import { config } from '../config/environment';
 import { handleAuthError, isAuthError, getAuthErrorMessage } from '../utils/authErrorHandler';
 
@@ -31,26 +31,24 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Request interceptor to attach JWT token
+// Request interceptor to attach session token
 api.interceptors.request.use(async (config) => {
   try {
-    // Try to get JWT token for API request
-    console.log('🔄 Getting JWT token for API request...');
+    // Get session token for API request
+    console.log('🔄 Getting session token for API request...');
     try {
-      // Import JWT auth utilities
-      const { getStoredJWTToken } = await import('../utils/jwtAuth');
-      const jwtToken = await getStoredJWTToken();
+      const sessionToken = await getStoredSessionToken();
       
-      if (jwtToken) {
-        config.headers.Authorization = `Bearer ${jwtToken}`;
-        console.log('✅ JWT token attached to request:', config.url);
-        console.log('✅ Token preview:', jwtToken.substring(0, 20) + '...');
+      if (sessionToken) {
+        config.headers.Authorization = `Bearer ${sessionToken}`;
+        console.log('✅ Session token attached to request:', config.url);
+        console.log('✅ Token preview:', sessionToken.substring(0, 20) + '...');
       } else {
-        console.log('⚠️ No JWT token available for request:', config.url);
+        console.log('⚠️ No session token available for request:', config.url);
         config.headers.Authorization = '';
       }
-    } catch (jwtError) {
-      console.warn('⚠️ JWT token retrieval failed:', jwtError.message);
+    } catch (sessionError) {
+      console.warn('⚠️ Session token retrieval failed:', sessionError.message);
       config.headers.Authorization = '';
     }
   } catch (error) {
@@ -111,33 +109,33 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        console.log('🔄 JWT token expired, clearing session...');
+        console.log('🔄 Session expired, clearing session...');
         
-        // Clear stored token
-        await clearJWTToken();
+        // Clear stored session token
+        await clearSessionToken();
         
         // Process queued requests with error
-        processQueue(new Error('JWT token expired'), null);
+        processQueue(new Error('Session expired'), null);
         
         // Return error indicating user needs to login
         return Promise.reject({
           message: 'Your session has expired. Please log in again.',
-          code: 'JWT_TOKEN_EXPIRED',
+          code: 'SESSION_EXPIRED',
           status: 401,
           action: 'LOGIN_REQUIRED'
         });
         
       } catch (refreshError) {
-        console.error('❌ Token refresh failed:', refreshError);
+        console.error('❌ Session clear failed:', refreshError);
         processQueue(refreshError, null);
         
-        // Clear stored token on failure
-        await clearJWTToken();
+        // Clear stored session token on failure
+        await clearSessionToken();
         
-        // If refresh fails, user needs to login again
+        // If clear fails, user needs to login again
         return Promise.reject({
           message: 'Your session has expired. Please log in again.',
-          code: 'TOKEN_REFRESH_FAILED',
+          code: 'SESSION_CLEAR_FAILED',
           status: 401,
           action: 'LOGIN_REQUIRED'
         });
