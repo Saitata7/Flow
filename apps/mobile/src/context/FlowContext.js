@@ -630,11 +630,15 @@ export const FlowsProvider = ({ children }) => {
 
       logger.log('🔄 Starting local-to-cloud migration...');
       
-      const localFlows = flows.filter(flow => 
-        flow._isLocal && 
-        flow.storagePreference === 'cloud' && 
-        flow._needsSync
-      );
+      // Find temp ID flows that haven't been synced (including those without explicit properties)
+      const localFlows = flows.filter(flow => {
+        const isTempId = flow.id && flow.id.startsWith('temp_');
+        const isLocal = flow._isLocal || isTempId;
+        const needsCloud = flow.storagePreference === 'cloud' || (isTempId && !flow.storagePreference);
+        const needsSync = flow._needsSync !== false; // Default to true if not set
+        
+        return isLocal && needsCloud && needsSync;
+      });
 
       if (localFlows.length === 0) {
         logger.log('📱 No local flows to migrate');
@@ -658,10 +662,24 @@ export const FlowsProvider = ({ children }) => {
             
             logger.log(`✅ Migrated flow to cloud: ${flow.title}`);
             return updatedFlow;
+          } else {
+            // If sync fails repeatedly, mark as failed to prevent loop
+            const syncFailureCount = (flow._syncFailureCount || 0) + 1;
+            if (syncFailureCount >= 3) {
+              logger.warn(`⚠️ Flow ${flow.title} failed sync ${syncFailureCount} times, marking as failed`);
+              return { ...flow, _isLocal: false, _needsSync: false, _syncStatus: 'failed' };
+            }
+            return { ...flow, _syncFailureCount: syncFailureCount };
           }
         } catch (error) {
           logger.warn(`⚠️ Failed to migrate flow ${flow.title}:`, error.message);
-          return flow; // Keep original flow if migration fails
+          // If sync fails repeatedly, mark as failed to prevent loop
+          const syncFailureCount = (flow._syncFailureCount || 0) + 1;
+          if (syncFailureCount >= 3) {
+            logger.warn(`⚠️ Flow ${flow.title} failed sync ${syncFailureCount} times, marking as failed`);
+            return { ...flow, _isLocal: false, _needsSync: false, _syncStatus: 'failed' };
+          }
+          return { ...flow, _syncFailureCount: syncFailureCount };
         }
       });
 
@@ -727,13 +745,23 @@ export const FlowsProvider = ({ children }) => {
     logger.log('=== FLOWS CONTEXT MOUNT EFFECT END ===');
   }, [isAuthenticated]); // Depend on isAuthenticated
 
+  // Track if migration has been attempted
+  const migrationAttemptedRef = useRef(false);
+  
   // Effect to migrate local flows to cloud when user logs in
   useEffect(() => {
-    if (isAuthenticated && flows.length > 0) {
+    if (isAuthenticated && flows.length > 0 && !migrationAttemptedRef.current) {
       // Use InteractionManager to avoid blocking UI
       InteractionManager.runAfterInteractions(() => {
+        migrationAttemptedRef.current = true;
+        logger.log('🔄 Starting one-time migration attempt...');
         migrateLocalFlowsToCloud();
       });
+    }
+    
+    // Reset migration flag when user logs out
+    if (!isAuthenticated) {
+      migrationAttemptedRef.current = false;
     }
   }, [isAuthenticated, flows.length, migrateLocalFlowsToCloud]);
 

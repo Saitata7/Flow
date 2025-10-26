@@ -153,7 +153,7 @@ const getRedis = (request) => {
 const createSession = async (redis, userId, userData) => {
   try {
     const sessionToken = generateSessionToken();
-    const sessionKey = `session:${sessionToken}`;
+    const expiresAt = new Date(Date.now() + SESSION_DURATION_SECONDS * 1000);
     
     const sessionData = {
       userId,
@@ -166,15 +166,30 @@ const createSession = async (redis, userId, userData) => {
       createdAt: new Date().toISOString(),
     };
     
-    // Store session in Redis with expiration (graceful fallback if Redis unavailable)
+    // Store session in DATABASE as primary storage
+    const { query } = require('../db/config');
     try {
-      const stored = await redis.set(sessionKey, sessionData, SESSION_DURATION_SECONDS);
-      if (!stored) {
-        console.warn('⚠️ Redis unavailable but continuing with session token');
+      await query(
+        `INSERT INTO sessions (user_id, session_token, expires_at) 
+         VALUES ($1, $2, $3) 
+         ON CONFLICT (session_token) DO UPDATE SET expires_at = $3`,
+        [userId, sessionToken, expiresAt]
+      );
+      console.log('✅ Session stored in database');
+    } catch (dbError) {
+      console.warn('⚠️ Failed to store session in database:', dbError.message);
+      // Continue anyway - session token is still returned
+    }
+    
+    // Also try to store in Redis for faster lookups (optional)
+    if (redis) {
+      try {
+        const sessionKey = `session:${sessionToken}`;
+        await redis.set(sessionKey, sessionData, SESSION_DURATION_SECONDS);
+        console.log('✅ Session also cached in Redis');
+      } catch (redisError) {
+        console.warn('⚠️ Redis unavailable for caching:', redisError.message);
       }
-    } catch (redisError) {
-      console.warn('⚠️ Redis unavailable, continuing without cache:', redisError.message);
-      // Continue anyway - the session will work but won't be stored in Redis
     }
     
     console.log(`✅ Session created: ${sessionToken.substring(0, 8)}...`);
@@ -187,34 +202,85 @@ const createSession = async (redis, userId, userData) => {
 };
 
 /**
- * Get session data from Redis
+ * Get session data from Database (primary) or Redis (cache)
  */
 const getSession = async (redis, sessionToken) => {
   try {
-    const sessionKey = `session:${sessionToken}`;
-    const sessionData = await redis.get(sessionKey);
+    // Always try to get from database first (primary source)
+    const { query } = require('../db/config');
+    const dbResult = await query(
+      `SELECT s.*, u.email, u.email_verified, u.role, u.first_name, u.last_name, u.username
+       FROM sessions s
+       JOIN users u ON s.user_id = u.id
+       WHERE s.session_token = $1 AND s.revoked = false AND s.expires_at > NOW()`,
+      [sessionToken]
+    );
     
-    if (!sessionData) {
-      console.warn('⚠️ Session not found in Redis (might be expired or Redis unavailable)');
-      return null;
+    if (dbResult.rows.length > 0) {
+      const session = dbResult.rows[0];
+      console.log('✅ Session found in database');
+      return {
+        userId: session.user_id,
+        email: session.email,
+        emailVerified: session.email_verified,
+        role: session.role,
+        firstName: session.first_name,
+        lastName: session.last_name,
+        username: session.username,
+        createdAt: session.created_at
+      };
     }
     
-    return sessionData;
+    // If not in database, try Redis cache (optional fallback)
+    if (redis) {
+      try {
+        const sessionKey = `session:${sessionToken}`;
+        const cachedSessionData = await redis.get(sessionKey);
+        if (cachedSessionData) {
+          console.log('✅ Session found in Redis cache');
+          // Parse if it's a string, otherwise use as-is
+          const sessionData = typeof cachedSessionData === 'string' 
+            ? JSON.parse(cachedSessionData) 
+            : cachedSessionData;
+          return sessionData;
+        }
+      } catch (redisError) {
+        console.warn('⚠️ Redis unavailable for session lookup:', redisError.message);
+      }
+    }
+    
+    console.warn('⚠️ Session not found in database or Redis');
+    return null;
   } catch (error) {
-    console.error('Failed to get session from Redis:', error.message);
-    // Return null to allow client to re-authenticate
+    console.error('Failed to get session:', error.message);
     return null;
   }
 };
 
 /**
- * Delete session from Redis
+ * Delete session from Database and Redis
  */
 const deleteSession = async (redis, sessionToken) => {
   try {
-    const sessionKey = `session:${sessionToken}`;
-    await redis.del(sessionKey);
-    console.log(`✅ Session deleted: ${sessionToken.substring(0, 8)}...`);
+    // Delete from database
+    const { query } = require('../db/config');
+    await query(
+      'UPDATE sessions SET revoked = true WHERE session_token = $1',
+      [sessionToken]
+    );
+    console.log('✅ Session revoked in database');
+    
+    // Also delete from Redis if available
+    if (redis) {
+      try {
+        const sessionKey = `session:${sessionToken}`;
+        await redis.del(sessionKey);
+        console.log('✅ Session deleted from Redis cache');
+      } catch (redisError) {
+        console.warn('⚠️ Redis deletion failed:', redisError.message);
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error('Failed to delete session:', error);
@@ -248,14 +314,6 @@ const extractSessionToken = (request) => {
  */
 const authenticateSession = async (request, reply) => {
   try {
-    // Get Redis client
-    const redis = getRedis(request);
-    
-    if (!redis) {
-      console.warn('⚠️ Redis not available, falling back to basic auth');
-      throw new UnauthorizedError('Authentication service unavailable');
-    }
-    
     // Extract session token
     const sessionToken = extractSessionToken(request);
     
@@ -263,10 +321,14 @@ const authenticateSession = async (request, reply) => {
       throw new UnauthorizedError('Session token required');
     }
     
-    // Get session from Redis
+    // Get Redis client (optional)
+    const redis = getRedis(request);
+    
+    // Try to get session from database first, then Redis cache
     const session = await getSession(redis, sessionToken);
     
     if (!session) {
+      console.warn('⚠️ Session not found for token:', sessionToken.substring(0, 8));
       throw new UnauthorizedError('Invalid or expired session');
     }
     
