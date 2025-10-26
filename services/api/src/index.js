@@ -127,7 +127,8 @@ const registerPlugins = async () => {
           bearerAuth: {
             type: 'http',
             scheme: 'bearer',
-            bearerFormat: 'JWT',
+            bearerFormat: 'Session Token',
+            description: 'Session-based authentication using token stored in Redis',
           },
         },
       },
