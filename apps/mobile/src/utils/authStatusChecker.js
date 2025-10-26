@@ -1,7 +1,7 @@
 // src/utils/authStatusChecker.js
 // Simple authentication status checker for debugging
 
-import jwtApiService from '../services/jwtApiService';
+import sessionApiService from '../services/sessionApiService';
 
 class AuthStatusChecker {
   constructor() {
@@ -19,7 +19,7 @@ class AuthStatusChecker {
     
     try {
       // 1. Check JWT authentication status
-      const isJWTAuthenticated = await jwtApiService.isUserAuthenticated();
+      const isJWTAuthenticated = await sessionApiService.isUserAuthenticated();
       console.log('🔍 JWT authentication:', {
         isAuthenticated: isJWTAuthenticated
       });
@@ -28,7 +28,7 @@ class AuthStatusChecker {
       let hasToken = false;
       let tokenPreview = null;
       try {
-        const token = await jwtApiService.getAuthToken();
+        const token = await sessionApiService.getAuthToken();
         hasToken = !!token;
         tokenPreview = token ? token.substring(0, 20) + '...' : null;
         console.log('🔍 Auth token:', {
@@ -43,7 +43,7 @@ class AuthStatusChecker {
       // 3. Check API authentication
       let isAuthenticated = false;
       try {
-        isAuthenticated = await jwtApiService.isUserAuthenticated();
+        isAuthenticated = await sessionApiService.isUserAuthenticated();
         console.log('🔍 API authentication:', isAuthenticated);
       } catch (authError) {
         console.error('🔍 Auth check error:', authError.message);
@@ -53,7 +53,7 @@ class AuthStatusChecker {
       let apiTestResult = null;
       try {
         console.log('🔍 Testing API call...');
-        const testResult = await jwtApiService.testApiConnection();
+        const testResult = await sessionApiService.testApiConnection();
         apiTestResult = testResult;
         console.log('🔍 API test result:', testResult);
       } catch (apiError) {

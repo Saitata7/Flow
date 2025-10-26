@@ -6,7 +6,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { AppState } from 'react-native';
-import jwtApiService from './jwtApiService';
+import sessionApiService from './sessionApiService';
 import syncService from './syncService';
 import activityCacheService from './activityCacheService';
 
@@ -136,14 +136,14 @@ class BackgroundSyncService {
       console.log('🔄 Starting background sync...');
       
       // Double-check authentication before making any API calls
-      const isAuthenticated = await jwtApiService.isUserAuthenticated();
+      const isAuthenticated = await sessionApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('⏸️ Background sync skipped - user not authenticated');
         return;
       }
       
       // Check if we can sync
-      if (!(await jwtApiService.canSync())) {
+      if (!(await sessionApiService.canSync())) {
         console.log('⏸️ Background sync skipped - not authenticated or offline');
         return;
       }

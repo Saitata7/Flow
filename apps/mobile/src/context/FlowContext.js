@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useCallback, useMemo, useRef
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, addDays } from 'date-fns';
 import { InteractionManager, AppState } from 'react-native';
-import jwtApiService from '../services/jwtApiService';
+import sessionApiService from '../services/sessionApiService';
 import syncService from '../services/syncService';
 import notificationService from '../services/notificationService';
 import { useAuth } from './JWTAuthContext';
@@ -252,11 +252,11 @@ export const FlowsProvider = ({ children }) => {
     logger.log('FlowsContext: user exists:', !!user);
     
     // Debug authentication state
-    const authDebug = await jwtApiService.debugAuthState();
+    const authDebug = await sessionApiService.debugAuthState();
     logger.log('FlowsContext: Auth debug result:', authDebug);
     
     // Double-check authentication with actual JWT token
-    const userAuthenticated = await jwtApiService.isUserAuthenticated();
+    const userAuthenticated = await sessionApiService.isUserAuthenticated();
     logger.log('FlowsContext: userAuthenticated:', userAuthenticated);
     
     if (!userAuthenticated) {
@@ -294,15 +294,15 @@ export const FlowsProvider = ({ children }) => {
       // Add a small delay to allow auth state to settle after login
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const isAuthenticated = await jwtApiService.isUserAuthenticated();
+      const isAuthenticated = await sessionApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         logger.log('FlowsContext: User not authenticated, skipping API call');
         logger.log('FlowsContext: This is expected if user is not logged in or is anonymous');
         return;
       }
       
-      logger.log('FlowsContext: About to call jwtApiService.getFlows()...');
-      const flowsResponse = await jwtApiService.getFlows();
+      logger.log('FlowsContext: About to call sessionApiService.getFlows()...');
+      const flowsResponse = await sessionApiService.getFlows();
       logger.log('FlowsContext: API response received:', flowsResponse);
       
       if (flowsResponse.success) {
@@ -419,10 +419,10 @@ export const FlowsProvider = ({ children }) => {
 
         // Handle sync based on storage preference and auth status
         if (flowData.storagePreference === 'cloud') {
-          if (isAuthenticated && await jwtApiService.canSync()) {
+          if (isAuthenticated && await sessionApiService.canSync()) {
             try {
               // Try immediate cloud sync
-              const cloudFlow = await jwtApiService.createFlow(newFlow);
+              const cloudFlow = await sessionApiService.createFlow(newFlow);
               if (cloudFlow.success) {
                 // Update local flow with cloud data
                 const updatedFlow = { ...newFlow, ...cloudFlow.data, _isLocal: false, _needsSync: false, _syncStatus: 'synced' };
@@ -433,7 +433,7 @@ export const FlowsProvider = ({ children }) => {
               }
             } catch (syncError) {
               logger.warn('⚠️ Immediate sync failed, queuing for later:', syncError.message);
-        await jwtApiService.addToSyncQueue({
+        await sessionApiService.addToSyncQueue({
           type: 'create_flow',
           data: newFlow,
           flowId: tempId,
@@ -442,7 +442,7 @@ export const FlowsProvider = ({ children }) => {
           } else {
             logger.warn('⚠️ Cloud flow created locally - user needs to login to sync');
             // Queue for sync when user logs in
-            await jwtApiService.addToSyncQueue({
+            await sessionApiService.addToSyncQueue({
               type: 'create_flow',
               data: newFlow,
               flowId: tempId,
@@ -485,8 +485,8 @@ export const FlowsProvider = ({ children }) => {
       logger.log('FlowsContext: Flow updated locally:', updatedFlow.title);
 
       // Queue for sync if online
-      if (isAuthenticated && jwtApiService.canSync()) {
-        await jwtApiService.addToSyncQueue({
+      if (isAuthenticated && sessionApiService.canSync()) {
+        await sessionApiService.addToSyncQueue({
           type: 'update_flow',
           data: updatedFlow,
           flowId: flowId,
@@ -562,7 +562,7 @@ export const FlowsProvider = ({ children }) => {
 
           logger.log(`🔄 [SYNC] Attempting to sync flow: ${item.title}`);
           
-          const result = await jwtApiService.createFlow(item);
+          const result = await sessionApiService.createFlow(item);
           if (result.success) {
             logger.log(`✅ [SYNC] Flow synced successfully: ${item.title}`);
             
@@ -582,9 +582,9 @@ export const FlowsProvider = ({ children }) => {
           if (error.message.includes('401') || error.message.includes('Unauthorized')) {
             logger.log('🔄 [SYNC] 401 error detected, refreshing auth token');
             try {
-              await jwtApiService.refreshToken();
+              await sessionApiService.refreshToken();
               // Retry immediately after token refresh
-              const result = await jwtApiService.createFlow(item);
+              const result = await sessionApiService.createFlow(item);
               if (result.success) {
                 logger.log(`✅ [SYNC] Flow synced after token refresh: ${item.title}`);
                 continue;
@@ -645,7 +645,7 @@ export const FlowsProvider = ({ children }) => {
 
       const migrationPromises = localFlows.map(async (flow) => {
         try {
-          const cloudFlow = await jwtApiService.createFlow(flow);
+          const cloudFlow = await sessionApiService.createFlow(flow);
           if (cloudFlow.success) {
             // Update local flow with cloud data
             const updatedFlow = { 
@@ -888,10 +888,10 @@ export const FlowsProvider = ({ children }) => {
         
         // Enhanced cloud sync logic with retry queue
         if (newFlow.storagePreference === 'cloud') {
-          if (isAuthenticated && await jwtApiService.canSync()) {
+          if (isAuthenticated && await sessionApiService.canSync()) {
             logger.log('🔄 [SYNC] Attempting immediate cloud sync for:', newFlow.title);
           try {
-            const apiResult = await jwtApiService.createFlow(newFlow);
+            const apiResult = await sessionApiService.createFlow(newFlow);
             if (apiResult.success) {
                 logger.log('✅ [SYNC] Cloud flow created successfully:', newFlow.title);
                 
@@ -1109,7 +1109,7 @@ export const FlowsProvider = ({ children }) => {
         if (isAuthenticated && syncService.canSync() && !fromQueue) {
           logger.log('FlowContext: Attempting immediate API call for flow update');
           try {
-            const apiResult = await jwtApiService.updateFlow(id, updates);
+            const apiResult = await sessionApiService.updateFlow(id, updates);
             if (apiResult.success) {
               logger.log('FlowContext: Flow updated successfully on backend:', apiResult.data);
             } else {
@@ -1172,7 +1172,7 @@ export const FlowsProvider = ({ children }) => {
           if (isAuthenticated && syncService.canSync()) {
             logger.log('FlowsContext: Attempting immediate API call for flow deletion');
             try {
-              const apiResult = await jwtApiService.deleteFlow(id);
+              const apiResult = await sessionApiService.deleteFlow(id);
               if (apiResult.success) {
                 logger.log('FlowsContext: Flow deleted successfully on backend');
               } else {

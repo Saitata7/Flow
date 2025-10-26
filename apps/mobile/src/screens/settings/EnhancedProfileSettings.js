@@ -20,7 +20,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import { useAuth } from '../../context/JWTAuthContext';
-import jwtApiService from '../../services/jwtApiService';
+import sessionApiService from '../../services/sessionApiService';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -132,7 +132,7 @@ const EnhancedProfileSettings = () => {
     try {
       setProfileLoading(true);
       console.log('EnhancedProfileSettings: Loading profile data...');
-      const result = await jwtApiService.getProfile();
+      const result = await sessionApiService.getProfile();
       if (result.success && result.data) {
         const profileData = result.data;
         console.log('EnhancedProfileSettings: Profile data loaded:', profileData);
@@ -290,7 +290,7 @@ const EnhancedProfileSettings = () => {
     setUsernameAvailability({ checking: true, available: null, message: 'Checking availability...' });
 
     try {
-      const result = await jwtApiService.checkUsernameAvailability(username);
+      const result = await sessionApiService.checkUsernameAvailability(username);
       if (result.success) {
         setUsernameAvailability({
           checking: false,
@@ -427,7 +427,7 @@ const EnhancedProfileSettings = () => {
         updatedAt: new Date().toISOString()
       };
 
-      const result = await jwtApiService.updateProfile(profileData);
+      const result = await sessionApiService.updateProfile(profileData);
       
       if (result.success) {
         Alert.alert('Success', 'Profile updated successfully!');

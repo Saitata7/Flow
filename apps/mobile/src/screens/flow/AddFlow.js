@@ -23,7 +23,7 @@ import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { validateNumericInput } from '../../utils/validation';
-import jwtApiService from '../../services/jwtApiService';
+import sessionApiService from '../../services/sessionApiService';
 import CardComponent from '../../components/common/CardComponent';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';

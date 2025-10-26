@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { Buffer } from '@craftzdog/react-native-buffer';
 import api from '../services/apiClient';
+import sessionApiService from '../services/sessionApiService';
 import { 
   storeSessionToken, 
   clearSessionToken, 
@@ -118,7 +119,7 @@ export const JWTAuthProvider = ({ children }) => {
       }
 
       console.log('🔄 Refreshing access token...');
-      const response = await jwtApiService.refreshToken(refreshToken);
+      const response = await sessionApiService.refreshToken(refreshToken);
       
       if (response.success) {
         await storeTokens(response.data.accessToken, refreshToken);
@@ -182,7 +183,7 @@ export const JWTAuthProvider = ({ children }) => {
       setLoading(true);
       console.log('📝 Attempting registration for:', registrationData.email);
 
-      const response = await jwtApiService.register(registrationData);
+      const response = await sessionApiService.register(registrationData);
       
       if (response.success) {
         const { user: userData, tokens } = response.data;
@@ -223,7 +224,7 @@ export const JWTAuthProvider = ({ children }) => {
       // Call logout API if user is authenticated
       if (isAuthenticated) {
         try {
-          await jwtApiService.logout();
+          await sessionApiService.logout();
           console.log('✅ Logout API call successful');
         } catch (error) {
           console.warn('⚠️ Logout API call failed:', error);
@@ -261,7 +262,7 @@ export const JWTAuthProvider = ({ children }) => {
     try {
       console.log('👤 Updating profile for user:', user?.email);
       
-      const response = await jwtApiService.updateProfile(profileData);
+      const response = await sessionApiService.updateProfile(profileData);
       
       if (response.success) {
         const updatedUser = { ...user, ...response.data };
@@ -285,7 +286,7 @@ export const JWTAuthProvider = ({ children }) => {
       
       console.log('📋 Loading profile data for user:', user?.email);
       
-      const response = await jwtApiService.getProfile();
+      const response = await sessionApiService.getProfile();
       
       if (response.success) {
         const updatedUser = { ...user, ...response.data };
@@ -307,7 +308,7 @@ export const JWTAuthProvider = ({ children }) => {
     try {
       console.log('🔑 Requesting password reset for:', email);
       
-      const response = await jwtApiService.forgotPassword(email);
+      const response = await sessionApiService.forgotPassword(email);
       
       if (response.success) {
         console.log('✅ Password reset email sent');
@@ -325,7 +326,7 @@ export const JWTAuthProvider = ({ children }) => {
     try {
       console.log('🔑 Resetting password with token');
       
-      const response = await jwtApiService.resetPassword(token, password);
+      const response = await sessionApiService.resetPassword(token, password);
       
       if (response.success) {
         console.log('✅ Password reset successfully');
@@ -343,7 +344,7 @@ export const JWTAuthProvider = ({ children }) => {
     try {
       console.log('📧 Verifying email with token');
       
-      const response = await jwtApiService.verifyEmail(token);
+      const response = await sessionApiService.verifyEmail(token);
       
       if (response.success) {
         // Update user verification status

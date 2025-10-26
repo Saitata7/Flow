@@ -8,7 +8,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import moment from 'moment';
-import jwtApiService from './jwtApiService';
+import sessionApiService from './sessionApiService';
 import syncService from './syncService';
 import settingsService from './settingsService';
 
@@ -133,7 +133,7 @@ class ActivityCacheService {
 
       // Upload to backend
       console.log('📤 Uploading activity cache to backend...');
-      const uploadResponse = await jwtApiService.updateUserSettings({
+      const uploadResponse = await sessionApiService.updateUserSettings({
         activityCache: syncData,
       });
 
@@ -145,13 +145,13 @@ class ActivityCacheService {
       console.log('📥 Downloading updated activity cache from backend...');
       
       // Check authentication before making API call
-      const isAuthenticated = await jwtApiService.isUserAuthenticated();
+      const isAuthenticated = await sessionApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('User not authenticated, skipping activity cache download');
         return;
       }
       
-      const downloadResponse = await jwtApiService.getUserSettings();
+      const downloadResponse = await sessionApiService.getUserSettings();
       
       if (downloadResponse.success && downloadResponse.data.activityCache) {
         const serverCache = downloadResponse.data.activityCache;

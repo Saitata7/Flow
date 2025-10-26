@@ -15,7 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../../../styles';
 import { ThemeContext } from '../../context/ThemeContext';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
-import jwtApiService from '../../services/jwtApiService';
+import sessionApiService from '../../services/sessionApiService';
 
 const NotificationLogScreen = () => {
   const navigation = useNavigation();
@@ -45,7 +45,7 @@ const NotificationLogScreen = () => {
       const currentOffset = isRefresh ? 0 : offset;
       
       // Check authentication before making API call
-      const isAuthenticated = await jwtApiService.isUserAuthenticated();
+      const isAuthenticated = await sessionApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('User not authenticated, skipping notification logs load');
         setLoading(false);
@@ -53,7 +53,7 @@ const NotificationLogScreen = () => {
         return;
       }
       
-      const response = await jwtApiService.getNotificationLogs({
+      const response = await sessionApiService.getNotificationLogs({
         limit,
         offset: currentOffset,
       });

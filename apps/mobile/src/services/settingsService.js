@@ -3,7 +3,7 @@
 // Handles sync preferences, privacy settings, and user preferences
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import jwtApiService from './jwtApiService';
+import sessionApiService from './sessionApiService';
 
 const SETTINGS_STORAGE_KEY = 'user_settings';
 const PRIVACY_STORAGE_KEY = 'privacy_settings';
@@ -135,7 +135,7 @@ class SettingsService {
     
     try {
       // Try to get settings from backend first
-      const backendSettings = await jwtApiService.getUserSettings();
+      const backendSettings = await sessionApiService.getUserSettings();
       if (backendSettings.success) {
         // Merge backend settings with local settings
         this.settings = { ...this.settings, ...backendSettings.data };
@@ -198,7 +198,7 @@ class SettingsService {
       
       // Handle special cases
       if (key === 'syncEnabled') {
-        await jwtApiService.setSyncEnabled(value);
+        await sessionApiService.setSyncEnabled(value);
         console.log(`🔄 Sync ${value ? 'enabled' : 'disabled'}`);
       }
       
@@ -235,7 +235,7 @@ class SettingsService {
    */
   async setSyncEnabled(enabled) {
     await this.updateSetting('syncEnabled', enabled);
-    await jwtApiService.setSyncEnabled(enabled);
+    await sessionApiService.setSyncEnabled(enabled);
   }
 
   /**
@@ -443,14 +443,14 @@ class SettingsService {
       console.log('🔄 Syncing settings with backend...');
       
       // Check authentication before making API calls
-      const isAuthenticated = await jwtApiService.isUserAuthenticated();
+      const isAuthenticated = await sessionApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('🔄 User not authenticated, skipping settings sync');
         return;
       }
       
       // Pull settings from backend
-      const response = await jwtApiService.getUserSettings();
+      const response = await sessionApiService.getUserSettings();
       if (response.success) {
         const serverSettings = response.data;
         
@@ -462,7 +462,7 @@ class SettingsService {
       }
       
       // Push local settings to backend
-      const updateResponse = await jwtApiService.updateUserSettings(this.settings);
+      const updateResponse = await sessionApiService.updateUserSettings(this.settings);
       if (updateResponse.success) {
         console.log('📤 Settings synced to backend');
       }
@@ -549,7 +549,7 @@ class SettingsService {
       
       // Sync with backend
       try {
-        const backendResponse = await jwtApiService.updateUserSettings(updates);
+        const backendResponse = await sessionApiService.updateUserSettings(updates);
         if (backendResponse.success) {
           console.log('📤 Settings synced to backend');
           // Update local settings with backend response

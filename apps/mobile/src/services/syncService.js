@@ -4,7 +4,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import jwtApiService from './jwtApiService';
+import sessionApiService from './sessionApiService';
 import settingsService from './settingsService';
 import { safeSetItem, safeGetItem, safeMultiSet, safeMultiGet } from '../utils/safeAsyncStorage';
 
@@ -103,7 +103,7 @@ class SyncService {
       this.isOnline &&
       !this.isSyncing &&
       settingsService.isSyncEnabled() &&
-      jwtApiService.canSync()
+      sessionApiService.canSync()
     );
   }
 
@@ -190,22 +190,22 @@ class SyncService {
 
     switch (type) {
       case 'CREATE_FLOW':
-        await jwtApiService.createFlow(data);
+        await sessionApiService.createFlow(data);
         break;
       case 'UPDATE_FLOW':
-        await jwtApiService.updateFlow(flowId, data);
+        await sessionApiService.updateFlow(flowId, data);
         break;
       case 'DELETE_FLOW':
-        await jwtApiService.deleteFlow(flowId);
+        await sessionApiService.deleteFlow(flowId);
         break;
       case 'CREATE_ENTRY':
-        await jwtApiService.createFlowEntry(data);
+        await sessionApiService.createFlowEntry(data);
         break;
       case 'UPDATE_ENTRY':
-        await jwtApiService.updateFlowEntry(entryId, data);
+        await sessionApiService.updateFlowEntry(entryId, data);
         break;
       case 'DELETE_ENTRY':
-        await jwtApiService.deleteFlowEntry(entryId);
+        await sessionApiService.deleteFlowEntry(entryId);
         break;
       default:
         throw new Error(`Unknown upload operation: ${type}`);
@@ -220,21 +220,21 @@ class SyncService {
       console.log('📥 Downloading latest data from backend...');
 
       // Check authentication before making API calls
-      const isAuthenticated = await jwtApiService.isUserAuthenticated();
+      const isAuthenticated = await sessionApiService.isUserAuthenticated();
       if (!isAuthenticated) {
         console.log('📥 User not authenticated, skipping download');
         return;
       }
 
       // Get flows
-      const flowsResponse = await jwtApiService.getFlows();
+      const flowsResponse = await sessionApiService.getFlows();
       if (flowsResponse.success) {
         await this.mergeFlowsFromServer(flowsResponse.data);
         console.log(`📥 Downloaded ${flowsResponse.data.length} flows`);
       }
 
       // Get flow entries for last 30 days
-      const entriesResponse = await jwtApiService.getFlowEntries({
+      const entriesResponse = await sessionApiService.getFlowEntries({
         startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
         endDate: new Date().toISOString(),
       });
@@ -245,7 +245,7 @@ class SyncService {
       }
 
       // Get user settings
-      const settingsResponse = await jwtApiService.getUserSettings();
+      const settingsResponse = await sessionApiService.getUserSettings();
       if (settingsResponse.success) {
         await this.mergeSettingsFromServer(settingsResponse.data);
         console.log('📥 Downloaded user settings');
