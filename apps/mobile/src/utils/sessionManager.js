@@ -1,7 +1,7 @@
 // utils/sessionManager.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { verifyJWTToken } from './jwtAuth';
+import { getStoredSessionToken } from './sessionAuth';
 
 const SESSION_STORAGE_KEY = 'user_session';
 const TOKEN_STORAGE_KEY = 'auth_token';

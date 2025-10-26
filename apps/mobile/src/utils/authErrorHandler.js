@@ -4,7 +4,7 @@
  * Handles session expiration and authentication errors gracefully
  */
 
-import { clearJWTToken } from './jwtAuth';
+import { clearSessionToken } from './sessionAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
@@ -23,16 +23,16 @@ export const handleAuthError = async (error) => {
     
     // Check if it's a session expiration error
     if (error.message?.includes('Session expired') || 
-        error.message?.includes('JWT_TOKEN_EXPIRED') ||
-        error.message?.includes('TOKEN_REFRESH_FAILED') ||
-        error.code === 'JWT_TOKEN_EXPIRED' ||
-        error.code === 'TOKEN_REFRESH_FAILED') {
+        error.message?.includes('SESSION_EXPIRED') ||
+        error.message?.includes('SESSION_CLEAR_FAILED') ||
+        error.code === 'SESSION_EXPIRED' ||
+        error.code === 'SESSION_CLEAR_FAILED') {
       
       console.log('🔄 Session expired, clearing stored data...');
       
       // Clear all stored authentication data
       await Promise.all([
-        clearJWTToken(),
+        clearSessionToken(),
         SecureStore.deleteItemAsync(USER_DATA_KEY),
         SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY),
         AsyncStorage.removeItem(SESSION_STORAGE_KEY),
@@ -50,7 +50,7 @@ export const handleAuthError = async (error) => {
       
       // Clear all stored authentication data
       await Promise.all([
-        clearJWTToken(),
+        clearSessionToken(),
         SecureStore.deleteItemAsync(USER_DATA_KEY),
         SecureStore.deleteItemAsync(TOKEN_STORAGE_KEY),
         AsyncStorage.removeItem(SESSION_STORAGE_KEY),
