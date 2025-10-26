@@ -6,7 +6,12 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { Buffer } from '@craftzdog/react-native-buffer';
-import jwtApiService from '../services/jwtApiService';
+import api from '../services/apiClient';
+import { 
+  storeSessionToken, 
+  clearSessionToken, 
+  getStoredSessionToken 
+} from '../utils/sessionAuth';
 
 // JWT Token Management
 const TOKEN_KEY = 'jwt_access_token';
@@ -62,7 +67,7 @@ export const JWTAuthProvider = ({ children }) => {
 
   const clearTokens = async () => {
     try {
-      await AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
+      await clearSessionToken(); // Use session token clear function
       console.log('✅ Tokens cleared successfully');
     } catch (error) {
       console.error('❌ Error clearing tokens:', error);
@@ -133,17 +138,20 @@ export const JWTAuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       console.log('🔐 JWTAuthContext: Login function called with email:', email);
-      console.log('🔐 JWTAuthContext: Current loading state:', loading);
       setLoading(true);
-      console.log('🔐 Attempting login for:', email);
-
-      const response = await jwtApiService.login(email, password);
       
-      if (response.success) {
-        const { user: userData, tokens } = response.data;
+      // Call the API directly for session-based auth
+      const response = await api.post('/v1/auth/login', {
+        email,
+        password
+      });
+      
+      if (response.data.success) {
+        const { session, user: userData } = response.data.data;
+        const sessionToken = session.sessionToken;
         
-        // Store tokens and user data
-        await storeTokens(tokens.accessToken, tokens.refreshToken);
+        // Store session token and user data
+        await storeSessionToken(sessionToken, session.expiresIn);
         await storeUserData(userData);
         
         // Update state
@@ -153,19 +161,17 @@ export const JWTAuthProvider = ({ children }) => {
         console.log('✅ Login successful:', userData.email);
         return { success: true, user: userData };
       } else {
-        console.log('❌ Login failed:', response.error);
-        // Use the errors array if available, otherwise fall back to error message
-        const errorMessage = response.errors && response.errors.length > 0 
-          ? response.errors.join(', ') 
-          : response.error || 'Login failed';
+        console.log('❌ Login failed:', response.data.error);
+        const errorMessage = response.data.error || 'Login failed';
         return { success: false, error: errorMessage };
       }
     } catch (error) {
       console.error('❌ Login error:', error);
-      await clearTokens();
+      const errorMessage = error.response?.data?.error || error.message || 'Login failed';
+      await clearSessionToken();
       setUser(null);
       setIsAuthenticated(false);
-      throw error;
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -362,29 +368,15 @@ export const JWTAuthProvider = ({ children }) => {
       setLoading(true);
       console.log('🔍 Initializing authentication state...');
       
-      const { accessToken, refreshToken } = await getStoredTokens();
+      // Check for session token and user data
+      const sessionToken = await getStoredSessionToken();
       const storedUserData = await getStoredUserData();
       
-      if (accessToken && refreshToken && storedUserData) {
-        // Check if access token is still valid
-        if (isTokenValid(accessToken)) {
-          console.log('✅ Valid access token found, user authenticated');
-          setUser(storedUserData);
-          setIsAuthenticated(true);
-        } else {
-          console.log('⚠️ Access token expired, attempting refresh...');
-          try {
-            await refreshAccessToken();
-            setUser(storedUserData);
-            setIsAuthenticated(true);
-            console.log('✅ Token refreshed successfully');
-          } catch (refreshError) {
-            console.log('❌ Token refresh failed, user needs to login again');
-            await clearTokens();
-            setUser(null);
-            setIsAuthenticated(false);
-          }
-        }
+      if (sessionToken && storedUserData) {
+        // Session token exists and is valid (checked by getStoredSessionToken)
+        console.log('✅ Valid session token found, user authenticated');
+        setUser(storedUserData);
+        setIsAuthenticated(true);
       } else {
         console.log('ℹ️ No stored authentication data found');
         setUser(null);
@@ -392,7 +384,7 @@ export const JWTAuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('❌ Error initializing authentication:', error);
-      await clearTokens();
+      await clearSessionToken();
       setUser(null);
       setIsAuthenticated(false);
     } finally {
