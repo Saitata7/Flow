@@ -20,6 +20,7 @@ import { useSettings } from '../../hooks/useSettings';
 import { useNotificationContext } from '../../context/NotificationContext';
 import Button from '../../components/common/Button';
 import SafeAreaWrapper from '../../components/common/SafeAreaWrapper';
+import notificationService from '../../services/notificationService';
 
 const NotificationSettings = () => {
   const navigation = useNavigation();
@@ -160,6 +161,63 @@ const NotificationSettings = () => {
     }));
   };
 
+  // Handle test notification
+  const handleTestNotification = async () => {
+    try {
+      await sendTestNotification();
+      Alert.alert('Test Notification Sent', 'You should receive a test notification shortly.');
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      Alert.alert('Error', 'Failed to send test notification. Please try again.');
+    }
+  };
+
+  // Handle test flow level ringtones
+  const handleTestFlowLevelRingtones = async () => {
+    try {
+      Alert.alert(
+        'Test Ringtones',
+        'Choose which ringtone to test:',
+        [
+          {
+            text: 'Level 2 Ringtone',
+            onPress: async () => {
+              await scheduleFlowReminder('test-level2', 'Test Level 2 Ringtone', 2, '09:00');
+              Alert.alert('Test Scheduled', 'Level 2 ringtone test scheduled for 9:00 AM');
+            }
+          },
+          {
+            text: 'Level 3 Ringtone',
+            onPress: async () => {
+              await scheduleFlowReminder('test-level3', 'Test Level 3 Ringtone', 3, '09:00');
+              Alert.alert('Test Scheduled', 'Level 3 ringtone test scheduled for 9:00 AM');
+            }
+          },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      console.error('Error testing ringtones:', error);
+      Alert.alert('Error', 'Failed to test ringtones.');
+    }
+  };
+
+  // Handle preview notification
+  const handlePreviewNotification = async () => {
+    try {
+      await sendTestNotification();
+      setNotificationPreview({
+        title: 'Flow Reminder',
+        body: 'This is a preview of how notifications will look.',
+        time: new Date().toLocaleTimeString()
+      });
+      Alert.alert('Preview Sent', 'You should see a notification preview now.');
+    } catch (error) {
+      console.error('Error previewing notification:', error);
+      Alert.alert('Error', 'Failed to preview notification.');
+    }
+  };
+
   const handleSave = async () => {
     try {
       // Update notification service settings (this will handle FCM topic subscriptions)
@@ -265,6 +323,7 @@ const NotificationSettings = () => {
       Alert.alert('Error', 'Failed to test notifications.');
     }
   };
+
   const handleTestQuietHours = async () => {
     try {
       const success = await notificationService.testQuietHours();
@@ -279,6 +338,63 @@ const NotificationSettings = () => {
     } catch (error) {
       console.error('Error testing quiet hours:', error);
       Alert.alert('Error', 'Failed to test quiet hours.');
+    }
+  };
+
+  // Handle test notification
+  const handleTestNotification = async () => {
+    try {
+      await sendTestNotification();
+      Alert.alert('Test Notification Sent', 'You should receive a test notification shortly.');
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      Alert.alert('Error', 'Failed to send test notification. Please try again.');
+    }
+  };
+
+  // Handle test flow level ringtones
+  const handleTestFlowLevelRingtones = async () => {
+    try {
+      Alert.alert(
+        'Test Ringtones',
+        'Choose which ringtone to test:',
+        [
+          {
+            text: 'Level 2 Ringtone',
+            onPress: async () => {
+              await scheduleFlowReminder('test-level2', 'Test Level 2 Ringtone', 2, '09:00');
+              Alert.alert('Test Scheduled', 'Level 2 ringtone test scheduled for 9:00 AM');
+            }
+          },
+          {
+            text: 'Level 3 Ringtone',
+            onPress: async () => {
+              await scheduleFlowReminder('test-level3', 'Test Level 3 Ringtone', 3, '09:00');
+              Alert.alert('Test Scheduled', 'Level 3 ringtone test scheduled for 9:00 AM');
+            }
+          },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } catch (error) {
+      console.error('Error testing ringtones:', error);
+      Alert.alert('Error', 'Failed to test ringtones.');
+    }
+  };
+
+  // Handle preview notification
+  const handlePreviewNotification = async () => {
+    try {
+      await sendTestNotification();
+      setNotificationPreview({
+        title: 'Flow Reminder',
+        body: 'This is a preview of how notifications will look.',
+        time: new Date().toLocaleTimeString()
+      });
+      Alert.alert('Preview Sent', 'You should see a notification preview now.');
+    } catch (error) {
+      console.error('Error previewing notification:', error);
+      Alert.alert('Error', 'Failed to preview notification.');
     }
   };
 
