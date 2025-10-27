@@ -60,11 +60,21 @@ class SessionAPIService {
   // Create a flow on server
   async createFlow(flowData) {
     try {
+      // Check if user has session token before making API call
+      const sessionToken = await getStoredSessionToken();
+      if (!sessionToken) {
+        console.warn('⚠️ No session token, cannot create flow via API');
+        // Return a failure object instead of throwing
+        return { success: false, error: 'Not authenticated' };
+      }
+      
+      console.log('📤 Creating flow via API:', flowData.title);
       const response = await api.post('/v1/flows', flowData);
       return response.data;
     } catch (error) {
-      console.error('❌ Error creating flow:', error);
-      throw error;
+      console.warn('⚠️ Error creating flow via API:', error.message);
+      // Return failure object instead of throwing - let the caller decide what to do
+      return { success: false, error: error.message, code: error.code, status: error.status };
     }
   }
 

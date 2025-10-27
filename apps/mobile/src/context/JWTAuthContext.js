@@ -398,39 +398,8 @@ export const JWTAuthProvider = ({ children }) => {
     initializeAuth();
   }, [initializeAuth]);
 
-  // Auto-refresh token before expiration
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const { accessToken } = getStoredTokens();
-    if (!accessToken) return;
-
-    try {
-      // Use Buffer instead of atob for React Native
-      const base64 = accessToken.split('.')[1];
-      const payload = JSON.parse(Buffer.from(base64, 'base64').toString());
-      const expirationTime = payload.exp * 1000; // Convert to milliseconds
-      const currentTime = Date.now();
-      const timeUntilExpiry = expirationTime - currentTime;
-      
-      // Refresh token 5 minutes before expiration
-      const refreshTime = Math.max(timeUntilExpiry - 5 * 60 * 1000, 60000); // At least 1 minute
-      
-      console.log(`🔄 Token will refresh in ${Math.round(refreshTime / 1000 / 60)} minutes`);
-      
-      const refreshTimer = setTimeout(async () => {
-        try {
-          await refreshAccessToken();
-        } catch (error) {
-          console.error('❌ Auto-refresh failed:', error);
-        }
-      }, refreshTime);
-
-      return () => clearTimeout(refreshTimer);
-    } catch (error) {
-      console.error('❌ Error setting up token refresh:', error);
-    }
-  }, [isAuthenticated]);
+  // Session tokens don't need JWT parsing - removed auto-refresh logic
+  // Session-based auth relies on server-side validation
 
   const value = {
     // State

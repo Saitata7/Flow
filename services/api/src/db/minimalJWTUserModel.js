@@ -134,17 +134,42 @@ class MinimalJWTUserModel {
         email: userData.email,
         display_name: userData.username || userData.email.split('@')[0],
         firebase_uid: `jwt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique firebase_uid for JWT users
-        created_at: new Date(),
-        updated_at: new Date(),
       };
+      
+      // Add password hash if provided
+      if (userData.passwordHash) {
+        newUserData.password_hash = userData.passwordHash;
+      }
+      
+      // Add other fields if provided
+      if (userData.firstName) {
+        newUserData.first_name = userData.firstName;
+      }
+      if (userData.lastName) {
+        newUserData.last_name = userData.lastName;
+      }
+      if (userData.phoneNumber) {
+        newUserData.phone_number = userData.phoneNumber;
+      }
+      if (userData.dateOfBirth) {
+        newUserData.date_of_birth = userData.dateOfBirth;
+      }
+      if (userData.gender) {
+        newUserData.gender = userData.gender;
+      }
+      if (userData.emailVerificationToken) {
+        newUserData.email_verification_token = userData.emailVerificationToken;
+      }
+      if (userData.emailVerificationExpires) {
+        newUserData.email_verification_expires = userData.emailVerificationExpires;
+      }
       
       console.log('📋 MinimalJWTUserModel: User data to insert:', newUserData);
       
       const user = await this.create(newUserData);
       console.log('✅ MinimalJWTUserModel: User created successfully:', user.id);
       
-      // Store JWT-specific data in a separate table or use a simple approach
-      // For now, we'll store password hash in a separate jwt_users table
+      // Also try to store in jwt_users table if it exists (for backwards compatibility)
       if (userData.passwordHash) {
         try {
           await query(`
@@ -165,9 +190,9 @@ class MinimalJWTUserModel {
             userData.emailVerificationToken,
             userData.emailVerificationExpires
           ]);
-          console.log('✅ MinimalJWTUserModel: JWT user data stored successfully');
+          console.log('✅ MinimalJWTUserModel: JWT user data also stored in jwt_users table');
         } catch (error) {
-          console.log('⚠️ MinimalJWTUserModel: JWT users table does not exist, skipping password storage');
+          console.log('⚠️ MinimalJWTUserModel: jwt_users table does not exist (password stored in users table)');
         }
       }
       
@@ -424,12 +449,23 @@ class MinimalJWTUserModel {
   // Helper method to get password hash from jwt_users table
   static async getPasswordHash(user) {
     try {
+      // Try jwt_users table first (if it exists)
       const result = await query(
         `SELECT password_hash FROM jwt_users WHERE user_id = $1`,
         [user.id]
       );
-      return result.rows[0]?.password_hash || null;
-    } catch {
+      if (result.rows[0]?.password_hash) {
+        return result.rows[0].password_hash;
+      }
+      
+      // Fallback to users table
+      const userResult = await query(
+        `SELECT password_hash FROM users WHERE id = $1`,
+        [user.id]
+      );
+      return userResult.rows[0]?.password_hash || null;
+    } catch (error) {
+      console.warn('⚠️ Error getting password hash:', error.message);
       return null;
     }
   }

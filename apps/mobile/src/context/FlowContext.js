@@ -24,6 +24,12 @@ export const FlowsProvider = ({ children }) => {
   const renderCountRef = useRef(0);
   const lastFlowsRef = useRef([]);
   const syncTimeoutRef = useRef(null);
+  const authStateRef = useRef({ isAuthenticated, user });
+  
+  // Update auth ref when auth state changes
+  useEffect(() => {
+    authStateRef.current = { isAuthenticated, user };
+  }, [isAuthenticated, user]);
   
   // Memoized flows to prevent unnecessary re-renders
   const memoizedFlows = useMemo(() => {
@@ -148,8 +154,10 @@ export const FlowsProvider = ({ children }) => {
     try {
       setIsLoading(true);
       logger.log('=== FLOWS CONTEXT LOAD DATA START ===');
-      logger.log('FlowsContext: loadData called - current flows count:', flows.length);
-      logger.log('FlowsContext: isAuthenticated:', isAuthenticated);
+      logger.log('FlowsContext: loadData called');
+      
+      const currentAuthState = authStateRef.current;
+      logger.log('FlowsContext: isAuthenticated:', currentAuthState.isAuthenticated);
       
       // First, load from local storage
       const flowsData = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
@@ -182,7 +190,7 @@ export const FlowsProvider = ({ children }) => {
       }
 
       // Always try to sync with backend if user is authenticated
-      if (isAuthenticated && user) {
+      if (currentAuthState.isAuthenticated && currentAuthState.user) {
         logger.log('FlowsContext: User authenticated, attempting sync for cloud flows...');
         try {
           logger.log('FlowsContext: About to call syncWithBackend...');
@@ -208,7 +216,7 @@ export const FlowsProvider = ({ children }) => {
           // Don't treat sync errors as critical if user is not authenticated
         }
       } else {
-        logger.log('FlowsContext: Sync skipped - isAuthenticated:', isAuthenticated, 'user:', !!user);
+        logger.log('FlowsContext: Sync skipped - isAuthenticated:', currentAuthState.isAuthenticated, 'user:', !!currentAuthState.user);
       }
       
       logger.log('=== FLOWS CONTEXT LOAD DATA END ===');
@@ -218,7 +226,7 @@ export const FlowsProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, []); // Empty dependencies - don't recreate this function
 
   // Clean up invalid flows from storage
   const cleanupInvalidFlows = useCallback(async () => {
@@ -248,8 +256,10 @@ export const FlowsProvider = ({ children }) => {
   const syncWithBackend = useCallback(async () => {
     logger.log('=== SYNC WITH BACKEND START ===');
     logger.log('FlowsContext: syncWithBackend called');
-    logger.log('FlowsContext: isAuthenticated:', isAuthenticated);
-    logger.log('FlowsContext: user exists:', !!user);
+    
+    const currentAuthState = authStateRef.current;
+    logger.log('FlowsContext: isAuthenticated:', currentAuthState.isAuthenticated);
+    logger.log('FlowsContext: user exists:', !!currentAuthState.user);
     
     // Debug authentication state
     const authDebug = await sessionApiService.debugAuthState();
@@ -273,19 +283,15 @@ export const FlowsProvider = ({ children }) => {
       await syncService.triggerSync();
       logger.log('FlowsContext: syncService.triggerSync() completed');
       
-      // Force reload data from backend by clearing local cache first
-      logger.log('FlowsContext: Clearing local cache to force fresh backend data...');
+      // Preserve local flows before fetching backend data (critical for temp flows)
+      logger.log('FlowsContext: Preserving local flows before fetching backend data...');
       
-      // Store current local flows before clearing cache
       const currentLocalFlows = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
       const localFlows = currentLocalFlows ? JSON.parse(currentLocalFlows) : [];
-      logger.log('FlowsContext: Stored local flows before sync:', localFlows.length, 'flows');
-      
-      await AsyncStorage.removeItem(FLOWS_STORAGE_KEY);
-      
-      // Also clear any cached API responses
-      await AsyncStorage.removeItem('api_cache_flows');
-      await AsyncStorage.removeItem('api_cache_flow_entries');
+      const localTempFlows = localFlows.filter(f => f.id?.startsWith('temp_'));
+      logger.log('FlowsContext: Current local flows:', localFlows.length);
+      logger.log('FlowsContext: Temp flows to preserve:', localTempFlows.length);
+      logger.log('FlowsContext: Temp flow IDs:', localTempFlows.map(f => f.id + ' - ' + f.title));
       
       // Fetch fresh data from backend
       logger.log('FlowsContext: Fetching fresh flows from backend...');
@@ -312,8 +318,45 @@ export const FlowsProvider = ({ children }) => {
         logger.log('FlowsContext: Using flows data directly (backend already merged entries)');
         const syncedFlows = flowsResponse.data;
         
-        // Merge local status changes with backend data
-        const mergedFlows = syncedFlows.map(backendFlow => {
+        // Merge local flows (including temp flows) with backend flows
+        logger.log('FlowsContext: Merging local flows with backend flows...');
+        
+        // Create a map to track backend flow IDs to avoid duplicates
+        const backendFlowIds = new Set(syncedFlows.map(f => f.id));
+        
+        // CRITICAL FIX: Preserve temp flows and any local-only flows
+        const localOnlyFlows = localFlows.filter(f => {
+          const isTempId = f.id?.startsWith('temp_');
+          const isLocalOnly = f.storagePreference === 'local';
+          const notOnBackend = !backendFlowIds.has(f.id);
+          
+          // Keep temp flows OR local-only flows OR flows not on backend
+          const shouldKeep = isTempId || isLocalOnly || notOnBackend;
+          
+          if (shouldKeep) {
+            logger.log(`📦 Preserving local flow: ${f.id} - ${f.title} (temp: ${isTempId}, local: ${isLocalOnly}, notOnBackend: ${notOnBackend})`);
+          }
+          
+          return shouldKeep;
+        });
+        
+        logger.log('FlowsContext: Local-only flows to preserve:', localOnlyFlows.length);
+        logger.log('FlowsContext: Local-only flow IDs:', localOnlyFlows.map(f => `${f.id} - ${f.title}`));
+        
+        // Start with backend flows
+        const mergedFlows = [...syncedFlows];
+        
+        // Add local-only flows that aren't on the backend yet
+        localOnlyFlows.forEach(localOnlyFlow => {
+          // Only add if not already in mergedFlows
+          if (!mergedFlows.find(f => f.id === localOnlyFlow.id)) {
+            mergedFlows.push(localOnlyFlow);
+            logger.log(`✅ Added local flow to merge: ${localOnlyFlow.id} - ${localOnlyFlow.title}`);
+          }
+        });
+        
+        // Merge status for flows that exist in both backend and local
+        syncedFlows.forEach(backendFlow => {
           const localFlow = localFlows.find(lf => lf.id === backendFlow.id);
           if (localFlow && localFlow.status) {
             logger.log(`FlowsContext: Merging local status for flow ${backendFlow.title}`);
@@ -335,12 +378,12 @@ export const FlowsProvider = ({ children }) => {
               }
             });
             
-            return {
-              ...backendFlow,
-              status: mergedStatus
-            };
+            // Update the flow in mergedFlows
+            const flowIndex = mergedFlows.findIndex(f => f.id === backendFlow.id);
+            if (flowIndex >= 0) {
+              mergedFlows[flowIndex] = { ...backendFlow, status: mergedStatus };
+            }
           }
-          return backendFlow;
         });
         
         logger.log('FlowsContext: Synced flows details:', mergedFlows.map(f => ({ 
@@ -348,9 +391,12 @@ export const FlowsProvider = ({ children }) => {
           title: f.title, 
           trackingType: f.trackingType,
           statusKeys: f.status ? Object.keys(f.status) : 'No status',
-          statusCount: f.status ? Object.keys(f.status).length : 0,
-          status: f.status ? JSON.stringify(f.status, null, 2) : 'No status'
+          statusCount: f.status ? Object.keys(f.status).length : 0
         })));
+        
+        logger.log('FlowsContext: Total flows after merge:', mergedFlows.length);
+        logger.log('FlowsContext: Backend flows:', syncedFlows.length);
+        logger.log('FlowsContext: Temp flows preserved:', localTempFlows.length);
         
         setFlows(mergedFlows);
         logger.log('FlowsContext: Flows state updated to:', mergedFlows.length, 'flows');
@@ -389,74 +435,101 @@ export const FlowsProvider = ({ children }) => {
     }
     
     logger.log('=== SYNC WITH BACKEND END ===');
-  }, [isAuthenticated]);
+  }, []); // Empty dependencies to prevent recreation
 
   // Enhanced offline-first flow operations with performance optimization
   const createFlowOfflineFirst = useCallback(async (flowData) => {
-    try {
-      logger.log('FlowsContext: Creating flow offline-first...');
-      
-      // Generate temporary ID for offline use
-      const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const newFlow = {
-        ...flowData,
-        id: tempId,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        _isLocal: true, // Mark as local until synced
-        _needsSync: true,
-        _syncStatus: 'pending', // Track sync status
-      };
+    logger.log('FlowsContext: Creating flow offline-first...');
+    
+    // Generate temporary ID for offline use
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const newFlow = {
+      ...flowData,
+      id: tempId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      _isLocal: true, // Mark as local until synced
+      _needsSync: true,
+      _syncStatus: 'pending', // Track sync status
+    };
 
-      // Use InteractionManager for heavy operations
-      await InteractionManager.runAfterInteractions(async () => {
-      // Save to local storage immediately
+    // Save locally first - CRITICAL: Must save before trying to sync
+    try {
       const updatedFlows = [...flows, newFlow];
       await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
       setFlows(updatedFlows);
+      logger.log('✅ FlowsContext: Flow saved locally:', newFlow.title);
       
-      logger.log('FlowsContext: Flow created locally:', newFlow.title);
-
-        // Handle sync based on storage preference and auth status
-        if (flowData.storagePreference === 'cloud') {
-          if (isAuthenticated && await sessionApiService.canSync()) {
-            try {
-              // Try immediate cloud sync
-              const cloudFlow = await sessionApiService.createFlow(newFlow);
-              if (cloudFlow.success) {
-                // Update local flow with cloud data
-                const updatedFlow = { ...newFlow, ...cloudFlow.data, _isLocal: false, _needsSync: false, _syncStatus: 'synced' };
-                const syncedFlows = flows.map(f => f.id === tempId ? updatedFlow : f);
-                await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(syncedFlows));
-                setFlows(syncedFlows);
-                logger.log('✅ Flow synced to cloud immediately:', newFlow.title);
-              }
-            } catch (syncError) {
-              logger.warn('⚠️ Immediate sync failed, queuing for later:', syncError.message);
-        await sessionApiService.addToSyncQueue({
-          type: 'create_flow',
-          data: newFlow,
-          flowId: tempId,
-        });
-            }
+      // If cloud storage, immediately try to sync to API
+      if (flowData.storagePreference === 'cloud') {
+        logger.log('☁️ Cloud flow - attempting immediate API sync...');
+        
+        // DON'T use fire and forget - check auth first
+        const canAuthenticate = await sessionApiService.isUserAuthenticated();
+        if (!canAuthenticate) {
+          logger.warn('⚠️ Cannot sync - user not authenticated, flow will remain local');
+          // Flow is already saved locally, just queue it for later
+          await sessionApiService.addToSyncQueue({
+            type: 'create_flow',
+            data: newFlow,
+            flowId: tempId,
+          });
+          logger.log('📝 Flow queued for later sync when authenticated');
+          return newFlow;
+        }
+        
+        try {
+          const cloudFlow = await sessionApiService.createFlow(newFlow);
+          
+          if (cloudFlow && cloudFlow.success && cloudFlow.data) {
+            // Successfully synced - update local flow with permanent ID
+            const permanentId = cloudFlow.data.id || tempId;
+            const updatedFlow = { 
+              ...cloudFlow.data, 
+              id: permanentId,
+              _isLocal: false, 
+              _needsSync: false, 
+              _syncStatus: 'synced' 
+            };
+            
+            // Update the flow in storage with permanent ID
+            const currentFlows = await AsyncStorage.getItem(FLOWS_STORAGE_KEY);
+            const currentFlowsArray = currentFlows ? JSON.parse(currentFlows) : [];
+            const syncedFlows = currentFlowsArray.map(f => f.id === tempId ? updatedFlow : f);
+            await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(syncedFlows));
+            setFlows(syncedFlows);
+            
+            logger.log('✅ Flow synced to cloud with permanent ID:', updatedFlow.title, 'ID:', permanentId);
+            return updatedFlow;
           } else {
-            logger.warn('⚠️ Cloud flow created locally - user needs to login to sync');
-            // Queue for sync when user logs in
+            // API returned failure - queue for later
+            logger.warn('⚠️ API sync failed, queueing for later:', cloudFlow?.error);
             await sessionApiService.addToSyncQueue({
               type: 'create_flow',
               data: newFlow,
               flowId: tempId,
             });
+            logger.log('📝 Flow queued for retry');
+            return newFlow;
           }
-        } else {
-          logger.log('📱 Local flow created (no sync needed):', newFlow.title);
+        } catch (syncError) {
+          // Network or other error - queue for later
+          logger.warn('⚠️ Sync error, queueing for later:', syncError.message);
+          await sessionApiService.addToSyncQueue({
+            type: 'create_flow',
+            data: newFlow,
+            flowId: tempId,
+          });
+          logger.log('📝 Flow queued for retry');
+          return newFlow;
         }
-      });
-
-      return newFlow;
-    } catch (error) {
-      logger.error('FlowsContext: Failed to create flow:', error);
-      throw error;
+      } else {
+        logger.log('📱 Local flow - no sync needed');
+        return newFlow;
+      }
+    } catch (storageError) {
+      logger.error('❌ FlowsContext: Failed to save flow locally:', storageError);
+      throw storageError; // Re-throw so AddFlow can handle the error
     }
   }, [flows, isAuthenticated]);
 
@@ -563,7 +636,7 @@ export const FlowsProvider = ({ children }) => {
           logger.log(`🔄 [SYNC] Attempting to sync flow: ${item.title}`);
           
           const result = await sessionApiService.createFlow(item);
-          if (result.success) {
+          if (result && result.success) {
             logger.log(`✅ [SYNC] Flow synced successfully: ${item.title}`);
             
             // Update local flow with cloud data
@@ -573,7 +646,9 @@ export const FlowsProvider = ({ children }) => {
             await AsyncStorage.setItem(FLOWS_STORAGE_KEY, JSON.stringify(updatedFlows));
             setFlows(updatedFlows);
           } else {
-            throw new Error(result.error || 'Sync failed');
+            // API returned failure (but no exception) - queue for retry
+            logger.warn(`⚠️ [SYNC] Sync failed for ${item.title}:`, result?.error || 'Unknown error');
+            throw new Error(result?.error || 'Sync failed');
           }
         } catch (error) {
           logger.warn(`⚠️ [SYNC] Sync failed for ${item.title}:`, error.message);
@@ -727,23 +802,30 @@ export const FlowsProvider = ({ children }) => {
     }
   }, [syncWithBackend]);
 
+  // Track if initial load has been done
+  const initialLoadDoneRef = useRef(false);
+  
   useEffect(() => {
     logger.log('=== FLOWS CONTEXT MOUNT EFFECT START ===');
     logger.log('FlowsContext: Initial load on mount');
-    logger.log('FlowsContext: About to call cleanupInvalidFlows()...');
-    cleanupInvalidFlows(); // Clean up invalid flows first
-    logger.log('FlowsContext: cleanupInvalidFlows() completed');
     
-    // Only load data if user is authenticated
-    if (isAuthenticated) {
+    // Only load data ONCE on mount if user is authenticated
+    // Don't reload every time isAuthenticated changes
+    const currentAuthState = authStateRef.current;
+    if (currentAuthState.isAuthenticated && !initialLoadDoneRef.current) {
       logger.log('FlowsContext: User is authenticated, calling loadData()...');
-      loadData();
-      logger.log('FlowsContext: loadData() call completed');
-    } else {
-      logger.log('FlowsContext: User not authenticated, skipping loadData()');
+      cleanupInvalidFlows().then(() => {
+        loadData();
+        initialLoadDoneRef.current = true;
+      });
+    } else if (!currentAuthState.isAuthenticated && initialLoadDoneRef.current) {
+      // Reset initial load flag when user logs out
+      logger.log('FlowsContext: User logged out, resetting initial load flag');
+      initialLoadDoneRef.current = false;
     }
+    
     logger.log('=== FLOWS CONTEXT MOUNT EFFECT END ===');
-  }, [isAuthenticated]); // Depend on isAuthenticated
+  }, [isAuthenticated]); // Watch for auth changes to reset flag
 
   // Track if migration has been attempted
   const migrationAttemptedRef = useRef(false);
@@ -869,6 +951,9 @@ export const FlowsProvider = ({ children }) => {
           createdAt: now,
           updatedAt: now,
           startDate: now, // Add startDate field
+          
+          // CRITICAL FIX: Include storagePreference from the flow parameter
+          storagePreference: flow.storagePreference || (isAuthenticated ? 'cloud' : 'local'),
           
           // Optional fields with defaults
           description: flow.description || '',

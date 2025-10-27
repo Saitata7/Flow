@@ -12,6 +12,7 @@ import {
   Alert,
   StatusBar,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -452,34 +453,48 @@ export default function AddFlow({ navigation }) {
       // Attempt to create the flow
       const createdFlow = await flowCreationFunction(newFlow);
       
+      console.log('AddFlow: Flow creation completed, created flow:', createdFlow);
+      
+      // Verify the flow was saved to local storage
+      if (!createdFlow || !createdFlow.id) {
+        throw new Error('Flow was not created properly');
+      }
+      
       // If cloud storage, verify it was synced to database
       if (storagePreference === 'cloud') {
         // Check if flow has a permanent ID (not temp)
         const isTemp = createdFlow?.id?.startsWith('temp_');
         
         if (isTemp) {
-          console.log('AddFlow: Cloud flow saved locally but not synced to database');
-          Alert.alert(
-            'Sync Failed',
-            'Your flow was saved locally but couldn\'t sync to the cloud. Please check your internet connection and try again.',
-            [
-              { text: 'Retry', onPress: () => handleSave() },
-              { text: 'OK', style: 'cancel' }
-            ]
-          );
-          return;
+          console.log('AddFlow: Cloud flow saved locally with temp ID - will sync later');
+          // Don't show error - it's saved locally and will sync automatically when online
+          // The FlowContext already handles this gracefully
+        } else {
+          console.log('AddFlow: Cloud flow synced successfully with ID:', createdFlow.id);
         }
-        
-        console.log('AddFlow: Cloud flow synced successfully with ID:', createdFlow.id);
       }
       
-      console.log('AddFlow: Flow creation completed successfully');
+      // Verify the flow was actually saved to context
+      const currentFlows = await AsyncStorage.getItem('flows');
+      const savedFlows = currentFlows ? JSON.parse(currentFlows) : [];
+      const savedFlow = savedFlows.find(f => f.id === createdFlow.id);
+      
+      if (!savedFlow) {
+        console.error('AddFlow: Flow was not saved to context!');
+        throw new Error('Flow was not saved properly to context');
+      }
+      
+      console.log('AddFlow: Verified flow saved to context:', savedFlow.id, savedFlow.title);
       
       // Reset form after successful creation
       resetForm();
       
+      // Show success message
       Alert.alert('Success!', 'Flow created successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
+        { text: 'OK', onPress: () => {
+          console.log('AddFlow: Navigating back after successful creation');
+          navigation.goBack();
+        }}
       ]);
     } catch (e) {
       console.error('AddFlow: Error caught in try-catch:', e);
@@ -539,21 +554,27 @@ export default function AddFlow({ navigation }) {
         return;
       }
       
-      // Generic error for cloud flows
+      // Generic error for cloud flows - but check if flow was actually saved locally
       if (storagePreference === 'cloud') {
+        // If we're here, it means an error occurred. Check if the flow exists locally
+        const localFlow = flows.find(f => f.title === title);
+        if (localFlow) {
+          // Flow was saved locally despite error - show success
+          console.log('AddFlow: Flow saved locally despite sync error');
+          resetForm();
+          Alert.alert('Flow Saved Locally', 'Your flow was saved to your device. It will sync to cloud when you log in.', [
+            { text: 'OK', onPress: () => navigation.goBack() }
+          ]);
+          return;
+        }
+        
+        // If no local flow exists, show error
         console.log('AddFlow: Showing cloud-specific error alert');
         Alert.alert(
-          'Cloud Sync Failed',
-          'Failed to save flow to cloud database. Please check your connection or try saving locally.',
+          'Failed to Save',
+          'Could not save flow. Please try again.',
           [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Save Locally Instead', 
-              onPress: () => {
-                setStoragePreference('local');
-                handleSave();
-              }
-            }
+            { text: 'OK', style: 'cancel' }
           ]
         );
         return;
