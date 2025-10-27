@@ -25,10 +25,32 @@ const PASSWORD_RULES = {
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 /**
- * Generate a secure random session token
+ * Generate a secure random session token (64-character hex string)
  */
 const generateSessionToken = () => {
   return crypto.randomBytes(32).toString('hex');
+};
+
+/**
+ * Extend session expiration by sliding the TTL window
+ */
+const extendSessionExpiration = async (sessionToken) => {
+  try {
+    const { query } = require('../db/config');
+    const newExpiresAt = new Date(Date.now() + SESSION_DURATION_SECONDS * 1000);
+    
+    await query(
+      `UPDATE sessions 
+       SET expires_at = $1, updated_at = CURRENT_TIMESTAMP 
+       WHERE session_token = $2 AND revoked = false`,
+      [newExpiresAt, sessionToken]
+    );
+    
+    console.log('✅ Session expiration extended');
+  } catch (error) {
+    console.warn('⚠️ Failed to extend session expiration:', error.message);
+    // Don't throw - session is still valid
+  }
 };
 
 /**
@@ -148,9 +170,9 @@ const getRedis = (request) => {
 };
 
 /**
- * Create a new session and store it in Redis
+ * Create a new session and store it in DATABASE (primary) and Redis (optional cache)
  */
-const createSession = async (redis, userId, userData) => {
+const createSession = async (redis, userId, userData, deviceId = null) => {
   try {
     const sessionToken = generateSessionToken();
     const expiresAt = new Date(Date.now() + SESSION_DURATION_SECONDS * 1000);
@@ -170,10 +192,10 @@ const createSession = async (redis, userId, userData) => {
     const { query } = require('../db/config');
     try {
       await query(
-        `INSERT INTO sessions (user_id, session_token, expires_at) 
-         VALUES ($1, $2, $3) 
-         ON CONFLICT (session_token) DO UPDATE SET expires_at = $3`,
-        [userId, sessionToken, expiresAt]
+        `INSERT INTO sessions (user_id, session_token, expires_at, device_id) 
+         VALUES ($1, $2, $3, $4) 
+         ON CONFLICT (session_token) DO UPDATE SET expires_at = $3, updated_at = CURRENT_TIMESTAMP`,
+        [userId, sessionToken, expiresAt, deviceId]
       );
       console.log('✅ Session stored in database');
     } catch (dbError) {
@@ -185,7 +207,7 @@ const createSession = async (redis, userId, userData) => {
     if (redis) {
       try {
         const sessionKey = `session:${sessionToken}`;
-        await redis.set(sessionKey, sessionData, SESSION_DURATION_SECONDS);
+        await redis.set(sessionKey, JSON.stringify(sessionData), 'EX', SESSION_DURATION_SECONDS);
         console.log('✅ Session also cached in Redis');
       } catch (redisError) {
         console.warn('⚠️ Redis unavailable for caching:', redisError.message);
@@ -310,7 +332,7 @@ const extractSessionToken = (request) => {
 };
 
 /**
- * Authentication middleware - verifies session token
+ * Authentication middleware - verifies session token with sliding TTL
  */
 const authenticateSession = async (request, reply) => {
   try {
@@ -330,6 +352,20 @@ const authenticateSession = async (request, reply) => {
     if (!session) {
       console.warn('⚠️ Session not found for token:', sessionToken.substring(0, 8));
       throw new UnauthorizedError('Invalid or expired session');
+    }
+    
+    // Extend session expiration (sliding window)
+    await extendSessionExpiration(sessionToken);
+    
+    // If Redis is available, update cache with extended TTL
+    if (redis) {
+      try {
+        const sessionKey = `session:${sessionToken}`;
+        await redis.set(sessionKey, JSON.stringify(session), 'EX', SESSION_DURATION_SECONDS);
+      } catch (redisError) {
+        console.warn('⚠️ Failed to update Redis cache:', redisError.message);
+        // Don't fail authentication if Redis fails
+      }
     }
     
     // Attach user info to request
@@ -463,6 +499,7 @@ module.exports = {
   getSession,
   deleteSession,
   extractSessionToken,
+  extendSessionExpiration,
   
   // Middleware functions
   authenticateSession,
