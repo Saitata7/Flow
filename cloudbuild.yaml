@@ -31,7 +31,7 @@ steps:
       - '--execution-environment=gen2'
       - '--set-env-vars=NODE_ENV=production'
       - '--set-env-vars=HOST=0.0.0.0'
-      - '--set-env-vars=DB_HOST=34.63.78.153'
+      - '--set-secrets=DB_HOST=db-host:latest'
       - '--set-env-vars=DB_NAME=flow'
       - '--set-env-vars=DB_USER=flow_user'
       - '--set-env-vars=DB_PORT=5432'

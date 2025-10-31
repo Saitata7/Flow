@@ -1,100 +1,175 @@
 ## 🏛️ Flow Architecture Overview
 
-Flow is designed as a **mobile-first, offline-first SaaS** for emotional tracking and community sharing.
+Flow is a **mobile-first, offline-first habit tracking application** built with React Native and a Node.js backend.
 
-### Layers
+### System Architecture
 
-1. **UI Layer** – `components/`, `screens/`
+```
+┌─────────────────┐
+│  Mobile App     │  React Native + Expo
+│  (React Native) │  - AsyncStorage (local cache)
+│                 │  - React Context (state)
+└────────┬────────┘
+         │ HTTPS/REST API
+         │ JWT/Firebase Auth
+┌────────▼────────┐
+│  API Service    │  Node.js + Fastify
+│  (Cloud Run)    │  - Session-based auth
+│                 │  - RESTful endpoints
+└────────┬────────┘
+         │
+    ┌────┴────┐
+    │         │
+┌───▼───┐ ┌──▼────┐
+│ Cloud │ │Redis  │
+│ SQL   │ │Memory │
+│(Postgres)│ │Store │
+└───────┘ └───────┘
+```
 
-   * Pure presentation; data via hooks.
-2. **Hooks/State** – `hooks/`, `context/`
+### Application Layers
 
-   * Local state, cache, subscriptions.
-3. **Business Logic** – `services/`
+1. **UI Layer** – `apps/mobile/src/components/`, `apps/mobile/src/screens/`
+   - Pure presentation components
+   - Data via React hooks and Context
 
-   * Mood scoring, cheat mode, sync, analytics.
-4. **Backend Enforcement** – `backend/cloudFunctions/`
+2. **State Management** – `apps/mobile/src/context/`, `apps/mobile/src/hooks/`
+   - FlowContext - Flow state and sync
+   - ActivityContext - Stats and analytics
+   - SettingsContext - User preferences
+   - JWTAuthContext - Authentication
 
-   * Cheat mode validation, audit logs, leaderboard computation.
+3. **Business Logic** – `apps/mobile/src/services/`
+   - syncService - Offline sync with queue
+   - jwtApiService - API client
+   - notificationService - Push notifications
+   - cacheService - Local caching
+
+4. **Backend API** – `services/api/src/`
+   - Fastify REST API
+   - PostgreSQL database (Cloud SQL)
+   - Redis caching (MemoryStore)
+   - Session-based authentication
 
 ---
 
-## 📊 Data Models (simplified)
+## 📊 Data Models
 
-### Flow Entry
-
+### User
 ```json
 {
   "id": "uuid",
-  "date": "2025-09-12",
-  "mood": "calm",
-  "energy": 7,
-  "notes": "Morning walk helped",
-  "tags": ["gratitude", "nature"],
-  "edited": false,
-  "createdAt": "ISO",
-  "updatedAt": "ISO",
-  "schemaVersion": 2
+  "email": "user@example.com",
+  "firebase_uid": "firebase-user-id",
+  "display_name": "User Name",
+  "username": "username",
+  "created_at": "2025-01-01T00:00:00Z"
 }
 ```
 
-### Plan / Ritual
-
+### Flow
 ```json
 {
-  "id": "plan123",
-  "title": "Morning Mindfulness",
-  "type": "Public", // Public | Private | Group
-  "ownerId": "user123",
-  "participants": ["user123"],
-  "visibility": "public",
-  "category": "Mindfulness",
-  "schemaVersion": 2
+  "id": "uuid",
+  "owner_id": "user-uuid",
+  "title": "Morning Meditation",
+  "description": "Daily mindfulness practice",
+  "tracking_type": "Binary",
+  "frequency": "Daily",
+  "reminder_level": 1,
+  "storage_preference": "cloud",
+  "created_at": "2025-01-01T00:00:00Z"
+}
+```
+
+### Flow Entry
+```json
+{
+  "id": "uuid",
+  "flow_id": "flow-uuid",
+  "user_id": "user-uuid",
+  "date": "2025-01-17",
+  "symbol": "+",
+  "mood_score": 5,
+  "note": "Felt great today",
+  "created_at": "2025-01-17T08:00:00Z"
 }
 ```
 
 ---
 
-## 🔒 Cheat Mode & Scoring
+## 🔐 Authentication
 
-* **CheatMode OFF**: entries locked after 24h.
-* **CheatMode ON**: user can adjust past entries, flagged as `edited`.
-* **Scores**: two sets – strict (for leaderboards), flexible (personal).
-* Server validates cheat mode on write; audit logs track edits.
+- **Primary**: JWT-based session authentication
+- **Optional**: Firebase Auth token validation
+- **Session Management**: Redis-backed sessions with TTL
+- **Security**: Bearer token in Authorization header
 
 ---
 
 ## 🔁 Offline & Sync Strategy
 
-* React Query + AsyncStorage for cached reads.
-* `syncService` handles queued writes with idempotency keys.
-* TTL: 24h for flows, 48h for historical reads.
-* Conflict resolution: server authoritative; client merges or prompts.
+1. **Local First**: All writes go to AsyncStorage immediately
+2. **Sync Queue**: Changes queued in `sync_queue` table when offline
+3. **Background Sync**: Automatic sync when network available
+4. **Conflict Resolution**: Server-authoritative with merge strategy
+5. **Idempotency**: Operations use idempotency keys to prevent duplicates
+
+### Sync Flow
+```
+User Action → AsyncStorage → sync_queue → API → PostgreSQL
+                ↓ (if offline)
+            Queue for later
+                ↓ (when online)
+            Batch sync to API
+```
 
 ---
 
 ## 📈 Analytics & Stats
 
-* Materialized stats in `/flowStats` (strict & flexible).
-* Redis caches leaderboards.
-* Cloud Functions recompute aggregates on entry write.
+- **Real-time Stats**: Calculated on-demand via API
+- **Caching**: Redis caches computed stats (TTL: 1 hour)
+- **Aggregations**: Weekly/monthly stats computed server-side
+- **Leaderboards**: Cached in Redis with daily refresh
+
+---
+
+## 🗄️ Database Architecture
+
+- **Primary Database**: PostgreSQL (Cloud SQL)
+- **Cache**: Redis (MemoryStore)
+- **Schema**: Fully normalized 3NF with proper relationships
+- **Tables**: users, flows, flow_entries, plans, user_profiles, user_settings, sync_queue, notifications
+
+See `docs/DATABASE_ARCHITECTURE_SUMMARY.md` for complete schema documentation.
 
 ---
 
 ## 🔐 Security & Privacy
 
-* Firestore rules enforce ownership.
-* Only backend can flip `edited` false → true.
-* Data flagged with schema version.
-* Optional HIPAA/SOC2 if scaling to healthcare.
+- **Authentication**: JWT sessions with Redis storage
+- **Authorization**: User-scoped data access
+- **Data Validation**: Input sanitization and SQL injection prevention
+- **Audit Trails**: created_at, updated_at, edited_by fields
+- **Soft Deletes**: deleted_at timestamps
 
 ---
 
-## 🚀 Deployment & CI/CD
+## 🚀 Deployment
 
-* GitHub Actions: lint, test, build.
-* Feature flags for new screens (Snaps, AI coach).
-* Release tags (`v2.0.0`) follow semver.
+- **API**: Google Cloud Run (containerized Node.js)
+- **Database**: Cloud SQL PostgreSQL
+- **Cache**: MemoryStore Redis
+- **CI/CD**: GitHub Actions (if configured)
+- **Secrets**: Google Secret Manager
 
 ---
 
+## 📱 Mobile App Features
+
+- **Offline Support**: Full functionality offline
+- **Push Notifications**: Expo Notifications
+- **Local Caching**: AsyncStorage for flows and entries
+- **Background Sync**: Automatic when network available
+- **Real-time Updates**: Context-based state management

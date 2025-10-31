@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   flow-api:
-    image: us-central1-docker.pkg.dev/quick-doodad-472200-k0/flow-registry/flow-api:latest
+    image: ${DOCKER_IMAGE:-us-central1-docker.pkg.dev/${GCP_PROJECT_ID}/flow-registry/flow-api:latest}
     container_name: flow-api-local
     ports:
       - "4000:4000"

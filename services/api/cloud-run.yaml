@@ -18,7 +18,7 @@ spec:
       containerConcurrency: 80
       timeoutSeconds: 300
       containers:
-      - image: us-central1-docker.pkg.dev/quick-doodad-472200-k0/flow-registry/flow-api:latest
+      - image: ${DOCKER_IMAGE_REPO}/flow-api:latest
         ports:
         - containerPort: 8080
         env:
@@ -27,7 +27,10 @@ spec:
         - name: HOST
           value: "0.0.0.0"
         - name: DB_HOST
-          value: "34.63.78.153"
+          valueFrom:
+            secretKeyRef:
+              name: db-host
+              key: latest
         - name: DB_NAME
           value: "flow"
         - name: DB_USER
@@ -64,7 +67,10 @@ spec:
               name: jwt-secret
               key: latest
         - name: FIREBASE_PROJECT_ID
-          value: "quick-doodad-472200-k0"
+          valueFrom:
+            secretKeyRef:
+              name: firebase-project-id
+              key: latest
         - name: FIREBASE_PRIVATE_KEY
           valueFrom:
             secretKeyRef:
