@@ -1554,6 +1554,11 @@ class NotificationService {
   // Schedule daily reminder
   async scheduleDailyReminder(time) {
     try {
+      // Handle case when called without time parameter
+      if (!time) {
+        console.log('⚠️ Daily reminder: No time specified, using default 09:00');
+        time = '09:00';
+      }
       const [hour, minute] = time.split(':').map(Number);
       
       await Notifications.scheduleNotificationAsync({
