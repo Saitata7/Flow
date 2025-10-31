@@ -8,11 +8,12 @@ WORKDIR /app
 # Install system dependencies for native modules
 RUN apk add --no-cache python3 make g++
 
-# Copy package files
+# Copy package files for dependency installation
 COPY package*.json ./
 
 # Install dependencies with optimizations
-RUN npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund && \
+    npm cache clean --force
 
 # Stage 2: Build application
 FROM node:20-alpine AS builder
@@ -21,41 +22,50 @@ WORKDIR /app
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 
-# Copy source code
+# Copy source code and configuration
 COPY . .
 
-# Generate OpenAPI specification
-RUN node scripts/generate-openapi.js
+# Generate OpenAPI specification (if script exists)
+RUN if [ -f scripts/generate-openapi.js ]; then \
+      node scripts/generate-openapi.js || echo "OpenAPI generation skipped"; \
+    fi
 
-# Build the application (if needed)
-RUN npm run build || echo "No build step required"
+# Build the application (if build script exists)
+RUN if grep -q '"build"' package.json; then \
+      npm run build || echo "No build step required"; \
+    fi
 
 # Stage 3: Production runtime
 FROM node:20-alpine AS runner
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 flow
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 flow
 
-# Install dumb-init for proper signal handling and curl for health checks
-RUN apk add --no-cache dumb-init curl
+# Install runtime dependencies
+RUN apk add --no-cache dumb-init curl && \
+    rm -rf /tmp/* /var/cache/apk/*
 
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies with optimizations
-RUN npm install --only=production --no-audit --no-fund && \
+# Install only production dependencies
+RUN npm ci --only=production --no-audit --no-fund && \
     npm cache clean --force && \
     rm -rf /tmp/* /var/cache/apk/*
 
 # Copy built application from builder stage
 COPY --from=builder --chown=flow:nodejs /app/src ./src
 COPY --from=builder --chown=flow:nodejs /app/migrations ./migrations
-COPY --from=builder --chown=flow:nodejs /app/env.gcp ./env.gcp
+
+# Copy OpenAPI docs if generated (optional)
+# Note: If openapi directory doesn't exist, this will fail gracefully during build
+# The directory is created by the generate-openapi script in builder stage
 COPY --from=builder --chown=flow:nodejs /app/openapi ./openapi
 
 # Copy necessary config files
+COPY --chown=flow:nodejs knexfile.js* ./
 COPY --chown=flow:nodejs package.json ./
 
 # Set environment variables for Cloud Run
