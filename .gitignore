@@ -209,6 +209,21 @@ apps/mobile/ios/Podfile.lock
 apps/mobile/ios/DerivedData/
 apps/mobile/ios/Archive/
 
+# GCP Environment Files with Hardcoded Credentials (SENSITIVE - DO NOT COMMIT)
+services/api/env.gcp
+services/api/env.production
+services/api/env.cloudrun*
+services/api/env.production.*
+apps/mobile/env.production
+
 # Shell Scripts with Credentials (SENSITIVE - DO NOT COMMIT)
 services/api/scripts/setup-cloud-sql-proxy.sh
 services/api/scripts/migrate-gcp-database.sh
+deploy-and-test.sh
+test-endpoints.sh
+
+# Debug/Test Files with Hardcoded Credentials (SENSITIVE - DO NOT COMMIT)
+check_user.js
+debug-firebase-mobile.js
+test-firebase-flow.js
+test-firebase-to-jwt.js

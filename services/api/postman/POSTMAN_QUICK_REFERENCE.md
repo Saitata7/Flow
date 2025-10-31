@@ -57,9 +57,9 @@ Authorization: Bearer {{jwt_token}}
 - `jwt_secret`: `Flow-dev-secret-key-2024`
 
 ### **Production**
-- `base_url`: `https://flow-api-891963913698.us-central1.run.app`
+- `base_url`: `{{cloud_run_url}}` (set in environment)
 - `auth_provider`: `firebase`
-- `jwt_secret`: `Flow-prod-secret-key-2024`
+- `jwt_secret`: `{{jwt_secret}}` (set in environment)
 
 ## 📝 Common Request Examples
 

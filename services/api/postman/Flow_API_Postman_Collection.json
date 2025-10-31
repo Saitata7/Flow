@@ -48,7 +48,7 @@
     },
     {
       "key": "firebase_project_id",
-      "value": "quick-doodad-472200-k0",
+      "value": "{{firebase_project_id}}",
       "type": "string"
     },
     {

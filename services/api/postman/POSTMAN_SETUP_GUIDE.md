@@ -17,16 +17,16 @@ This collection provides comprehensive testing for the Flow API with proper GCP,
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `gcp_project_id` | `quick-doodad-472200-k0` | GCP Project ID |
+| `gcp_project_id` | `{{gcp_project_id}}` | GCP Project ID (set in environment) |
 | `gcp_region` | `us-central1` | GCP Region for services |
 | `cloud_run_service` | `flow-prod` | Cloud Run service name |
-| `cloud_run_url` | `https://flow-api-891963913698.us-central1.run.app` | Full Cloud Run URL |
+| `cloud_run_url` | `{{cloud_run_url}}` | Full Cloud Run URL (set in environment) |
 
 ### 🗄️ **Cloud SQL Database Configuration**
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `cloud_sql_host` | `34.63.78.153` | Cloud SQL instance IP |
+| `cloud_sql_host` | `{{cloud_sql_host}}` | Cloud SQL instance IP (set in environment) |
 | `cloud_sql_port` | `5432` | Cloud SQL instance port |
 | `cloud_sql_database` | `flow` | Database name |
 | `cloud_sql_user` | `flow_user` | Database user |
@@ -35,7 +35,7 @@ This collection provides comprehensive testing for the Flow API with proper GCP,
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `redis_host` | `10.58.145.227` | Redis MemoryStore IP |
+| `redis_host` | `{{redis_host}}` | Redis MemoryStore IP (set in environment) |
 | `redis_port` | `6379` | Redis MemoryStore port |
 | `redis_db` | `0` | Redis database number |
 
@@ -43,7 +43,7 @@ This collection provides comprehensive testing for the Flow API with proper GCP,
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `firebase_project_id` | `quick-doodad-472200-k0` | Firebase Project ID |
+| `firebase_project_id` | `{{firebase_project_id}}` | Firebase Project ID (set in environment) |
 | `firebase_token` | `(your_firebase_token)` | Firebase ID token from mobile app |
 | `auth_token` | `{{firebase_token}}` | References firebase_token variable |
 | `user_id` | `(auto-extracted)` | User ID from Firebase token |
@@ -53,8 +53,8 @@ This collection provides comprehensive testing for the Flow API with proper GCP,
 
 | Variable | Value | Description |
 |----------|-------|-------------|
-| `api_key` | `flow-prod-api-key-2024` | API key for production access |
-| `jwt_secret` | `Flow-prod-secret-key-2024` | JWT secret key |
+| `api_key` | `{{api_key}}` | API key for production access (set in environment) |
+| `jwt_secret` | `{{jwt_secret}}` | JWT secret key (set in environment) |
 | `jwt_token` | `(optional)` | JWT token for fallback auth |
 | `auth_provider` | `firebase` | Authentication provider |
 | `allow_unauthenticated` | `false` | Require authentication |

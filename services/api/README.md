@@ -2,6 +2,12 @@
 
 Backend API service for Flow - A modern habit tracking and personal development application.
 
+## 🔐 Security Notice
+
+**All API keys, credentials, and private configurations have been removed from this repository.**  
+Environment-specific files (`.env`, `env.gcp`, `env.production`) are excluded via `.gitignore`.  
+To run this service locally, create your own `.env` file using the template in `env.template.secure`.
+
 ## 🚀 Features
 
 - **JWT Authentication**: Secure token-based authentication system
